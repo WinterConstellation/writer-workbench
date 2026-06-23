@@ -1,0 +1,467 @@
+<Window x:Class="WriterWorkbench.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="원고 작업대"
+        Width="1280"
+        Height="800"
+        MinWidth="960"
+        MinHeight="640"
+        FontFamily="Malgun Gothic"
+        Background="White"
+        KeyDown="Window_KeyDown">
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Save" Executed="SaveCommand_Executed"/>
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Command="ApplicationCommands.Save" Key="S" Modifiers="Control"/>
+    </Window.InputBindings>
+
+    <DockPanel>
+        <Border DockPanel.Dock="Top"
+                Height="78"
+                Background="#F5F6F8"
+                BorderBrush="#D1D5DB"
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="39"/>
+                    <RowDefinition Height="38"/>
+                </Grid.RowDefinitions>
+
+                <DockPanel Grid.Row="0" LastChildFill="True">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="새 프로젝트"
+                                Tag="project.new"
+                                MinWidth="106"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="프로젝트 열기"
+                                Tag="project.open"
+                                MinWidth="112"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="새 장면"
+                                Tag="document.createScene"
+                                MinWidth="96"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="저장"
+                                Tag="project.save"
+                                MinWidth="88"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button x:Name="PreviewModeButton"
+                                Content="미리보기"
+                                Tag="view.preview.toggle"
+                                ToolTip="미리보기로 전환합니다. 기본 단축키: Ctrl+Alt+P."
+                                MinWidth="88"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="메인"
+                                Tag="view.main.open"
+                                ToolTip="프로젝트 메인 화면을 엽니다."
+                                MinWidth="82"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button x:Name="FocusButton"
+                                Content="집중 40:00"
+                                Tag="writing.focus.toggle"
+                                MinWidth="104"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button x:Name="AutosaveButton"
+                                Content="자동저장 켬"
+                                Tag="autosave.toggle"
+                                ToolTip="자동저장을 켜거나 끕니다. 단축키: Ctrl+Alt+S."
+                                MinWidth="108"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="스트레스 15k"
+                                Tag="document.createStressLarge"
+                                ToolTip="15,000문단 스트레스 테스트 문서를 만듭니다."
+                                MinWidth="96"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="창 분리"
+                                Tag="document.detachCurrent"
+                                ToolTip="현재 문서를 별도 창으로 엽니다."
+                                MinWidth="84"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Right"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="0,0,8,0">
+                        <TextBox x:Name="SearchBox"
+                                 Width="220"
+                                 Height="28"
+                                 Margin="0,0,8,0"
+                                 VerticalContentAlignment="Center"/>
+                        <Button Content="검색"
+                                Tag="search.run"
+                                MinWidth="82"
+                                Height="30"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                    </StackPanel>
+
+                    <TextBlock x:Name="ProjectPathText"
+                               VerticalAlignment="Center"
+                               Margin="18,0,12,0"
+                               Foreground="#4B5563"
+                               FontSize="12"
+                               TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+
+                <StackPanel Grid.Row="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Background="#ECEFF3">
+                    <Button Content="프리셋 1"
+                            Tag="workspace.preset.1"
+                            ToolTip="프리셋 1을 적용합니다. Shift를 누른 채 클릭하면 현재 창 위치로 덮어씁니다."
+                            MinWidth="88"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button Content="프리셋 2"
+                            Tag="workspace.preset.2"
+                            ToolTip="프리셋 2를 적용합니다. Shift를 누른 채 클릭하면 현재 창 위치로 덮어씁니다."
+                            MinWidth="88"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button Content="프리셋 3"
+                            Tag="workspace.preset.3"
+                            ToolTip="프리셋 3을 적용합니다. Shift를 누른 채 클릭하면 현재 창 위치로 덮어씁니다."
+                            MinWidth="88"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button x:Name="StartupPresetButton"
+                            Content="시작 적용 끔"
+                            Tag="workspace.startupPreset.cycle"
+                            ToolTip="실행 시 자동 적용할 프리셋을 순서대로 바꿉니다."
+                            MinWidth="108"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button Content="단축키"
+                            Tag="shortcuts.openSettings"
+                            ToolTip="단축키 설정을 엽니다. 기본 단축키: Ctrl+Alt+K."
+                            MinWidth="96"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <ComboBox x:Name="GraphicPresetBox"
+                              Width="168"
+                              Height="28"
+                              Margin="8,0,0,0"
+                              DisplayMemberPath="Name"
+                              SelectionChanged="GraphicPresetBox_SelectionChanged"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="StatusText"
+                   DockPanel.Dock="Bottom"
+                   Height="28"
+                   Padding="12,5,12,4"
+                   Background="#111827"
+                   Foreground="White"
+                   FontSize="12"
+                   Text="준비됨"/>
+
+        <Border x:Name="OperationProgressPanel"
+                DockPanel.Dock="Bottom"
+                Height="58"
+                Padding="12,7"
+                Background="#EAF2FF"
+                BorderBrush="#B8CCE8"
+                BorderThickness="0,1,0,0"
+                Visibility="Collapsed">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="220"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="20"/>
+                    <RowDefinition Height="18"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="OperationProgressText"
+                           Grid.Row="0"
+                           Grid.Column="0"
+                           FontSize="12"
+                           Foreground="#1F2937"
+                           TextTrimming="CharacterEllipsis"/>
+                <TextBlock x:Name="OperationEtaText"
+                           Grid.Row="0"
+                           Grid.Column="1"
+                           FontSize="12"
+                           Foreground="#1F2937"
+                           HorizontalAlignment="Right"/>
+                <ProgressBar x:Name="OperationProgressBar"
+                             Grid.Row="1"
+                             Grid.Column="0"
+                             Height="12"
+                             Minimum="0"
+                             Maximum="100"/>
+                <Canvas x:Name="OperationGraphCanvas"
+                        Grid.Row="1"
+                        Grid.Column="1"
+                        Height="34"
+                        Margin="18,-12,0,0"
+                        Background="#F8FBFF">
+                    <Polyline x:Name="OperationRemainingGraph"
+                              Stroke="#2563EB"
+                              StrokeThickness="2"/>
+                </Canvas>
+            </Grid>
+        </Border>
+
+        <TextBlock x:Name="MetricsText"
+                   DockPanel.Dock="Bottom"
+                   Height="28"
+                   Padding="12,5,12,4"
+                   Background="#F3F4F6"
+                   Foreground="#374151"
+                   FontSize="12"
+                   Text="문서 없음"/>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="BinderColumn" Width="280"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition x:Name="PreviewColumn" Width="360"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0"
+                    Background="#F3F4F6"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="바인더"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Padding="12,8"
+                               Background="#F9FAFB"/>
+                    <ListBox x:Name="BinderList"
+                             BorderThickness="0"
+                             FontSize="14"
+                             DisplayMemberPath="Display"
+                             SelectionChanged="BinderList_SelectionChanged"/>
+                </DockPanel>
+            </Border>
+
+            <Border Grid.Column="1"
+                    Background="White">
+                <Grid>
+                    <DockPanel x:Name="EditorSurface">
+                        <TextBox x:Name="TitleBox"
+                                 DockPanel.Dock="Top"
+                                 BorderThickness="0,0,0,1"
+                                 BorderBrush="#E5E7EB"
+                                 FontSize="18"
+                                 FontWeight="SemiBold"
+                                 Padding="14,10"
+                                 TextChanged="TitleBox_TextChanged"/>
+                        <TextBox x:Name="EditorBox"
+                                 AcceptsReturn="True"
+                                 AcceptsTab="True"
+                                 UndoLimit="80"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 BorderThickness="0"
+                                 FontSize="18"
+                                 Padding="28"
+                                 TextChanged="EditorBox_TextChanged"/>
+                    </DockPanel>
+
+                    <DockPanel x:Name="PreviewSurface"
+                               Visibility="Collapsed">
+                        <Border DockPanel.Dock="Top"
+                                Height="44"
+                                Background="#F9FAFB"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="0,0,0,1">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Content="편집"
+                                        Tag="view.preview.toggle"
+                                        MinWidth="86"
+                                        Height="30"
+                                        Margin="0,0,12,0"
+                                        Padding="10,0"
+                                        Click="CommandButton_Click"/>
+                                <TextBlock Text="미리보기"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           VerticalAlignment="Center"
+                                           Margin="14,0"/>
+                            </DockPanel>
+                        </Border>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="PreviewText"
+                                       TextWrapping="Wrap"
+                                       FontSize="16"
+                                       LineHeight="28"
+                                       Padding="28"
+                                       Foreground="#1F2937"/>
+                        </ScrollViewer>
+                    </DockPanel>
+
+                    <DockPanel x:Name="MainSurface"
+                               Visibility="Collapsed"
+                               Background="White">
+                        <Border DockPanel.Dock="Top"
+                                Height="48"
+                                Background="#F9FAFB"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="0,0,0,1">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Content="작업으로"
+                                        MinWidth="92"
+                                        Height="30"
+                                        Margin="0,0,12,0"
+                                        Padding="10,0"
+                                        Click="ReturnToEditorButton_Click"/>
+                                <TextBlock Text="메인"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           VerticalAlignment="Center"
+                                           Margin="14,0"/>
+                            </DockPanel>
+                        </Border>
+
+                        <Grid Margin="24">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Grid.Row="0"
+                                        Grid.ColumnSpan="2"
+                                        Margin="0,0,0,18">
+                                <TextBlock x:Name="MainProjectTitleText"
+                                           FontSize="22"
+                                           FontWeight="SemiBold"/>
+                                <TextBlock x:Name="MainProjectPathText"
+                                           Margin="0,4,0,0"
+                                           FontSize="12"
+                                           Foreground="#4B5563"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+
+                            <UniformGrid Grid.Row="1"
+                                         Grid.Column="0"
+                                         Columns="2"
+                                         Rows="4"
+                                         Margin="0,0,24,0">
+                                <Button Content="새 장면"
+                                        Tag="document.createScene"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="저장"
+                                        Tag="project.save"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="집중 40:00"
+                                        Tag="writing.focus.toggle"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="미리보기"
+                                        Tag="view.preview.toggle"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="창 분리"
+                                        Tag="document.detachCurrent"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="단축키"
+                                        Tag="shortcuts.openSettings"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="프로젝트 열기"
+                                        Tag="project.open"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="스트레스 15k"
+                                        Tag="document.createStressLarge"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                            </UniformGrid>
+
+                            <DockPanel Grid.Row="1"
+                                       Grid.Column="1">
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="최근 문서"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           Margin="0,0,0,8"/>
+                                <ListBox x:Name="MainRecentList"
+                                         DisplayMemberPath="Display"
+                                         SelectionChanged="MainRecentList_SelectionChanged"/>
+                            </DockPanel>
+                        </Grid>
+                    </DockPanel>
+                </Grid>
+            </Border>
+
+            <Border Grid.Column="2"
+                    Background="#FAFAFA"
+                    BorderBrush="#D1D5DB"
+                    BorderThickness="1,0,0,0">
+                <DockPanel>
+                    <TextBlock DockPanel.Dock="Top"
+                               Text="검색 결과"
+                               FontWeight="SemiBold"
+                               FontSize="13"
+                               Padding="12,8"
+                               Background="#F9FAFB"/>
+                    <ListBox x:Name="SearchResultsList"
+                             BorderThickness="0"
+                             DisplayMemberPath="Display"
+                             SelectionChanged="SearchResultsList_SelectionChanged"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
+</Window>

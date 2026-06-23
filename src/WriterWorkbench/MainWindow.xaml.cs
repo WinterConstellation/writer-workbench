@@ -1,0 +1,1167 @@
+using System.IO;
+using System.Diagnostics;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
+using WriterWorkbench.Core.Application;
+using WriterWorkbench.Core.Appearance;
+using WriterWorkbench.Core.Commands;
+using WriterWorkbench.Core.Documents;
+using WriterWorkbench.Core.Focus;
+using WriterWorkbench.Core.Progress;
+using WriterWorkbench.Core.Storage;
+using WriterWorkbench.Core.Workspace;
+using Forms = System.Windows.Forms;
+
+namespace WriterWorkbench;
+
+public partial class MainWindow : Window
+{
+    private string _projectRoot = Path.Combine(@"C:\WriterWorkbench\Projects", "Sample.writerproj");
+    private static readonly TimeSpan AutosaveIdleDelay = TimeSpan.FromSeconds(3);
+    private readonly DispatcherTimer _autosaveTimer;
+    private readonly DispatcherTimer _focusTimer;
+    private readonly List<double> _remainingSecondsSamples = [];
+    private readonly FocusSessionService _focusSession = new();
+    private readonly CommandRegistry _commandRegistry = AppCommandCatalog.CreateDefaultRegistry();
+    private readonly Dictionary<string, Func<Task>> _commandHandlers = [];
+    private readonly AppSessionStateService _sessionStateService = new(AppSessionStateService.DefaultPath);
+    private ShortcutManager _shortcutManager = ShortcutProfileService.CreateDefaultManager();
+    private WorkspacePresetService _workspacePresets;
+    private ShortcutProfileService _shortcuts;
+    private AppSessionState _sessionState = AppSessionState.Empty;
+    private GraphicPreset _graphicPreset = GraphicPresetCatalog.GetOrDefault(null);
+    private ProjectStore _store;
+    private string _activeDocumentId = "scene-0001";
+    private WriterDocument? _activeDocument;
+    private bool _dirty;
+    private bool _saveInProgress;
+    private bool _focusMode;
+    private bool _loadingDocument;
+    private bool _autosaveEnabled = true;
+    private bool _longOperationInProgress;
+    private bool _previewMode;
+    private bool _suppressGraphicPresetChange;
+    private bool _startupStateLoaded;
+    private int? _lastAppliedPresetSlot;
+    private DateTimeOffset _lastEditAt = DateTimeOffset.MinValue;
+    private DocumentEditorTextView _editorTextView = DocumentEditorTextView.Empty;
+    private DateTimeOffset _focusEndsAt;
+    private WindowStyle _previousWindowStyle;
+    private WindowState _previousWindowState;
+    private ResizeMode _previousResizeMode;
+
+    public MainWindow()
+    {
+        InitializeComponent();
+
+        var projectPaths = ProjectPaths.ForRoot(_projectRoot);
+        _store = new ProjectStore(projectPaths);
+        _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
+        _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
+        ProjectPathText.Text = _projectRoot;
+        StatusText.Text = "프로젝트 불러오는 중...";
+        GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
+        RegisterCommandHandlers();
+
+        Loaded += async (_, _) => await InitializeProjectAsync();
+        Closing += async (_, _) => await PersistSessionStateAsync();
+
+        _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _autosaveTimer.Tick += async (_, _) =>
+        {
+            if (AutosavePolicy.ShouldAutosave(
+                    _autosaveEnabled,
+                    _dirty,
+                    _loadingDocument,
+                    _saveInProgress,
+                    _lastEditAt,
+                    DateTimeOffset.Now,
+                    AutosaveIdleDelay))
+            {
+                await SaveDocumentAsync("자동저장");
+            }
+        };
+        _autosaveTimer.Start();
+
+        _focusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _focusTimer.Tick += (_, _) => UpdateFocusCountdown();
+    }
+
+    private async Task InitializeProjectAsync()
+    {
+        try
+        {
+            await LoadStartupStateAsync();
+            ApplyGraphicPreset(GraphicPresetCatalog.GetOrDefault(_sessionState.GraphicPresetId));
+            var title = Path.GetFileNameWithoutExtension(_projectRoot);
+            var manifest = await _store.CreateProjectAsync(title, CancellationToken.None);
+            await _workspacePresets.LoadAsync(CancellationToken.None);
+            _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
+            var startupPreset = _workspacePresets.GetStartupPreset();
+            var lastPreset = _sessionState.PresetSlot is int slot
+                ? _workspacePresets.Get(slot)
+                : null;
+            var presetToApply = startupPreset ?? lastPreset;
+            if (presetToApply is not null)
+            {
+                ApplyPreset(presetToApply);
+                _lastAppliedPresetSlot = presetToApply.Slot;
+            }
+
+            UpdateStartupPresetButton();
+            await RefreshBinderAsync(manifest);
+
+            var startupDocument = ResolveStartupDocument(manifest);
+            if (startupDocument is not null)
+            {
+                await LoadDocumentAsync(startupDocument.Id, _sessionState.Surface);
+            }
+            else
+            {
+                UpdateMainSurface(manifest);
+            }
+
+            StatusText.Text = presetToApply is null
+                ? $"프로젝트 준비됨 - 문서 {manifest.Documents.Count:N0}개"
+                : $"프로젝트 준비됨 - 문서 {manifest.Documents.Count:N0}개, 프리셋 {presetToApply.Slot} 적용";
+            await PersistSessionStateAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"프로젝트 불러오기 실패: {ex.Message}";
+        }
+    }
+
+    private async Task LoadStartupStateAsync()
+    {
+        if (_startupStateLoaded)
+        {
+            return;
+        }
+
+        _sessionState = await _sessionStateService.LoadAsync(CancellationToken.None);
+        _startupStateLoaded = true;
+        if (!string.IsNullOrWhiteSpace(_sessionState.ProjectRoot) &&
+            Directory.Exists(_sessionState.ProjectRoot))
+        {
+            ConfigureProject(_sessionState.ProjectRoot);
+        }
+    }
+
+    private ProjectDocumentInfo? ResolveStartupDocument(ProjectManifest manifest)
+    {
+        if (!string.IsNullOrWhiteSpace(_sessionState.DocumentId))
+        {
+            var lastDocument = manifest.Documents.FirstOrDefault(document =>
+                string.Equals(document.Id, _sessionState.DocumentId, StringComparison.OrdinalIgnoreCase));
+            if (lastDocument is not null)
+            {
+                return lastDocument;
+            }
+        }
+
+        return manifest.Documents.FirstOrDefault();
+    }
+
+    private async Task RefreshBinderAsync(ProjectManifest? manifest = null)
+    {
+        manifest ??= await _store.LoadManifestAsync(CancellationToken.None);
+        BinderList.ItemsSource = manifest.Documents
+            .OrderBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
+            .Select(document => new DocumentListItem(document.Id, document.Title))
+            .ToList();
+        UpdateMainSurface(manifest);
+    }
+
+    private void UpdateMainSurface(ProjectManifest manifest)
+    {
+        MainProjectTitleText.Text = manifest.Title;
+        MainProjectPathText.Text = _projectRoot;
+        MainRecentList.ItemsSource = manifest.Documents
+            .OrderByDescending(document => document.UpdatedAt)
+            .ThenBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
+            .Take(30)
+            .Select(document => new DocumentListItem(document.Id, document.Title))
+            .ToList();
+    }
+
+    private void SelectBinderItem(string documentId)
+    {
+        foreach (var item in BinderList.Items.OfType<DocumentListItem>())
+        {
+            if (item.Id == documentId)
+            {
+                BinderList.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private async void BinderList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (BinderList.SelectedItem is not DocumentListItem item || item.Id == _activeDocumentId)
+        {
+            return;
+        }
+
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        await LoadDocumentAsync(item.Id);
+    }
+
+    private async void SearchResultsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (SearchResultsList.SelectedItem is not SearchResultListItem item)
+        {
+            return;
+        }
+
+        await SelectDocumentAsync(item.DocumentId);
+    }
+
+    private async void MainRecentList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (MainRecentList.SelectedItem is not DocumentListItem item)
+        {
+            return;
+        }
+
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        await SelectDocumentAsync(item.Id);
+    }
+
+    private async Task SelectDocumentAsync(string documentId)
+    {
+        foreach (var item in BinderList.Items.OfType<DocumentListItem>())
+        {
+            if (item.Id == documentId)
+            {
+                if (BinderList.SelectedItem is DocumentListItem selected && selected.Id == documentId)
+                {
+                    await LoadDocumentAsync(item.Id);
+                    return;
+                }
+
+                BinderList.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private async Task LoadDocumentAsync(string documentId, string? startupSurface = null)
+    {
+        try
+        {
+            _loadingDocument = true;
+            var document = await Task.Run(() => _store.LoadDocumentAsync(documentId, CancellationToken.None));
+            LongOperationProgressTracker? tracker = null;
+            if (!_longOperationInProgress && document.Paragraphs.Count >= 1_000)
+            {
+                tracker = new LongOperationProgressTracker($"불러오기 {document.Id}", 3);
+                BeginLongOperation($"불러오기 {document.Id}");
+                ReportLongOperation(tracker.Report(1, "문서 읽는 중"));
+            }
+
+            _activeDocument = document;
+            _activeDocumentId = document.Id;
+            TitleBox.Text = document.Title;
+            if (tracker is not null)
+            {
+                ReportLongOperation(tracker.Report(2, "편집 구간 준비 중"));
+            }
+
+            var editorView = DocumentEditorTextService.CreateView(document);
+            _editorTextView = editorView;
+            EditorBox.IsReadOnly = false;
+            EditorBox.Text = editorView.Text;
+            PreviewText.Text = "";
+            UpdateMetrics(document);
+            ShowRequestedSurface(startupSurface);
+            _dirty = false;
+            StatusText.Text = editorView.IsSegmentMode
+                ? $"불러옴 {document.Id} - 대용량 편집 구간 {editorView.VisibleParagraphCount:N0}/{document.Paragraphs.Count:N0}문단"
+                : $"불러옴 {document.Id}";
+            if (tracker is not null)
+            {
+                ReportLongOperation(tracker.Report(3, "준비됨"));
+                CompleteLongOperation(StatusText.Text);
+            }
+            await PersistSessionStateAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"불러오기 실패: {ex.Message}";
+        }
+        finally
+        {
+            _loadingDocument = false;
+        }
+    }
+
+    private void ShowRequestedSurface(string? surface)
+    {
+        switch (surface)
+        {
+            case AppSessionState.PreviewSurface:
+                ShowPreviewSurface();
+                break;
+            case AppSessionState.MainSurface:
+                ShowMainSurface();
+                break;
+            default:
+                ShowEditorSurface();
+                break;
+        }
+    }
+
+    private async void CommandButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.Tag is not string commandId)
+        {
+            return;
+        }
+
+        await ExecuteCommandAsync(commandId);
+    }
+
+    private async Task ExecuteCommandAsync(string commandId)
+    {
+        try
+        {
+            _ = _commandRegistry.Get(commandId);
+        }
+        catch (KeyNotFoundException)
+        {
+            StatusText.Text = $"알 수 없는 명령: {commandId}";
+            return;
+        }
+
+        if (!_commandHandlers.TryGetValue(commandId, out var handler))
+        {
+            StatusText.Text = $"실행기가 없는 명령: {commandId}";
+            return;
+        }
+
+        await handler();
+    }
+
+    private void RegisterCommandHandlers()
+    {
+        _commandHandlers[AppCommandIds.ProjectNew] = CreateNewProjectAsync;
+        _commandHandlers[AppCommandIds.ProjectOpen] = OpenProjectAsync;
+        _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
+        _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
+        _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
+        _commandHandlers[AppCommandIds.ProjectSave] = () => SaveDocumentAsync("저장됨");
+        _commandHandlers[AppCommandIds.WritingFocusToggle] = () =>
+        {
+            ToggleFocus();
+            return Task.CompletedTask;
+        };
+        _commandHandlers[AppCommandIds.WorkspacePresetOne] = () => ApplyOrSavePresetAsync(1);
+        _commandHandlers[AppCommandIds.WorkspacePresetTwo] = () => ApplyOrSavePresetAsync(2);
+        _commandHandlers[AppCommandIds.WorkspacePresetThree] = () => ApplyOrSavePresetAsync(3);
+        _commandHandlers[AppCommandIds.WorkspaceStartupPresetCycle] = CycleStartupPresetAsync;
+        _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
+        _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
+        _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
+        _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
+        _commandHandlers[AppCommandIds.AutosaveToggle] = () =>
+        {
+            ToggleAutosave();
+            return Task.CompletedTask;
+        };
+    }
+
+    private async Task CreateNewProjectAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        var root = Path.Combine(
+            @"C:\WriterWorkbench\Projects",
+            $"Project-{DateTime.Now:yyyyMMdd-HHmmss}.writerproj");
+        ConfigureProject(root);
+        await InitializeProjectAsync();
+    }
+
+    private async Task OpenProjectAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        using var dialog = new Forms.FolderBrowserDialog
+        {
+            Description = ".writerproj 프로젝트 폴더 선택",
+            UseDescriptionForTitle = true,
+            InitialDirectory = Directory.Exists(@"C:\WriterWorkbench\Projects")
+                ? @"C:\WriterWorkbench\Projects"
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+        };
+
+        if (dialog.ShowDialog() != Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        ConfigureProject(dialog.SelectedPath);
+        await InitializeProjectAsync();
+    }
+
+    private void ConfigureProject(string root)
+    {
+        _projectRoot = root;
+        var projectPaths = ProjectPaths.ForRoot(_projectRoot);
+        _store = new ProjectStore(projectPaths);
+        _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
+        _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
+        _activeDocumentId = "scene-0001";
+        _activeDocument = null;
+        _editorTextView = DocumentEditorTextView.Empty;
+        _previewMode = false;
+        _lastAppliedPresetSlot = null;
+        _dirty = false;
+        BinderList.ItemsSource = null;
+        SearchResultsList.ItemsSource = null;
+        TitleBox.Text = "";
+        EditorBox.Text = "";
+        EditorBox.IsReadOnly = false;
+        PreviewText.Text = "";
+        ShowEditorSurface();
+        ProjectPathText.Text = _projectRoot;
+    }
+
+    private async Task CreateNewSceneAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        var document = await _store.CreateDocumentAsync("새 장면", CancellationToken.None);
+        await RefreshBinderAsync();
+        await SelectDocumentAsync(document.Id);
+        StatusText.Text = $"생성됨 {document.Id}";
+    }
+
+    private async Task DetachCurrentDocumentAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("창 분리 전 저장");
+        }
+
+        var document = _activeDocument ?? await _store.LoadDocumentAsync(_activeDocumentId, CancellationToken.None);
+        var window = new DetachedDocumentWindow(_store, document)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = Left + 48,
+            Top = Top + 48
+        };
+
+        window.Show();
+        StatusText.Text = $"창 분리됨 {document.Id}";
+    }
+
+    private async Task CreateStressDocumentAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("자동저장");
+        }
+
+        var id = $"stress-{DateTime.Now:HHmmss}";
+        var tracker = new LongOperationProgressTracker("스트레스 15k", 15_004);
+        BeginLongOperation("스트레스 15k");
+        ReportLongOperation(tracker.Report(0, "준비 중"));
+        var stopwatch = Stopwatch.StartNew();
+        IProgress<LongOperationProgress> progress = new Progress<LongOperationProgress>(ReportLongOperation);
+        var paragraphProgress = new Progress<int>(completed =>
+            progress.Report(tracker.Report(completed, "문단 생성 중")));
+
+        var document = await Task.Run(async () =>
+        {
+            var created = LargeDocumentFactory.Create(id, "스트레스 15k", 15_000, paragraphProgress);
+            progress.Report(tracker.Report(15_001, "프로젝트 파일과 검색 색인 저장 중"));
+            await _store.SaveDocumentAsync(created, CancellationToken.None);
+            return created;
+        });
+
+        ReportLongOperation(tracker.Report(15_002, "바인더 새로고침 중"));
+        stopwatch.Stop();
+        await RefreshBinderAsync();
+        ReportLongOperation(tracker.Report(15_003, "편집창 불러오는 중"));
+        await SelectDocumentAsync(document.Id);
+        ReportLongOperation(tracker.Report(15_004, "준비됨"));
+        CompleteLongOperation($"생성됨 {document.Id} - {stopwatch.ElapsedMilliseconds} ms");
+        StatusText.Text = $"생성됨 {document.Id} - {stopwatch.ElapsedMilliseconds} ms";
+    }
+
+    private async void SaveCommand_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        await ExecuteCommandAsync(AppCommandIds.ProjectSave);
+        e.Handled = true;
+    }
+
+    private async Task RunSearchAsync()
+    {
+        var query = SearchBox.Text.Trim();
+        if (query.Length == 0)
+        {
+            SearchResultsList.ItemsSource = null;
+            StatusText.Text = "검색어가 비어 있습니다.";
+            return;
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        var results = await Task.Run(() => _store.SearchAsync(query, CancellationToken.None));
+        stopwatch.Stop();
+        SearchResultsList.ItemsSource = results
+            .Select(hit => new SearchResultListItem(hit.DocumentId, hit.Title, hit.Snippet))
+            .ToList();
+        StatusText.Text = $"검색 결과 {results.Count:N0}개 - {stopwatch.ElapsedMilliseconds} ms";
+    }
+
+    private async Task ApplyOrSavePresetAsync(int slot)
+    {
+        var existing = _workspacePresets.Get(slot);
+        var overwrite = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+        if (existing is null || overwrite)
+        {
+            var preset = CapturePreset(slot);
+            await _workspacePresets.SaveAsync(preset, CancellationToken.None);
+            _lastAppliedPresetSlot = slot;
+            RememberSessionState(_sessionState.Surface);
+            await PersistSessionStateAsync();
+            UpdateStartupPresetButton();
+            StatusText.Text = $"프리셋 {slot} 저장됨";
+            return;
+        }
+
+        ApplyPreset(existing);
+        await PersistSessionStateAsync();
+        StatusText.Text = $"프리셋 {slot} 적용됨";
+    }
+
+    private async Task CycleStartupPresetAsync()
+    {
+        var savedSlots = _workspacePresets.GetAll()
+            .Select(preset => preset.Slot)
+            .Order()
+            .ToList();
+
+        if (savedSlots.Count == 0)
+        {
+            StatusText.Text = "먼저 프리셋을 저장하세요.";
+            return;
+        }
+
+        var currentSlot = _workspacePresets.GetStartupPreset()?.Slot;
+        int? nextSlot = currentSlot is null
+            ? savedSlots[0]
+            : savedSlots.Where(slot => slot > currentSlot).Cast<int?>().FirstOrDefault();
+
+        await _workspacePresets.SetStartupPresetAsync(nextSlot, CancellationToken.None);
+        UpdateStartupPresetButton();
+        StatusText.Text = nextSlot is null
+            ? "실행 시 프리셋 적용 꺼짐"
+            : $"실행 시 프리셋 {nextSlot} 적용";
+    }
+
+    private async Task OpenShortcutSettingsAsync()
+    {
+        var window = new ShortcutSettingsWindow(_commandRegistry, _shortcutManager)
+        {
+            Owner = this
+        };
+
+        if (window.ShowDialog() != true || window.UpdatedShortcutManager is null)
+        {
+            return;
+        }
+
+        _shortcutManager = window.UpdatedShortcutManager;
+        await _shortcuts.SaveAsync(_shortcutManager, CancellationToken.None);
+        StatusText.Text = "단축키 저장됨";
+    }
+
+    private async Task OpenMainSurfaceAsync()
+    {
+        ShowMainSurface();
+        await PersistSessionStateAsync();
+    }
+
+    private Task TogglePreviewAsync()
+    {
+        if (_previewMode)
+        {
+            ShowEditorSurface();
+            return PersistSessionStateAsync();
+        }
+
+        ShowPreviewSurface();
+        return PersistSessionStateAsync();
+    }
+
+    private void ToggleFocus()
+    {
+        if (_focusMode)
+        {
+            TryExitFocus();
+            return;
+        }
+
+        StartFocus();
+    }
+
+    private void ToggleAutosave()
+    {
+        _autosaveEnabled = !_autosaveEnabled;
+        AutosaveButton.Content = _autosaveEnabled ? "자동저장 켬" : "자동저장 끔";
+        StatusText.Text = _autosaveEnabled ? "자동저장 켜짐" : "자동저장 꺼짐. Ctrl+S 수동 저장은 유지됩니다.";
+    }
+
+    private async void GraphicPresetBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_suppressGraphicPresetChange || GraphicPresetBox.SelectedItem is not GraphicPreset preset)
+        {
+            return;
+        }
+
+        ApplyGraphicPreset(preset);
+        await PersistSessionStateAsync();
+        StatusText.Text = $"색상 프리셋 적용됨 - {preset.Name}";
+    }
+
+    private void TitleBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_loadingDocument)
+        {
+            return;
+        }
+
+        _dirty = true;
+        _lastEditAt = DateTimeOffset.Now;
+    }
+
+    private void EditorBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_loadingDocument)
+        {
+            return;
+        }
+
+        _dirty = true;
+        _lastEditAt = DateTimeOffset.Now;
+    }
+
+    private async Task SaveDocumentAsync(string verb)
+    {
+        if (_saveInProgress)
+        {
+            return;
+        }
+
+        try
+        {
+            _saveInProgress = true;
+            var document = CreateCurrentDocument();
+            var stopwatch = Stopwatch.StartNew();
+            LongOperationProgressTracker? tracker = null;
+            if (document.Paragraphs.Count >= 1_000)
+            {
+                tracker = new LongOperationProgressTracker($"저장 {document.Id}", 3);
+                BeginLongOperation($"저장 {document.Id}");
+                ReportLongOperation(tracker.Report(0, "저장 준비 중"));
+            }
+
+            if (tracker is not null)
+            {
+                ReportLongOperation(tracker.Report(1, "프로젝트 파일과 검색 색인 저장 중"));
+            }
+
+            await Task.Run(() => _store.SaveDocumentAsync(document, CancellationToken.None));
+            stopwatch.Stop();
+            if (tracker is not null)
+            {
+                ReportLongOperation(tracker.Report(2, "바인더 새로고침 중"));
+            }
+
+            await RefreshBinderAsync();
+            SelectBinderItem(document.Id);
+            UpdateMetrics(document);
+            _dirty = false;
+            StatusText.Text = $"{verb} {DateTime.Now:HH:mm:ss} - {document.Id} - {stopwatch.ElapsedMilliseconds} ms";
+            if (tracker is not null)
+            {
+                ReportLongOperation(tracker.Report(3, "준비됨"));
+                CompleteLongOperation(StatusText.Text);
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"저장 실패: {ex.Message}";
+        }
+        finally
+        {
+            _saveInProgress = false;
+        }
+    }
+
+    private WriterDocument CreateCurrentDocument()
+    {
+        var existing = _activeDocument ?? new WriterDocument(_activeDocumentId, _activeDocumentId, []);
+        var document = DocumentEditorTextService.UpdateFromEditorText(
+            existing,
+            TitleBox.Text,
+            EditorBox.Text,
+            _editorTextView);
+
+        if (_editorTextView.IsSegmentMode)
+        {
+            _editorTextView = _editorTextView with
+            {
+                VisibleParagraphCount = DocumentEditorTextService.CountEditorParagraphs(EditorBox.Text)
+            };
+        }
+
+        _activeDocument = document;
+        return document;
+    }
+
+    private void ShowPreviewSurface()
+    {
+        var sourceText = _editorTextView.IsSegmentMode && _activeDocument is not null
+            ? TextExportService.ToPlainText(_activeDocument)
+            : EditorBox.Text;
+
+        PreviewText.Text = PreviewTextService.CreatePreview(sourceText);
+        MainSurface.Visibility = Visibility.Collapsed;
+        EditorSurface.Visibility = Visibility.Collapsed;
+        PreviewSurface.Visibility = Visibility.Visible;
+        PreviewModeButton.Content = "편집";
+        _previewMode = true;
+        RememberSessionState(AppSessionState.PreviewSurface);
+        StatusText.Text = "미리보기 렌더링됨";
+    }
+
+    private void ShowEditorSurface()
+    {
+        MainSurface.Visibility = Visibility.Collapsed;
+        PreviewSurface.Visibility = Visibility.Collapsed;
+        EditorSurface.Visibility = Visibility.Visible;
+        PreviewModeButton.Content = "미리보기";
+        _previewMode = false;
+        RememberSessionState(AppSessionState.EditorSurface);
+        EditorBox.Focus();
+    }
+
+    private void ShowMainSurface()
+    {
+        MainSurface.Visibility = Visibility.Visible;
+        PreviewSurface.Visibility = Visibility.Collapsed;
+        EditorSurface.Visibility = Visibility.Collapsed;
+        PreviewModeButton.Content = "미리보기";
+        _previewMode = false;
+        RememberSessionState(AppSessionState.MainSurface);
+        StatusText.Text = "메인 화면";
+    }
+
+    private async void ReturnToEditorButton_Click(object sender, RoutedEventArgs e)
+    {
+        ShowEditorSurface();
+        await PersistSessionStateAsync();
+    }
+
+    private void UpdateMetrics(WriterDocument document)
+    {
+        var metrics = DocumentMetricsService.Measure(document);
+        MetricsText.Text =
+            $"{document.Id} | 문단 {metrics.ParagraphCount:N0} | 글자 {metrics.CharacterCount:N0} | UTF-8 {metrics.PlainTextUtf8Bytes / 1024.0:N1} KB";
+    }
+
+    private void BeginLongOperation(string operationName)
+    {
+        _longOperationInProgress = true;
+        _remainingSecondsSamples.Clear();
+        OperationProgressPanel.Visibility = Visibility.Visible;
+        OperationProgressBar.Value = 0;
+        OperationProgressText.Text = operationName;
+        OperationEtaText.Text = "남은 시간 계산 중...";
+        OperationRemainingGraph.Points = [];
+    }
+
+    private void ReportLongOperation(LongOperationProgress progress)
+    {
+        OperationProgressPanel.Visibility = Visibility.Visible;
+        OperationProgressBar.Value = progress.PercentComplete;
+        OperationProgressText.Text =
+            $"{progress.OperationName} - {progress.Stage} ({progress.PercentComplete}%)";
+        OperationEtaText.Text = progress.EstimatedRemaining is null
+            ? "남은 시간 계산 중..."
+            : $"남음 {FormatDuration(progress.EstimatedRemaining.Value)}";
+
+        if (progress.EstimatedRemaining is not null)
+        {
+            _remainingSecondsSamples.Add(Math.Max(0, progress.EstimatedRemaining.Value.TotalSeconds));
+            if (_remainingSecondsSamples.Count > 40)
+            {
+                _remainingSecondsSamples.RemoveAt(0);
+            }
+
+            UpdateRemainingGraph();
+        }
+    }
+
+    private void CompleteLongOperation(string message)
+    {
+        _longOperationInProgress = false;
+        OperationProgressPanel.Visibility = Visibility.Visible;
+        OperationProgressBar.Value = 100;
+        OperationProgressText.Text = message;
+        OperationEtaText.Text = "남음 00:00";
+        _remainingSecondsSamples.Add(0);
+        UpdateRemainingGraph();
+    }
+
+    private void ApplyGraphicPreset(GraphicPreset preset)
+    {
+        _graphicPreset = preset;
+        _suppressGraphicPresetChange = true;
+        GraphicPresetBox.SelectedItem = preset;
+        _suppressGraphicPresetChange = false;
+
+        var windowBackground = CreateBrush(preset.WindowBackground);
+        var chromeBackground = CreateBrush(preset.ChromeBackground);
+        var panelBackground = CreateBrush(preset.PanelBackground);
+        var editorBackground = CreateBrush(preset.EditorBackground);
+        var text = CreateBrush(preset.Text);
+        var mutedText = CreateBrush(preset.MutedText);
+        var border = CreateBrush(preset.Border);
+        var buttonBackground = CreateBrush(preset.ButtonBackground);
+        var buttonText = CreateBrush(preset.ButtonText);
+        var accent = CreateBrush(preset.Accent);
+
+        Background = windowBackground;
+        ApplyGraphicPresetToChildren(this, text, border, buttonBackground, buttonText, editorBackground, panelBackground);
+
+        StatusText.Background = accent;
+        StatusText.Foreground = CreateBrush("#FFFFFF");
+        MetricsText.Background = panelBackground;
+        MetricsText.Foreground = mutedText;
+        ProjectPathText.Foreground = mutedText;
+        OperationProgressPanel.Background = panelBackground;
+        OperationProgressPanel.BorderBrush = border;
+        OperationProgressText.Foreground = text;
+        OperationEtaText.Foreground = text;
+        OperationGraphCanvas.Background = editorBackground;
+        OperationRemainingGraph.Stroke = accent;
+
+        TitleBox.Background = editorBackground;
+        TitleBox.Foreground = text;
+        TitleBox.BorderBrush = border;
+        EditorBox.Background = editorBackground;
+        EditorBox.Foreground = text;
+        EditorBox.CaretBrush = text;
+        PreviewText.Foreground = text;
+        MainSurface.Background = windowBackground;
+        MainProjectPathText.Foreground = mutedText;
+    }
+
+    private static void ApplyGraphicPresetToChildren(
+        DependencyObject root,
+        System.Windows.Media.Brush text,
+        System.Windows.Media.Brush border,
+        System.Windows.Media.Brush buttonBackground,
+        System.Windows.Media.Brush buttonText,
+        System.Windows.Media.Brush editorBackground,
+        System.Windows.Media.Brush panelBackground)
+    {
+        switch (root)
+        {
+            case System.Windows.Controls.Button button:
+                button.Background = buttonBackground;
+                button.Foreground = buttonText;
+                button.BorderBrush = border;
+                break;
+            case System.Windows.Controls.ComboBox comboBox:
+                comboBox.Background = buttonBackground;
+                comboBox.Foreground = buttonText;
+                comboBox.BorderBrush = border;
+                break;
+            case System.Windows.Controls.TextBox textBox:
+                textBox.Background = editorBackground;
+                textBox.Foreground = text;
+                textBox.BorderBrush = border;
+                textBox.CaretBrush = text;
+                break;
+            case System.Windows.Controls.ListBox listBox:
+                listBox.Background = panelBackground;
+                listBox.Foreground = text;
+                listBox.BorderBrush = border;
+                break;
+            case System.Windows.Controls.TextBlock textBlock:
+                textBlock.Foreground = text;
+                break;
+            case System.Windows.Controls.Panel panel:
+                panel.Background = panelBackground;
+                break;
+            case System.Windows.Controls.Border borderElement:
+                borderElement.BorderBrush = border;
+                borderElement.Background = panelBackground;
+                break;
+        }
+
+        foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+        {
+            ApplyGraphicPresetToChildren(child, text, border, buttonBackground, buttonText, editorBackground, panelBackground);
+        }
+    }
+
+    private static SolidColorBrush CreateBrush(string color)
+    {
+        return new SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color)!);
+    }
+
+    private void UpdateRemainingGraph()
+    {
+        if (_remainingSecondsSamples.Count == 0)
+        {
+            OperationRemainingGraph.Points = [];
+            return;
+        }
+
+        var width = OperationGraphCanvas.ActualWidth > 0 ? OperationGraphCanvas.ActualWidth : 190;
+        var height = OperationGraphCanvas.ActualHeight > 0 ? OperationGraphCanvas.ActualHeight : 34;
+        var max = Math.Max(1, _remainingSecondsSamples.Max());
+        var xStep = _remainingSecondsSamples.Count == 1 ? width : width / (_remainingSecondsSamples.Count - 1);
+        var points = new PointCollection();
+
+        for (var index = 0; index < _remainingSecondsSamples.Count; index++)
+        {
+            var x = index * xStep;
+            var y = height - ((_remainingSecondsSamples[index] / max) * height);
+            points.Add(new System.Windows.Point(x, y));
+        }
+
+        OperationRemainingGraph.Points = points;
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration < TimeSpan.Zero)
+        {
+            duration = TimeSpan.Zero;
+        }
+
+        return duration.TotalHours >= 1
+            ? $"{(int)duration.TotalHours:00}:{duration.Minutes:00}:{duration.Seconds:00}"
+            : $"{duration.Minutes:00}:{duration.Seconds:00}";
+    }
+
+    private void StartFocus()
+    {
+        ShowEditorSurface();
+        _focusMode = true;
+        var state = _focusSession.Start(new FocusSessionOptions(TimeSpan.FromMinutes(40), 20, true));
+        _focusEndsAt = state.EndsAt;
+
+        _previousWindowStyle = WindowStyle;
+        _previousWindowState = WindowState;
+        _previousResizeMode = ResizeMode;
+
+        BinderColumn.Width = new GridLength(0);
+        PreviewColumn.Width = new GridLength(0);
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        WindowState = WindowState.Maximized;
+        Topmost = true;
+        _focusTimer.Start();
+        UpdateFocusCountdown();
+        EditorBox.Focus();
+    }
+
+    private void TryExitFocus()
+    {
+        if (DateTimeOffset.Now >= _focusEndsAt)
+        {
+            ExitFocus();
+            return;
+        }
+
+        var dialog = new FocusExitDialog { Owner = this };
+        var accepted = dialog.ShowDialog() == true && _focusSession.CanExitEarly(dialog.ConfirmationText);
+        if (accepted)
+        {
+            ExitFocus();
+            return;
+        }
+
+        StatusText.Text = "집중모드 해제에는 확인 문구 20자 이상이 필요합니다.";
+    }
+
+    private void ExitFocus()
+    {
+        _focusMode = false;
+        _focusTimer.Stop();
+        BinderColumn.Width = new GridLength(280);
+        PreviewColumn.Width = new GridLength(360);
+        WindowStyle = _previousWindowStyle;
+        WindowState = _previousWindowState;
+        ResizeMode = _previousResizeMode;
+        Topmost = false;
+        FocusButton.Content = "집중 40:00";
+        StatusText.Text = "집중 세션 종료됨";
+    }
+
+    private void UpdateFocusCountdown()
+    {
+        var remaining = _focusEndsAt - DateTimeOffset.Now;
+        if (remaining <= TimeSpan.Zero)
+        {
+            FocusButton.Content = "집중 종료";
+            StatusText.Text = "집중 타이머 완료. 집중 종료를 눌러 돌아가세요.";
+            return;
+        }
+
+        FocusButton.Content = $"{(int)remaining.TotalMinutes:00}:{remaining.Seconds:00}";
+        StatusText.Text = "집중모드 작동 중 - Ctrl+S 저장 가능. 조기 해제에는 20자 확인이 필요합니다.";
+    }
+
+    private async void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        var gesture = WpfShortcutGestureFormatter.Format(e.Key, Keyboard.Modifiers);
+        var scope = GetActiveCommandScope();
+        var commandId = gesture is null ? null : _shortcutManager.FindCommand(gesture, scope);
+
+        if (commandId is not null)
+        {
+            await ExecuteCommandAsync(commandId);
+            e.Handled = true;
+            return;
+        }
+
+        if (_focusMode && e.Key == Key.Escape)
+        {
+            TryExitFocus();
+            e.Handled = true;
+        }
+    }
+
+    private CommandScope GetActiveCommandScope()
+    {
+        if (_focusMode)
+        {
+            return CommandScope.FocusSession;
+        }
+
+        if (EditorBox.IsKeyboardFocusWithin || TitleBox.IsKeyboardFocusWithin)
+        {
+            return CommandScope.Editor;
+        }
+
+        if (BinderList.IsKeyboardFocusWithin)
+        {
+            return CommandScope.Binder;
+        }
+
+        if (SearchResultsList.IsKeyboardFocusWithin || SearchBox.IsKeyboardFocusWithin)
+        {
+            return CommandScope.Preview;
+        }
+
+        return CommandScope.Workbench;
+    }
+
+    private WorkspacePreset CapturePreset(int slot)
+    {
+        var bounds = WindowState == WindowState.Normal
+            ? new Rect(Left, Top, ActualWidth, ActualHeight)
+            : RestoreBounds;
+        var existing = _workspacePresets.Get(slot);
+
+        return new WorkspacePreset(
+            slot,
+            $"프리셋 {slot}",
+            MonitorRegion.Full,
+            existing?.AutoApplyOnStartup ?? false,
+            new WindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState.ToString()));
+    }
+
+    private void ApplyPreset(WorkspacePreset preset)
+    {
+        if (preset.Placement is null)
+        {
+            return;
+        }
+
+        WindowState = WindowState.Normal;
+        Left = preset.Placement.Left;
+        Top = preset.Placement.Top;
+        Width = Math.Max(960, preset.Placement.Width);
+        Height = Math.Max(640, preset.Placement.Height);
+
+        if (Enum.TryParse<WindowState>(preset.Placement.WindowState, out var state))
+        {
+            WindowState = state;
+        }
+
+        _lastAppliedPresetSlot = preset.Slot;
+        RememberSessionState(_sessionState.Surface);
+    }
+
+    private void UpdateStartupPresetButton()
+    {
+        var startupPreset = _workspacePresets.GetStartupPreset();
+        StartupPresetButton.Content = startupPreset is null ? "시작 적용 끔" : $"시작 P{startupPreset.Slot}";
+    }
+
+    private void RememberSessionState(string surface)
+    {
+        _sessionState = new AppSessionState(
+            _projectRoot,
+            string.IsNullOrWhiteSpace(_activeDocumentId) ? null : _activeDocumentId,
+            surface,
+            _lastAppliedPresetSlot ?? _sessionState.PresetSlot,
+            _graphicPreset.Id);
+    }
+
+    private async Task PersistSessionStateAsync()
+    {
+        try
+        {
+            RememberSessionState(_sessionState.Surface);
+            await _sessionStateService.SaveAsync(_sessionState, CancellationToken.None);
+        }
+        catch (IOException)
+        {
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
+    }
+
+    private sealed record DocumentListItem(string Id, string Title)
+    {
+        public string Display => $"{Id}  {Title}";
+    }
+
+    private sealed record SearchResultListItem(string DocumentId, string Title, string Snippet)
+    {
+        public string Display => $"{Title} - {Snippet}";
+    }
+}
