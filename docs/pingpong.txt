@@ -435,7 +435,7 @@ Graphic preset catalog exists with:
 - Verification after this change:
   - dotnet build WriterWorkbench.sln --no-restore
   - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
- - Result: 74 passed, 0 failed, 0 skipped.
+  - Result: 74 passed, 0 failed, 0 skipped.
   - dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-win-x64 --no-restore
 
 2026-06-23 KST P0 input measurement update:
