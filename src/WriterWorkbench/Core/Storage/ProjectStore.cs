@@ -55,29 +55,107 @@ public sealed class ProjectStore(ProjectPaths paths)
         Directory.CreateDirectory(paths.RootPath);
         Directory.CreateDirectory(paths.DocumentsPath);
 
-        var json = JsonSerializer.Serialize(document, JsonOptions);
-        var plainText = TextExportService.ToPlainText(document);
-        var updatedAt = DateTimeOffset.UtcNow;
-
-        await WriteUtf8AtomicAsync(paths.DocumentJsonPath(document.Id), json, token);
-        await WriteUtf8AtomicAsync(paths.DocumentTextPath(document.Id), plainText, token);
-
         var manifest = await LoadManifestOrDefaultAsync(token);
-        var documentInfo = new ProjectDocumentInfo(
-            document.Id,
-            document.Title,
-            Path.GetRelativePath(paths.RootPath, paths.DocumentJsonPath(document.Id)),
-            Path.GetRelativePath(paths.RootPath, paths.DocumentTextPath(document.Id)),
-            updatedAt);
-        var documents = manifest.Documents
-            .Where(existing => !string.Equals(existing.Id, document.Id, StringComparison.OrdinalIgnoreCase))
-            .Append(documentInfo)
-            .OrderBy(existing => existing.Id, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        await SaveManifestAsync(manifest with { Documents = documents }, token);
+        var documentInfo = await WriteDocumentAsync(document, token);
+        var existingIndex = FindDocumentIndex(manifest, document.Id);
+        var documents = manifest.Documents.ToList();
+        if (existingIndex >= 0)
+        {
+            documents[existingIndex] = documentInfo;
+        }
+        else
+        {
+            documents.Add(documentInfo);
+        }
 
-        var index = new SqliteProjectIndex(paths.ProjectDatabasePath);
-        await index.UpsertDocumentAsync(document, plainText, updatedAt, token);
+        await SaveManifestAsync(manifest with { Documents = documents }, token);
+    }
+
+    public async Task<WriterDocument> DuplicateDocumentAsync(string documentId, CancellationToken token)
+    {
+        Directory.CreateDirectory(paths.RootPath);
+        Directory.CreateDirectory(paths.DocumentsPath);
+
+        var manifest = await LoadManifestAsync(token);
+        var sourceIndex = FindDocumentIndex(manifest, documentId);
+        if (sourceIndex < 0)
+        {
+            throw new KeyNotFoundException($"Document is not in the binder: {documentId}");
+        }
+
+        var source = await LoadDocumentAsync(documentId, token);
+        var duplicate = source with
+        {
+            Id = NextSceneId(manifest),
+            Title = $"{source.Title} 복사",
+            Paragraphs = source.Paragraphs
+                .Select((paragraph, index) => paragraph with { Id = $"p-{index + 1:0000}" })
+                .ToList()
+        };
+        var duplicateInfo = await WriteDocumentAsync(duplicate, token);
+        var documents = manifest.Documents.ToList();
+        documents.Insert(sourceIndex + 1, duplicateInfo);
+
+        await SaveManifestAsync(manifest with { Documents = documents }, token);
+        return duplicate;
+    }
+
+    public async Task<ProjectManifest> DeleteDocumentAsync(string documentId, CancellationToken token)
+    {
+        var manifest = await LoadManifestAsync(token);
+        var index = FindDocumentIndex(manifest, documentId);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Document is not in the binder: {documentId}");
+        }
+
+        if (manifest.Documents.Count <= 1)
+        {
+            throw new InvalidOperationException("A project must keep at least one scene.");
+        }
+
+        var documents = manifest.Documents.ToList();
+        documents.RemoveAt(index);
+        var updatedManifest = manifest with { Documents = documents };
+        await SaveManifestAsync(updatedManifest, token);
+
+        DeleteFileIfExists(paths.DocumentJsonPath(documentId));
+        DeleteFileIfExists(paths.DocumentTextPath(documentId));
+        var indexStore = new SqliteProjectIndex(paths.ProjectDatabasePath);
+        await indexStore.DeleteDocumentAsync(documentId, token);
+
+        return updatedManifest;
+    }
+
+    public async Task<ProjectManifest> MoveDocumentAsync(string documentId, int offset, CancellationToken token)
+    {
+        if (offset == 0)
+        {
+            return await LoadManifestAsync(token);
+        }
+
+        var manifest = await LoadManifestAsync(token);
+        var currentIndex = FindDocumentIndex(manifest, documentId);
+        if (currentIndex < 0)
+        {
+            throw new KeyNotFoundException($"Document is not in the binder: {documentId}");
+        }
+
+        var targetIndex = Math.Clamp(currentIndex + offset, 0, manifest.Documents.Count - 1);
+        if (targetIndex == currentIndex)
+        {
+            return manifest;
+        }
+
+        var documents = manifest.Documents
+            .ToList();
+        var document = documents[currentIndex];
+        documents.RemoveAt(currentIndex);
+        documents.Insert(targetIndex, document);
+
+        var updatedManifest = manifest with { Documents = documents };
+        await SaveManifestAsync(updatedManifest, token);
+        return updatedManifest;
     }
 
     public async Task<ProjectManifest> LoadManifestAsync(CancellationToken token)
@@ -117,6 +195,26 @@ public sealed class ProjectStore(ProjectPaths paths)
         await WriteUtf8AtomicAsync(paths.ManifestPath, json, token);
     }
 
+    private async Task<ProjectDocumentInfo> WriteDocumentAsync(WriterDocument document, CancellationToken token)
+    {
+        var json = JsonSerializer.Serialize(document, JsonOptions);
+        var plainText = TextExportService.ToPlainText(document);
+        var updatedAt = DateTimeOffset.UtcNow;
+
+        await WriteUtf8AtomicAsync(paths.DocumentJsonPath(document.Id), json, token);
+        await WriteUtf8AtomicAsync(paths.DocumentTextPath(document.Id), plainText, token);
+
+        var index = new SqliteProjectIndex(paths.ProjectDatabasePath);
+        await index.UpsertDocumentAsync(document, plainText, updatedAt, token);
+
+        return new ProjectDocumentInfo(
+            document.Id,
+            document.Title,
+            Path.GetRelativePath(paths.RootPath, paths.DocumentJsonPath(document.Id)),
+            Path.GetRelativePath(paths.RootPath, paths.DocumentTextPath(document.Id)),
+            updatedAt);
+    }
+
     private static async Task WriteUtf8AtomicAsync(string targetPath, string content, CancellationToken token)
     {
         var tempPath = targetPath + ".tmp";
@@ -144,5 +242,36 @@ public sealed class ProjectStore(ProjectPaths paths)
             ? id["scene-".Length..]
             : id;
         return int.TryParse(suffix, out var number) ? number : 0;
+    }
+
+    private static int FindDocumentIndex(ProjectManifest manifest, string documentId)
+    {
+        for (var index = 0; index < manifest.Documents.Count; index++)
+        {
+            if (string.Equals(manifest.Documents[index].Id, documentId, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string NextSceneId(ProjectManifest manifest)
+    {
+        var nextNumber = manifest.Documents
+            .Select(document => document.Id)
+            .Select(ExtractSceneNumber)
+            .DefaultIfEmpty(0)
+            .Max() + 1;
+        return $"scene-{nextNumber:0000}";
+    }
+
+    private static void DeleteFileIfExists(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 }

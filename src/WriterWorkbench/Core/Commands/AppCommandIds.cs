@@ -8,6 +8,10 @@ public static class AppCommandIds
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";
+    public const string DocumentDuplicateScene = "document.duplicateScene";
+    public const string DocumentDeleteScene = "document.deleteScene";
+    public const string DocumentMoveSceneUp = "document.moveSceneUp";
+    public const string DocumentMoveSceneDown = "document.moveSceneDown";
     public const string WritingFocusToggle = "writing.focus.toggle";
     public const string WorkspacePresetOne = "workspace.preset.1";
     public const string WorkspacePresetTwo = "workspace.preset.2";

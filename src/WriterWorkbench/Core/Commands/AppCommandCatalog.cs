@@ -10,6 +10,10 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.DocumentDuplicateScene, "장면 복제", "문서", CommandScope.Binder));
+        registry.Register(new AppCommand(AppCommandIds.DocumentDeleteScene, "장면 삭제", "문서", CommandScope.Binder));
+        registry.Register(new AppCommand(AppCommandIds.DocumentMoveSceneUp, "장면 위로", "문서", CommandScope.Binder));
+        registry.Register(new AppCommand(AppCommandIds.DocumentMoveSceneDown, "장면 아래로", "문서", CommandScope.Binder));
         registry.Register(new AppCommand(AppCommandIds.ProjectSave, "저장", "프로젝트", CommandScope.Editor));
         registry.Register(new AppCommand(AppCommandIds.WritingFocusToggle, "집중", "집필", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.WorkspacePresetOne, "프리셋 1", "작업공간", CommandScope.Workbench));

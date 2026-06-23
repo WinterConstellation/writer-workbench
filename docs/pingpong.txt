@@ -633,12 +633,42 @@ Next agent should treat the following as active work order:
    - Do not add AI/API/Codex/Chrome integration while P0 editor/storage/repo issues are open.
    - Do not report "large text fixed" unless real visible-app measurement supports it.
 
+2026-06-24 KST implementation note:
+- User redirected work away from more performance digging:
+  - "Do not dig performance; build features."
+  - Only check whether the large-manuscript baseline is broken.
+  - First feature area: binder scene management.
+- Implemented first binder scene management pass:
+  - Binder buttons for scene duplicate, delete, move up, move down.
+  - ProjectStore scene operations:
+    - DuplicateDocumentAsync
+    - DeleteDocumentAsync
+    - MoveDocumentAsync
+  - Manifest order is now preserved instead of always sorting by scene id.
+  - SaveDocumentAsync updates an existing manifest entry in place.
+  - Delete removes wwdoc/json, derived txt, manifest entry, and SQLite index row.
+  - Delete refuses to remove the last remaining scene.
+  - AppCommandCatalog was normalized to usable Korean command labels while adding binder commands.
+- Verification:
+  - dotnet build WriterWorkbench.sln --no-restore
+  - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+  - Result: 83 passed, 0 failed, 0 skipped.
+- Large manuscript baseline check only:
+  - dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release
+  - Latest run: 2026-06-24 01:10:38 KST
+  - MainWindow stress command total: 201.346 ms.
+  - ProjectStore.SaveDocumentAsync total: 120.252 ms.
+  - MainWindow EditorBox segment set: 1.484 ms.
+  - Detached append sync: 3.329 ms.
+  - No new 30-second path was introduced by binder scene management.
+
 ### Immediate next work
 
-1. Fix large-file typing lag.
-2. Verify Korean UI in the actual running app.
-3. Clean up local/public repo alignment.
-4. Remove or archive superseded Tauri-era docs after user approval.
+1. Continue binder scene management UX from the first pass.
+2. Add explicit large-document segment navigation/edit workflow.
+3. Verify Korean UI in the actual running app.
+4. Clean up local/public repo alignment.
+5. Remove or archive superseded Tauri-era docs after user approval.
 
 ### MVP 0.1 remaining direction
 

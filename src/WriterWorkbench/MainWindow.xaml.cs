@@ -169,7 +169,6 @@ public partial class MainWindow : Window
     {
         manifest ??= await _store.LoadManifestAsync(CancellationToken.None);
         BinderList.ItemsSource = manifest.Documents
-            .OrderBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
             .Select(document => new DocumentListItem(document.Id, document.Title))
             .ToList();
         UpdateMainSurface(manifest);
@@ -361,6 +360,10 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
+        _commandHandlers[AppCommandIds.DocumentDuplicateScene] = DuplicateSelectedSceneAsync;
+        _commandHandlers[AppCommandIds.DocumentDeleteScene] = DeleteSelectedSceneAsync;
+        _commandHandlers[AppCommandIds.DocumentMoveSceneUp] = () => MoveSelectedSceneAsync(-1);
+        _commandHandlers[AppCommandIds.DocumentMoveSceneDown] = () => MoveSelectedSceneAsync(1);
         _commandHandlers[AppCommandIds.ProjectSave] = () => SaveDocumentAsync("저장됨");
         _commandHandlers[AppCommandIds.WritingFocusToggle] = () =>
         {
@@ -456,6 +459,85 @@ public partial class MainWindow : Window
         await RefreshBinderAsync();
         await SelectDocumentAsync(document.Id);
         StatusText.Text = $"생성됨 {document.Id}";
+    }
+
+    private async Task DuplicateSelectedSceneAsync()
+    {
+        var documentId = GetSelectedDocumentId();
+        if (documentId is null)
+        {
+            StatusText.Text = "복제할 장면이 없습니다.";
+            return;
+        }
+
+        if (_dirty && string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+        {
+            await SaveDocumentAsync("복제 전 저장");
+        }
+
+        var duplicate = await _store.DuplicateDocumentAsync(documentId, CancellationToken.None);
+        await RefreshBinderAsync();
+        await SelectDocumentAsync(duplicate.Id);
+        StatusText.Text = $"복제됨 {duplicate.Id}";
+    }
+
+    private async Task DeleteSelectedSceneAsync()
+    {
+        var documentId = GetSelectedDocumentId();
+        if (documentId is null)
+        {
+            StatusText.Text = "삭제할 장면이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            var manifestBeforeDelete = await _store.LoadManifestAsync(CancellationToken.None);
+            var deletedIndex = manifestBeforeDelete.Documents
+                .Select((document, index) => new { document.Id, Index = index })
+                .First(item => string.Equals(item.Id, documentId, StringComparison.OrdinalIgnoreCase))
+                .Index;
+            var manifest = await _store.DeleteDocumentAsync(documentId, CancellationToken.None);
+            await RefreshBinderAsync(manifest);
+
+            var nextDocument = manifest.Documents.Count == 0
+                ? null
+                : manifest.Documents[Math.Min(deletedIndex, manifest.Documents.Count - 1)];
+            if (nextDocument is not null)
+            {
+                await SelectDocumentAsync(nextDocument.Id);
+            }
+
+            StatusText.Text = $"삭제됨 {documentId}";
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = ex.Message;
+        }
+    }
+
+    private async Task MoveSelectedSceneAsync(int offset)
+    {
+        var documentId = GetSelectedDocumentId();
+        if (documentId is null)
+        {
+            StatusText.Text = "이동할 장면이 없습니다.";
+            return;
+        }
+
+        var manifest = await _store.MoveDocumentAsync(documentId, offset, CancellationToken.None);
+        await RefreshBinderAsync(manifest);
+        SelectBinderItem(documentId);
+        StatusText.Text = offset < 0 ? $"위로 이동 {documentId}" : $"아래로 이동 {documentId}";
+    }
+
+    private string? GetSelectedDocumentId()
+    {
+        return BinderList.SelectedItem is DocumentListItem item
+            ? item.Id
+            : string.IsNullOrWhiteSpace(_activeDocumentId)
+                ? null
+                : _activeDocumentId;
     }
 
     private async Task DetachCurrentDocumentAsync()

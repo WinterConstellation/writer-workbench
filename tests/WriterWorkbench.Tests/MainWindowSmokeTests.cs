@@ -65,6 +65,10 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
                 Assert.Contains(AppCommandIds.HelpOpen, commandTags);
+                Assert.Contains(AppCommandIds.DocumentDuplicateScene, commandTags);
+                Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
+                Assert.Contains(AppCommandIds.DocumentMoveSceneUp, commandTags);
+                Assert.Contains(AppCommandIds.DocumentMoveSceneDown, commandTags);
                 window.Close();
             }
             catch (Exception ex)

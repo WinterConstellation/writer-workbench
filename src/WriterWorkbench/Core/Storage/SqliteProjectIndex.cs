@@ -86,6 +86,18 @@ public sealed class SqliteProjectIndex
         return hits;
     }
 
+    public async Task DeleteDocumentAsync(string documentId, CancellationToken token)
+    {
+        await InitializeAsync(token);
+        await using var connection = new SqliteConnection($"Data Source={DatabasePath}");
+        await connection.OpenAsync(token);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM documents WHERE id = $id;";
+        command.Parameters.AddWithValue("$id", documentId);
+        await command.ExecuteNonQueryAsync(token);
+    }
+
     private static string CreateSnippet(string plainText, string query)
     {
         if (string.IsNullOrWhiteSpace(query))
