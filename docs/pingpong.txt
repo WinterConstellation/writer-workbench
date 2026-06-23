@@ -719,6 +719,13 @@ Next agent should treat the following as active work order:
 When resuming work, do not start with stack debate.
 Use WPF/.NET unless the user explicitly reopens stack choice.
 
+Completion upload rule:
+- After every work batch, update pingpong with what changed, what was verified, and what remains.
+- Upload the updated pingpong to the public repo before reporting completion.
+- Upload related project data to the repo as well when the work produced or changed data files, measurement outputs, fixtures, docs, specs, exports, or other non-sensitive artifacts needed for handoff.
+- If no separate data artifact was produced, say that explicitly in the final report.
+- Do not leave the public repo behind local-only work unless the user explicitly says not to push.
+
 First read:
 1. this file
 2. docs\superpowers\specs\2026-06-23-writer-workbench-wpf-design.md

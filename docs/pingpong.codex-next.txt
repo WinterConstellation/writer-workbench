@@ -290,6 +290,12 @@ After Codex finishes a feature batch, append to docs/pingpong.txt:
 
 Use concrete results. Prefer measured values over adjectives.
 
+Repo upload rule:
+- After every work batch, push the updated pingpong to the public repo.
+- Push related project data too when the work produced or changed data files, measurement outputs, fixtures, docs, specs, exports, or other non-sensitive handoff artifacts.
+- If no separate data artifact was produced, state that in the final report.
+- Do not leave completed work only in the local workspace unless the user explicitly says not to push.
+
 ---
 
 ## Priority summary
