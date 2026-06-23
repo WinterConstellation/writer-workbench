@@ -735,3 +735,54 @@ Then check:
 1. git status -sb
 2. dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
 3. current large-text typing behavior
+
+## 2026-06-24 KST feature implementation update: Binder scene management polish
+
+- Implemented binder scene rename with `document.renameScene`, a binder toolbar `이름` button, and `SceneRenameDialog`.
+- New scenes keep automatic sequential ids and immediately focus/select the title box so the title can be edited right away.
+- Scene delete now asks for confirmation before deleting and keeps the next available scene selected after deletion.
+- Scene duplicate, move up/down, create, delete, and rename status messages include the affected scene id and title.
+- Binder order continues to persist through manifest order, and refresh remains manifest/metadata driven instead of loading document bodies.
+- `ProjectStore.RenameDocumentAsync` updates the wwdoc metadata, manifest title, TXT export, and SQLite search title together.
+
+Files changed:
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/SceneRenameDialog.xaml`
+- `src/WriterWorkbench/SceneRenameDialog.xaml.cs`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/SceneRenameDialogTests.cs`
+
+Tests added/expanded:
+- create sequential scene ids and title metadata persistence.
+- rename manifest/document/search-index synchronization.
+- duplicate order persistence after reload.
+- delete persistence after reload.
+- reorder persistence after reload.
+- manifest-only binder metadata load without document body files.
+- command catalog and MainWindow smoke coverage for `document.renameScene`.
+- scene rename dialog title behavior.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ProjectStoreTests|AppCommandCatalogTests|MainWindowContainsWorkspacePresetCommands|SceneRenameDialogTests"` -> 17 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 88 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj --no-restore` -> completed.
+
+Large manuscript guardrail:
+- MainWindow stress command total: 224.996 ms.
+- ProjectStore.SaveDocumentAsync total: 128.336 ms.
+- ProjectStore.LoadDocumentAsync: 119.756 ms.
+- MainWindow EditorBox segment set: 1.850 ms.
+- MainWindow preview switch/render: 1.731 ms.
+- Detached append sync: 8.887 ms.
+
+Remaining problems:
+- Actual app UI should still be visually checked in a running WPF window after more Korean-label cleanup.
+- Large-file typing lag remains a separate editor workflow task; this batch did not investigate performance beyond guardrail checks.
+- No separate data artifact was produced; the perf result was not saved as a file.

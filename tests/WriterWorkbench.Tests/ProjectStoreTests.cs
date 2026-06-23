@@ -38,6 +38,25 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
+    public async Task CreateDocumentGeneratesSequentialSceneIdsAndStoresEditableTitle()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var store = new ProjectStore(ProjectPaths.ForRoot(root));
+
+        var first = await store.CreateDocumentAsync("새 장면", CancellationToken.None);
+        var second = await store.CreateDocumentAsync("두 번째 장면", CancellationToken.None);
+        var manifest = await store.LoadManifestAsync(CancellationToken.None);
+        var loadedSecond = await store.LoadDocumentAsync(second.Id, CancellationToken.None);
+
+        Assert.Equal("scene-0001", first.Id);
+        Assert.Equal("scene-0002", second.Id);
+        Assert.Equal("두 번째 장면", second.Title);
+        Assert.Equal("두 번째 장면", loadedSecond.Title);
+        Assert.Equal([first.Id, second.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal("두 번째 장면", manifest.Documents.Single(document => document.Id == second.Id).Title);
+    }
+
+    [Fact]
     public async Task LoadDocumentReturnsSavedDocument()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
@@ -52,6 +71,50 @@ public sealed class ProjectStoreTests
 
         Assert.Equal("Loaded", loaded.Title);
         Assert.Equal("불러올 문장", loaded.Paragraphs[0].Text);
+    }
+
+    [Fact]
+    public async Task RenameDocumentUpdatesManifestDocumentMetadataAndSearchIndex()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var document = new WriterDocument(
+            "scene-0001",
+            "Before",
+            [new WriterParagraph("p-0001", "body stays untouched", "body", [], [])]);
+        await store.SaveDocumentAsync(document, CancellationToken.None);
+
+        var renamed = await store.RenameDocumentAsync(document.Id, "After", CancellationToken.None);
+        var manifest = await store.LoadManifestAsync(CancellationToken.None);
+        var loaded = await store.LoadDocumentAsync(document.Id, CancellationToken.None);
+        var titleHits = await store.SearchAsync("After", CancellationToken.None);
+        var text = await File.ReadAllTextAsync(paths.DocumentTextPath(document.Id), CancellationToken.None);
+
+        Assert.Equal(document.Id, renamed.Id);
+        Assert.Equal("After", renamed.Title);
+        Assert.Equal("After", loaded.Title);
+        Assert.Equal("After", manifest.Documents.Single(info => info.Id == document.Id).Title);
+        Assert.Equal("body stays untouched", text);
+        Assert.Single(titleHits);
+        Assert.Equal(document.Id, titleHits[0].DocumentId);
+        Assert.Equal("After", titleHits[0].Title);
+    }
+
+    [Fact]
+    public async Task LoadManifestRestoresBinderMetadataWithoutReadingDocumentBodies()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var first = await store.CreateDocumentAsync("First", CancellationToken.None);
+        var second = await store.CreateDocumentAsync("Second", CancellationToken.None);
+        File.Delete(paths.DocumentJsonPath(second.Id));
+
+        var manifest = await new ProjectStore(paths).LoadManifestAsync(CancellationToken.None);
+
+        Assert.Equal([first.Id, second.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal("Second", manifest.Documents.Single(document => document.Id == second.Id).Title);
     }
 
     [Fact]
@@ -85,6 +148,23 @@ public sealed class ProjectStoreTests
         var manifest = await store.MoveDocumentAsync(third.Id, -1, CancellationToken.None);
 
         Assert.Equal([third.Id, first.Id, second.Id], manifest.Documents.Select(document => document.Id));
+    }
+
+    [Fact]
+    public async Task MoveDocumentOrderPersistsAfterStoreReload()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var first = await store.CreateDocumentAsync("First", CancellationToken.None);
+        var second = await store.CreateDocumentAsync("Second", CancellationToken.None);
+        var third = await store.CreateDocumentAsync("Third", CancellationToken.None);
+
+        await store.MoveDocumentAsync(third.Id, -1, CancellationToken.None);
+        await store.MoveDocumentAsync(third.Id, -1, CancellationToken.None);
+        var reloadedManifest = await new ProjectStore(paths).LoadManifestAsync(CancellationToken.None);
+
+        Assert.Equal([third.Id, first.Id, second.Id], reloadedManifest.Documents.Select(document => document.Id));
     }
 
     [Fact]
@@ -122,9 +202,11 @@ public sealed class ProjectStoreTests
 
         var duplicate = await store.DuplicateDocumentAsync(source.Id, CancellationToken.None);
         var manifest = await store.LoadManifestAsync(CancellationToken.None);
+        var reloadedManifest = await new ProjectStore(ProjectPaths.ForRoot(root)).LoadManifestAsync(CancellationToken.None);
         var loadedDuplicate = await store.LoadDocumentAsync(duplicate.Id, CancellationToken.None);
 
         Assert.Equal([source.Id, duplicate.Id, after.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal([source.Id, duplicate.Id, after.Id], reloadedManifest.Documents.Select(document => document.Id));
         Assert.Equal("Source 복사", duplicate.Title);
         Assert.NotEqual(source.Id, duplicate.Id);
         Assert.Equal(source.Paragraphs.Select(paragraph => paragraph.Text), loadedDuplicate.Paragraphs.Select(paragraph => paragraph.Text));
@@ -145,9 +227,11 @@ public sealed class ProjectStoreTests
         await store.SaveDocumentAsync(second, CancellationToken.None);
 
         var manifest = await store.DeleteDocumentAsync(second.Id, CancellationToken.None);
+        var reloadedManifest = await new ProjectStore(paths).LoadManifestAsync(CancellationToken.None);
         var results = await store.SearchAsync("needle", CancellationToken.None);
 
         Assert.Equal([first.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal([first.Id], reloadedManifest.Documents.Select(document => document.Id));
         Assert.False(File.Exists(paths.DocumentJsonPath(second.Id)));
         Assert.False(File.Exists(paths.DocumentTextPath(second.Id)));
         Assert.Empty(results);

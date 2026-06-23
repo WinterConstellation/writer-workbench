@@ -289,6 +289,13 @@
                     <WrapPanel DockPanel.Dock="Top"
                                Margin="8,0,8,8"
                                Background="#F9FAFB">
+                        <Button Content="이름"
+                                Tag="document.renameScene"
+                                MinWidth="54"
+                                Height="26"
+                                Margin="0,0,6,0"
+                                Padding="8,0"
+                                Click="CommandButton_Click"/>
                         <Button Content="복제"
                                 Tag="document.duplicateScene"
                                 MinWidth="54"

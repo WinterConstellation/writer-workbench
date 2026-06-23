@@ -17,6 +17,7 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.DocumentCreateScene,
             AppCommandIds.DocumentCreateStressLarge,
             AppCommandIds.DocumentDetachCurrent,
+            AppCommandIds.DocumentRenameScene,
             AppCommandIds.DocumentDuplicateScene,
             AppCommandIds.DocumentDeleteScene,
             AppCommandIds.DocumentMoveSceneUp,
@@ -41,6 +42,7 @@ public sealed class AppCommandCatalogTests
             Assert.False(string.IsNullOrWhiteSpace(command.Name));
         }
 
+        Assert.Equal("장면 이름 변경", registry.Get(AppCommandIds.DocumentRenameScene).Name);
         Assert.Equal("장면 복제", registry.Get(AppCommandIds.DocumentDuplicateScene).Name);
         Assert.Equal("장면 삭제", registry.Get(AppCommandIds.DocumentDeleteScene).Name);
         Assert.Equal("장면 위로", registry.Get(AppCommandIds.DocumentMoveSceneUp).Name);

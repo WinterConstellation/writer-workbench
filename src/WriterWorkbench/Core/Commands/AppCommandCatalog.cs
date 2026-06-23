@@ -10,6 +10,7 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.DocumentRenameScene, "장면 이름 변경", "문서", CommandScope.Binder));
         registry.Register(new AppCommand(AppCommandIds.DocumentDuplicateScene, "장면 복제", "문서", CommandScope.Binder));
         registry.Register(new AppCommand(AppCommandIds.DocumentDeleteScene, "장면 삭제", "문서", CommandScope.Binder));
         registry.Register(new AppCommand(AppCommandIds.DocumentMoveSceneUp, "장면 위로", "문서", CommandScope.Binder));
@@ -44,7 +45,7 @@ public static class AppCommandCatalog
             new CommandSlot(9, AppCommandIds.DocumentDetachCurrent, "창 분리"),
             new CommandSlot(10, AppCommandIds.WorkspacePresetTwo, "프리셋 2"),
             new CommandSlot(11, AppCommandIds.WorkspacePresetThree, "프리셋 3"),
-            new CommandSlot(12, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 끔"),
+            new CommandSlot(12, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 안 함"),
             new CommandSlot(13, AppCommandIds.ShortcutsOpenSettings, "단축키"),
             new CommandSlot(14, AppCommandIds.ViewMainOpen, "메인"),
             new CommandSlot(15, AppCommandIds.ViewPreviewToggle, "미리보기"),

@@ -8,6 +8,7 @@ public static class AppCommandIds
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";
+    public const string DocumentRenameScene = "document.renameScene";
     public const string DocumentDuplicateScene = "document.duplicateScene";
     public const string DocumentDeleteScene = "document.deleteScene";
     public const string DocumentMoveSceneUp = "document.moveSceneUp";

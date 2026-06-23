@@ -360,6 +360,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
+        _commandHandlers[AppCommandIds.DocumentRenameScene] = RenameSelectedSceneAsync;
         _commandHandlers[AppCommandIds.DocumentDuplicateScene] = DuplicateSelectedSceneAsync;
         _commandHandlers[AppCommandIds.DocumentDeleteScene] = DeleteSelectedSceneAsync;
         _commandHandlers[AppCommandIds.DocumentMoveSceneUp] = () => MoveSelectedSceneAsync(-1);
@@ -458,7 +459,57 @@ public partial class MainWindow : Window
         var document = await _store.CreateDocumentAsync("새 장면", CancellationToken.None);
         await RefreshBinderAsync();
         await SelectDocumentAsync(document.Id);
-        StatusText.Text = $"생성됨 {document.Id}";
+        TitleBox.Focus();
+        TitleBox.SelectAll();
+        StatusText.Text = $"생성됨 {document.Id} - {document.Title}";
+    }
+
+    private async Task RenameSelectedSceneAsync()
+    {
+        var documentId = GetSelectedDocumentId();
+        if (documentId is null)
+        {
+            StatusText.Text = "이름을 바꿀 장면이 없습니다.";
+            return;
+        }
+
+        if (_dirty && string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+        {
+            await SaveDocumentAsync("이름 변경 전 저장");
+        }
+
+        try
+        {
+            var manifest = await _store.LoadManifestAsync(CancellationToken.None);
+            var scene = manifest.Documents.FirstOrDefault(document =>
+                string.Equals(document.Id, documentId, StringComparison.OrdinalIgnoreCase));
+            if (scene is null)
+            {
+                StatusText.Text = $"이름 변경 실패 {documentId} - 바인더에서 찾을 수 없습니다.";
+                return;
+            }
+
+            var dialog = new SceneRenameDialog(scene.Id, scene.Title)
+            {
+                Owner = this
+            };
+            if (dialog.ShowDialog() != true)
+            {
+                StatusText.Text = $"이름 변경 취소 {scene.Id} - {scene.Title}";
+                return;
+            }
+
+            var renamed = await _store.RenameDocumentAsync(scene.Id, dialog.SceneTitle, CancellationToken.None);
+            var refreshed = await _store.LoadManifestAsync(CancellationToken.None);
+            await RefreshBinderAsync(refreshed);
+            SelectBinderItem(renamed.Id);
+            UpdateActiveDocumentTitleIfNeeded(renamed);
+            StatusText.Text = $"이름 변경됨 {renamed.Id} - {renamed.Title}";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidDataException or IOException or KeyNotFoundException)
+        {
+            StatusText.Text = $"이름 변경 실패 {documentId} - {ex.Message}";
+        }
     }
 
     private async Task DuplicateSelectedSceneAsync()
@@ -478,7 +529,7 @@ public partial class MainWindow : Window
         var duplicate = await _store.DuplicateDocumentAsync(documentId, CancellationToken.None);
         await RefreshBinderAsync();
         await SelectDocumentAsync(duplicate.Id);
-        StatusText.Text = $"복제됨 {duplicate.Id}";
+        StatusText.Text = $"복제됨 {duplicate.Id} - {duplicate.Title}";
     }
 
     private async Task DeleteSelectedSceneAsync()
@@ -493,26 +544,35 @@ public partial class MainWindow : Window
         try
         {
             var manifestBeforeDelete = await _store.LoadManifestAsync(CancellationToken.None);
-            var deletedIndex = manifestBeforeDelete.Documents
-                .Select((document, index) => new { document.Id, Index = index })
-                .First(item => string.Equals(item.Id, documentId, StringComparison.OrdinalIgnoreCase))
-                .Index;
+            var deleteTarget = manifestBeforeDelete.Documents
+                .Select((document, index) => new { Scene = document, Index = index })
+                .First(item => string.Equals(item.Scene.Id, documentId, StringComparison.OrdinalIgnoreCase));
+            if (!ConfirmDeleteScene(deleteTarget.Scene))
+            {
+                StatusText.Text = $"삭제 취소 {deleteTarget.Scene.Id} - {deleteTarget.Scene.Title}";
+                return;
+            }
+
             var manifest = await _store.DeleteDocumentAsync(documentId, CancellationToken.None);
             await RefreshBinderAsync(manifest);
 
             var nextDocument = manifest.Documents.Count == 0
                 ? null
-                : manifest.Documents[Math.Min(deletedIndex, manifest.Documents.Count - 1)];
+                : manifest.Documents[Math.Min(deleteTarget.Index, manifest.Documents.Count - 1)];
             if (nextDocument is not null)
             {
                 await SelectDocumentAsync(nextDocument.Id);
             }
 
-            StatusText.Text = $"삭제됨 {documentId}";
+            StatusText.Text = $"삭제됨 {deleteTarget.Scene.Id} - {deleteTarget.Scene.Title}";
         }
         catch (InvalidOperationException ex)
         {
             StatusText.Text = ex.Message;
+        }
+        catch (KeyNotFoundException ex)
+        {
+            StatusText.Text = $"삭제 실패 {documentId} - {ex.Message}";
         }
     }
 
@@ -528,7 +588,42 @@ public partial class MainWindow : Window
         var manifest = await _store.MoveDocumentAsync(documentId, offset, CancellationToken.None);
         await RefreshBinderAsync(manifest);
         SelectBinderItem(documentId);
-        StatusText.Text = offset < 0 ? $"위로 이동 {documentId}" : $"아래로 이동 {documentId}";
+        var moved = manifest.Documents.First(document =>
+            string.Equals(document.Id, documentId, StringComparison.OrdinalIgnoreCase));
+        StatusText.Text = offset < 0
+            ? $"위로 이동 {moved.Id} - {moved.Title}"
+            : $"아래로 이동 {moved.Id} - {moved.Title}";
+    }
+
+    private bool ConfirmDeleteScene(ProjectDocumentInfo scene)
+    {
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"이 장면을 삭제할까요?\n\n{scene.Id} - {scene.Title}",
+            "장면 삭제 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
+    }
+
+    private void UpdateActiveDocumentTitleIfNeeded(WriterDocument renamed)
+    {
+        if (!string.Equals(renamed.Id, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _loadingDocument = true;
+        try
+        {
+            _activeDocument = renamed;
+            TitleBox.Text = renamed.Title;
+            _dirty = false;
+        }
+        finally
+        {
+            _loadingDocument = false;
+        }
     }
 
     private string? GetSelectedDocumentId()

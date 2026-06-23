@@ -50,6 +50,26 @@ public sealed class ProjectStore(ProjectPaths paths)
         return document;
     }
 
+    public async Task<WriterDocument> RenameDocumentAsync(string documentId, string title, CancellationToken token)
+    {
+        var normalizedTitle = title.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedTitle))
+        {
+            throw new ArgumentException("Scene title cannot be empty.", nameof(title));
+        }
+
+        var manifest = await LoadManifestAsync(token);
+        if (FindDocumentIndex(manifest, documentId) < 0)
+        {
+            throw new KeyNotFoundException($"Document is not in the binder: {documentId}");
+        }
+
+        var document = await LoadDocumentAsync(documentId, token);
+        var renamed = document with { Title = normalizedTitle };
+        await SaveDocumentAsync(renamed, token);
+        return renamed;
+    }
+
     public async Task SaveDocumentAsync(WriterDocument document, CancellationToken token)
     {
         Directory.CreateDirectory(paths.RootPath);
@@ -147,8 +167,7 @@ public sealed class ProjectStore(ProjectPaths paths)
             return manifest;
         }
 
-        var documents = manifest.Documents
-            .ToList();
+        var documents = manifest.Documents.ToList();
         var document = documents[currentIndex];
         documents.RemoveAt(currentIndex);
         documents.Insert(targetIndex, document);
