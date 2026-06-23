@@ -468,7 +468,7 @@ Public repo verification:
 - Repo: WinterConstellation/writer-workbench
 - Visibility: public
 - Branch: master
-- Pushed commit: 2f1fbe2
+- Latest P0 input implementation commit: d2d3b3d
 
 ## Known problems / do not paper over
 
