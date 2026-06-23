@@ -594,6 +594,45 @@ After P0 performance is fixed, move toward view-model/service boundaries careful
 
 ## Planned / next implementation
 
+### Current user instruction / next handoff
+
+The user asked to input the current direction into pingpong, not merely summarize it in chat.
+
+Next agent should treat the following as active work order:
+
+1. Actual running-app e2e performance measurement comes first.
+   - The offscreen PerfProbe did not reproduce the 30-second freeze.
+   - Do not mark the freeze solved from PerfProbe alone.
+   - Measure the real executable path from user action to visible UI response.
+   - Target flows:
+     - Stress 15k button click to usable editor.
+     - Large document load to usable editor.
+     - Typing into the loaded stress document.
+     - Save/autosave after edit.
+     - Preview switch.
+     - Detached window open, edit, save.
+
+2. Large document editing UX is still incomplete.
+   - Current main editor opens only a bounded front segment of about 4,957 chars.
+   - This is a performance guard, not a complete large-manuscript editing design.
+   - Add explicit segment navigation/edit workflow before claiming large document editing is usable.
+
+3. Storage format conflict remains unresolved.
+   - Current implementation uses `documents/*.wwdoc.json`.
+   - Direction note recommends `documents/*.wwtxt` plus `documents/*.meta.json` and SQLite index/cache.
+   - Do not harden more project-file behavior until this is decided or migration-safe.
+
+4. Local/public repo alignment is still P0/P1.
+   - Public repo is the clean pushed snapshot.
+   - Local `C:\Users\Masters\Documents\글` still has untracked project files and old local history.
+   - Do not assume local git state is publish-ready.
+   - Check public temp repo and local workspace separately before commit/push.
+
+5. Keep scope tight.
+   - Do not reopen Tauri/WPF stack debate.
+   - Do not add AI/API/Codex/Chrome integration while P0 editor/storage/repo issues are open.
+   - Do not report "large text fixed" unless real visible-app measurement supports it.
+
 ### Immediate next work
 
 1. Fix large-file typing lag.
