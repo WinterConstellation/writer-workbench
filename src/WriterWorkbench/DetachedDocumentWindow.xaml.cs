@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Threading;
 using WriterWorkbench.Core.Documents;
 using WriterWorkbench.Core.Storage;
 
@@ -9,12 +10,19 @@ public partial class DetachedDocumentWindow : Window
 {
     private readonly ProjectStore _store;
     private readonly DocumentEditSession _session;
+    private readonly DispatcherTimer _metricsRefreshTimer;
     private bool _loading;
 
     public DetachedDocumentWindow(ProjectStore store, WriterDocument document)
     {
         _store = store;
         _session = new DocumentEditSession(document);
+        _metricsRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _metricsRefreshTimer.Tick += (_, _) =>
+        {
+            _metricsRefreshTimer.Stop();
+            UpdateMetrics();
+        };
 
         InitializeComponent();
         LoadSession();
@@ -55,6 +63,7 @@ public partial class DetachedDocumentWindow : Window
         _session.AcceptSnapshot(document);
         Title = $"분리 창 - {document.Title}";
         DetachedStatusText.Text = $"저장됨 {DateTime.Now:HH:mm:ss} - {document.Id} - {stopwatch.ElapsedMilliseconds} ms";
+        _metricsRefreshTimer.Stop();
         UpdateMetrics();
     }
 
@@ -88,7 +97,7 @@ public partial class DetachedDocumentWindow : Window
         }
 
         SyncSessionFromControls();
-        UpdateMetrics();
+        ScheduleMetricsRefresh();
         DetachedStatusText.Text = "저장되지 않은 변경";
     }
 
@@ -103,5 +112,17 @@ public partial class DetachedDocumentWindow : Window
         var metrics = _session.Measure();
         DetachedMetricsText.Text =
             $"문단 {metrics.ParagraphCount:N0} | 글자 {metrics.CharacterCount:N0} | UTF-8 {metrics.PlainTextUtf8Bytes / 1024.0:N1} KB";
+    }
+
+    private void ScheduleMetricsRefresh()
+    {
+        _metricsRefreshTimer.Stop();
+        _metricsRefreshTimer.Start();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _metricsRefreshTimer.Stop();
+        base.OnClosed(e);
     }
 }

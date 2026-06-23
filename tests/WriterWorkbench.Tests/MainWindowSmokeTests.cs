@@ -1,11 +1,20 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using WriterWorkbench.Core.Commands;
+using Xunit.Abstractions;
 
 namespace WriterWorkbench.Tests;
 
 public sealed class MainWindowSmokeTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public MainWindowSmokeTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Fact]
     public void MainWindowConstructsOnStaThread()
     {
@@ -177,6 +186,48 @@ public sealed class MainWindowSmokeTests
         {
             throw failure;
         }
+    }
+
+    [Fact]
+    public void MainEditorAcceptsLargeAppendWithinInputBudget()
+    {
+        Exception? failure = null;
+        var elapsedMilliseconds = 0.0;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var editor = (TextBox)window.FindName("EditorBox");
+
+                editor.Text = new string('A', 80_000);
+                editor.CaretIndex = editor.Text.Length;
+
+                var stopwatch = Stopwatch.StartNew();
+                editor.SelectedText = " appended";
+                stopwatch.Stop();
+                elapsedMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+
+                Assert.EndsWith(" appended", editor.Text, StringComparison.Ordinal);
+                Assert.True(stopwatch.Elapsed < TimeSpan.FromMilliseconds(250), $"Main editor large append took {stopwatch.Elapsed}.");
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+
+        _output.WriteLine($"Main editor 80k append elapsed: {elapsedMilliseconds:N3} ms");
     }
 
     private static IEnumerable<T> FindLogicalChildren<T>(DependencyObject parent)

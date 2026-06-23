@@ -435,12 +435,34 @@ Graphic preset catalog exists with:
 - Verification after this change:
   - dotnet build WriterWorkbench.sln --no-restore
   - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
-  - Result: 74 passed, 0 failed, 0 skipped.
+ - Result: 74 passed, 0 failed, 0 skipped.
   - dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-win-x64 --no-restore
+
+2026-06-23 KST P0 input measurement update:
+- Confirmed MainWindow editor input loop:
+  - Test: MainEditorAcceptsLargeAppendWithinInputBudget
+  - Measured run: 80,000 chars + append at end = 0.681 ms.
+- Confirmed detached document window was missing large-input safeguards and was recomputing full metrics on every text change.
+- Added detached-window regression tests:
+  - DetachedEditorUsesLargeTextFriendlyInputSettings
+  - DetachedLargeDocumentAcceptsSingleAppendWithinInputBudget
+  - DetachedTextChangeDefersMetricsRefresh
+- Detached measured run:
+  - 15,000 paragraphs + append at end = 6.929 ms.
+- Fix:
+  - Detached TextBox now matches main editor large-text settings.
+  - Detached metrics are delayed by 500 ms and no longer run synchronously in the keystroke path.
+- Verification after this change:
+  - dotnet build WriterWorkbench.sln --no-restore
+  - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+  - Result: 78 passed, 0 failed, 0 skipped.
+- Not closed:
+  - User's 30-second stress freeze still needs actual app create/load/save/render measurement.
+  - Current large-document editor opens a bounded front segment; segment navigation/edit UX is still missing.
 
 Last local verification:
 - Command: dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
-- Previous result: 67 passed, 0 failed, 0 skipped.
+- Current result: 78 passed, 0 failed, 0 skipped.
 
 Public repo verification:
 - Repo: WinterConstellation/writer-workbench
@@ -466,12 +488,34 @@ Current mitigation is not enough:
 
 Next work should treat this as the top bug, not as solved.
 
+2026-06-23 second P0 measurement/fix:
+- Main editor input loop was measured directly:
+  - Test: MainEditorAcceptsLargeAppendWithinInputBudget
+  - Scenario: 80,000 characters in MainWindow EditorBox, append at the end.
+  - Result: 0.681 ms in the measured run.
+- Detached document window had a real synchronous large-input problem:
+  - It used wrapping text input without the same large-text safeguards as the main editor.
+  - It recomputed full document metrics on every text change.
+  - Failing proof before fix: appending 9 chars immediately changed metrics from 1,755,000 to 1,755,009 chars.
+- Fix applied:
+  - Detached editor now uses NoWrap, UndoLimit=0, and spellcheck disabled.
+  - Detached metrics refresh is delayed by a 500 ms dispatcher timer instead of running in the keystroke path.
+  - Save still refreshes metrics immediately after persistence.
+- Detached 15k input measurement:
+  - Test: DetachedLargeDocumentAcceptsSingleAppendWithinInputBudget
+  - Scenario: 15,000-paragraph document in DetachedDocumentWindow, append at the end.
+  - Result: 6.929 ms in the measured run.
+
+Important: this does not fully close the user's 30-second freeze report.
+The measured keystroke path is now light, but the next P0 pass should measure actual app create/load/save/render flow, especially the stress 15k command and any real visible-window layout cost.
+
 Likely next fixes:
-- Measure MainWindow EditorBox_TextChanged cost directly.
-- Stop doing expensive metrics/search/save/preview work on every keystroke.
+- Measure stress 15k create/load/save/render flow in the running app.
+- Keep expensive metrics/search/save/preview work out of every keystroke.
 - Move expensive work behind timers/background tasks.
 - Consider replacing WPF TextBox with AvalonEdit or a custom paragraph/segment editor.
-- Add a real typing-latency smoke test around large documents.
+- Add a visible-window typing-latency smoke test around large documents.
+- Add explicit segment navigation/edit UX for large documents; current large-document editor opens a bounded front segment.
 
 ### P0: Original local workspace is not clean
 
