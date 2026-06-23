@@ -1,0 +1,306 @@
+# Codex Next Work Pingpong
+
+Updated: 2026-06-24 KST
+Repository: WinterConstellation/writer-workbench
+Purpose: concrete build/test handoff for Codex after large manuscript stress results.
+
+Read first:
+1. docs/pingpong.txt
+2. docs/superpowers/specs/2026-06-23-writer-workbench-wpf-design.md
+3. docs/superpowers/plans/2026-06-23-writer-workbench-wpf-mvp-core.md
+
+Do not reopen stack choice. Use WPF/.NET unless the user explicitly reopens it.
+
+---
+
+## User-provided stress result
+
+Large manuscript baseline reported by user:
+
+- Paragraphs: about 85,000
+- Characters including spaces: about 10,000,000
+- Paste body into editor: about 2 seconds
+- Save: under 500 ms
+
+Interpretation:
+
+- The current WPF/TextBox path is not automatically disqualified.
+- Do not replace the editor component just because WPF is suspected.
+- Treat paste/save as currently acceptable until a repeatable measurement disproves it.
+- The next target is not generic typing. The next target is post-paste behavior and full workflow cost.
+
+Current highest-risk candidates:
+
+1. Initial load into visible editor.
+2. WPF render/layout after very large text is assigned.
+3. Scroll/cursor movement after large paste.
+4. Metrics update after large paste.
+5. SQLite indexing after save.
+6. Search over large indexed text.
+7. Preview surface switch over large text.
+8. App close/reopen with large document.
+9. Detached window behavior on large document.
+10. Stress command UI progress and final render cost.
+
+---
+
+## Codex work order
+
+### Task 1: Add a reproducible large manuscript perf harness
+
+Goal:
+Create repeatable tests/probes for the user-level stress case.
+
+Required scenario:
+
+- 85,000 paragraphs
+- about 10,000,000 characters including spaces
+- paste/assign body
+- save
+- reload
+- search/index
+- preview switch
+- scroll/caret smoke path if possible
+
+Implementation guidance:
+
+- Prefer a dedicated test helper or perf probe that can generate deterministic large text.
+- Keep it outside the normal unit-test hot path if it is too heavy for every run.
+- Add a clear command to run it manually.
+- Record timing results in console output and, where appropriate, in docs/pingpong.txt later.
+
+Suggested locations:
+
+```text
+tools/WriterWorkbench.PerfProbe/
+tests/WriterWorkbench.Tests/
+```
+
+Required metrics:
+
+```text
+Large text generation time
+ProjectStore.SaveDocumentAsync time
+ProjectStore.LoadDocumentAsync time
+Editor assignment time
+Visible window render/layout probe time, if measurable
+Preview generation/switch time
+SQLite index update time
+Search query time
+App session restore large document time, if reachable
+```
+
+Acceptance:
+
+- Existing tests still pass.
+- The perf probe can be run without editing source code.
+- The probe prints timings with labels that match the list above.
+
+---
+
+### Task 2: Separate keystroke path from heavy post-edit work
+
+Goal:
+Ensure EditorBox_TextChanged and detached editor text change handlers do only cheap work.
+
+Required rule:
+
+```text
+Keystroke path may update dirty state, last edit timestamp, and cheap visible state only.
+It must not run full document metrics, search indexing, preview rendering, file save, SQLite work, or full paragraph conversion synchronously.
+```
+
+Codex must inspect and document:
+
+- MainWindow.EditorBox_TextChanged
+- MainWindow.TitleBox_TextChanged
+- DetachedDocumentWindow text change handler
+- Metrics refresh code
+- Preview refresh code
+- Autosave timer path
+
+Expected implementation:
+
+- Full metrics after typing should be delayed or triggered after save/load.
+- Any expensive update should be timer-based, backgrounded, or user-triggered.
+- Save may refresh metrics after persistence.
+
+Acceptance:
+
+- Add or update tests proving large text append does not synchronously recompute full metrics in the keystroke path.
+- Add tests for main editor and detached editor if both surfaces exist.
+
+---
+
+### Task 3: Large document interaction smoke tests
+
+Goal:
+Measure what happens after the large text exists in the editor.
+
+Required scenarios:
+
+1. Append small text to a large document.
+2. Move caret to end after large text is loaded.
+3. Select small range near end, if practical.
+4. Trigger Ctrl+S after large text load.
+5. Switch to preview and back.
+6. Search for a known token.
+7. Close/reopen project or reload document through ProjectStore.
+
+Acceptance:
+
+- Tests or perf probe identify timings separately.
+- Do not claim the app is smooth merely because unit tests pass.
+- If visible WPF layout cannot be measured in headless test, document that limitation and provide a manual probe command.
+
+---
+
+### Task 4: Decide bounded segment UX for huge documents
+
+Current behavior:
+
+- Large documents open as a bounded front segment, default around 5,000 characters.
+- Hidden paragraphs are preserved when the visible segment is edited.
+
+Problem:
+
+- This protects the editor but is not yet a complete authoring UX.
+- User needs a way to navigate segments or split/import large text into scenes.
+
+Codex should design first, then implement only the smallest safe UI if obvious.
+
+Required design output:
+
+```text
+Segment navigation options:
+- previous segment
+- next segment
+- jump to paragraph range
+- split selected range into new scene
+- large paste import staging
+```
+
+Do not implement a complex custom editor yet unless measurement proves TextBox is the actual bottleneck.
+
+Acceptance:
+
+- Add a design note to docs/pingpong.txt or a new docs file.
+- Prefer explicit segment navigation over silently hiding the rest of a large document.
+
+---
+
+### Task 5: Search/index cost isolation
+
+Goal:
+Search and SQLite indexing must not steal time from writing.
+
+Required checks:
+
+- ProjectStore.SaveDocumentAsync timing split:
+  - write canonical JSON/body
+  - write TXT export
+  - update manifest
+  - update SQLite index
+- Report manuscript save success separately from index refresh success.
+
+Expected behavior:
+
+```text
+If body/TXT save succeeds and SQLite index fails, status must say manuscript is saved and index refresh failed.
+```
+
+Acceptance:
+
+- Add test where index update failure does not imply manuscript body loss.
+- Add timing labels in perf probe for save vs index.
+
+---
+
+### Task 6: Preview remains explicit and cheap
+
+Goal:
+Keep preview out of the typing loop.
+
+Required behavior:
+
+- Preview opens by explicit toggle/button/shortcut.
+- Large preview renders a limited chunk or uses a clear paused/truncated state.
+- Preview generation must not run on every keystroke.
+
+Acceptance:
+
+- Test or inspect that EditorBox_TextChanged does not call preview rendering.
+- Large preview path displays or reports a truncation/limit state.
+
+---
+
+### Task 7: Update pingpong after implementation
+
+After Codex finishes work, update docs/pingpong.txt or append a dated section with:
+
+```text
+2026-06-24 KST Codex implementation update:
+- Files changed
+- Tests added
+- Commands run
+- Measured timings
+- Remaining problems
+- Whether 85k paragraphs / 10M chars paste-save path is still acceptable
+```
+
+Do not write vague claims like "performance improved" without numbers.
+
+---
+
+## Required verification commands
+
+Run at minimum:
+
+```powershell
+dotnet build WriterWorkbench.sln --no-restore
+dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+```
+
+Run perf probe command once available, for example:
+
+```powershell
+dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release
+```
+
+If a probe cannot run in the current environment, document the reason exactly.
+
+---
+
+## Do not do
+
+- Do not restart stack debate.
+- Do not switch to Tauri/Electron/Qt/WinUI.
+- Do not replace WPF TextBox with AvalonEdit before measuring the actual bottleneck.
+- Do not run preview/index/metrics synchronously on every keystroke.
+- Do not claim the 30-second freeze is solved unless the full create/load/save/render path is measured.
+- Do not hide large-document truncation from the user.
+- Do not send manuscript text to external APIs by default.
+
+---
+
+## Priority summary
+
+P0:
+
+1. Reproduce and measure 85k paragraph / 10M character workflow.
+2. Identify whether remaining lag is load, render/layout, save/index, preview, search, or detached window.
+3. Keep keystroke path clean.
+4. Add timing probe and regression tests.
+
+P1:
+
+1. Segment navigation design.
+2. Save/index result separation.
+3. Large preview limit UX.
+4. Local/public repo alignment check.
+
+P2:
+
+1. Canonical storage direction decision: current *.wwdoc.json vs future *.wwtxt + *.meta.json.
+2. API/plugin bridge design.
+3. MainWindow responsibility split after P0 is stable.
