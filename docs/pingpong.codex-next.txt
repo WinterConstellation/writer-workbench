@@ -2,20 +2,23 @@
 
 Updated: 2026-06-24 KST
 Repository: WinterConstellation/writer-workbench
-Purpose: concrete build/test handoff for Codex after large manuscript stress results.
+Purpose: feature-first handoff for Codex after large manuscript baseline became acceptable.
 
 Read first:
 1. docs/pingpong.txt
 2. docs/superpowers/specs/2026-06-23-writer-workbench-wpf-design.md
 3. docs/superpowers/plans/2026-06-23-writer-workbench-wpf-mvp-core.md
 
-Do not reopen stack choice. Use WPF/.NET unless the user explicitly reopens it.
+Stack direction:
+- Use WPF/.NET.
+- Treat the current editor performance as acceptable for feature work unless a new repeatable failure appears.
+- Keep performance guardrails, but feature implementation is now the main track.
 
 ---
 
-## User-provided stress result
+## User-provided large manuscript baseline
 
-Large manuscript baseline reported by user:
+Large manuscript result reported by user:
 
 - Paragraphs: about 85,000
 - Characters including spaces: about 10,000,000
@@ -24,283 +27,296 @@ Large manuscript baseline reported by user:
 
 Interpretation:
 
-- The current WPF/TextBox path is not automatically disqualified.
-- Do not replace the editor component just because WPF is suspected.
-- Treat paste/save as currently acceptable until a repeatable measurement disproves it.
-- The next target is not generic typing. The next target is post-paste behavior and full workflow cost.
-
-Current highest-risk candidates:
-
-1. Initial load into visible editor.
-2. WPF render/layout after very large text is assigned.
-3. Scroll/cursor movement after large paste.
-4. Metrics update after large paste.
-5. SQLite indexing after save.
-6. Search over large indexed text.
-7. Preview surface switch over large text.
-8. App close/reopen with large document.
-9. Detached window behavior on large document.
-10. Stress command UI progress and final render cost.
+- The current WPF/TextBox path is acceptable enough to continue MVP feature implementation.
+- Heavy performance investigation becomes a guardrail, not the active main task.
+- AvalonEdit/custom editor replacement is deferred until a feature creates a repeatable bottleneck.
+- New features must preserve the lightweight editor input path.
 
 ---
 
-## Codex work order
+## New Codex direction
 
-### Task 1: Add a reproducible large manuscript perf harness
+Build user-facing writing-program features now.
+
+Performance work stays as a check around features:
+
+```text
+Implement feature -> run tests -> check large manuscript does not obviously regress -> update pingpong with result.
+```
+
+The next work should make the app more useful as a writing workbench, not only more measured as a benchmark harness.
+
+---
+
+## Feature implementation order
+
+### Task 1: Binder and scene management polish
 
 Goal:
-Create repeatable tests/probes for the user-level stress case.
+Make the binder useful for actual manuscript work.
 
-Required scenario:
+Implement:
 
-- 85,000 paragraphs
-- about 10,000,000 characters including spaces
-- paste/assign body
-- save
-- reload
-- search/index
-- preview switch
-- scroll/caret smoke path if possible
-
-Implementation guidance:
-
-- Prefer a dedicated test helper or perf probe that can generate deterministic large text.
-- Keep it outside the normal unit-test hot path if it is too heavy for every run.
-- Add a clear command to run it manually.
-- Record timing results in console output and, where appropriate, in docs/pingpong.txt later.
-
-Suggested locations:
-
-```text
-tools/WriterWorkbench.PerfProbe/
-tests/WriterWorkbench.Tests/
-```
-
-Required metrics:
-
-```text
-Large text generation time
-ProjectStore.SaveDocumentAsync time
-ProjectStore.LoadDocumentAsync time
-Editor assignment time
-Visible window render/layout probe time, if measurable
-Preview generation/switch time
-SQLite index update time
-Search query time
-App session restore large document time, if reachable
-```
+1. Rename scene from UI.
+2. Create scene with generated id and editable title.
+3. Delete scene with confirmation.
+4. Duplicate scene.
+5. Move scene up/down in binder order.
+6. Persist binder order in manifest or binder storage.
+7. Keep active document selection stable after create/rename/delete/move.
 
 Acceptance:
 
-- Existing tests still pass.
-- The perf probe can be run without editing source code.
-- The probe prints timings with labels that match the list above.
+- Tests cover create, rename, duplicate, delete, and reorder persistence.
+- UI status messages identify the affected scene.
+- Saving after rename updates visible binder title and document metadata.
+- Large manuscript path remains usable after binder refresh.
 
 ---
 
-### Task 2: Separate keystroke path from heavy post-edit work
+### Task 2: Scene metadata panel / inspector MVP
 
 Goal:
-Ensure EditorBox_TextChanged and detached editor text change handlers do only cheap work.
+Add the first real writing-management surface beside the editor.
 
-Required rule:
+Implement a simple inspector for the active scene:
 
-```text
-Keystroke path may update dirty state, last edit timestamp, and cheap visible state only.
-It must not run full document metrics, search indexing, preview rendering, file save, SQLite work, or full paragraph conversion synchronously.
-```
+- Synopsis
+- Status: draft / revised / final / excluded
+- Tags
+- Target character count
+- Current character count display
+- Updated timestamp
 
-Codex must inspect and document:
+Storage:
 
-- MainWindow.EditorBox_TextChanged
-- MainWindow.TitleBox_TextChanged
-- DetachedDocumentWindow text change handler
-- Metrics refresh code
-- Preview refresh code
-- Autosave timer path
-
-Expected implementation:
-
-- Full metrics after typing should be delayed or triggered after save/load.
-- Any expensive update should be timer-based, backgrounded, or user-triggered.
-- Save may refresh metrics after persistence.
+- Use existing metadata model if available.
+- If missing, add a minimal side metadata structure or extend manifest carefully.
+- Keep manuscript body separate from management metadata where practical.
 
 Acceptance:
 
-- Add or update tests proving large text append does not synchronously recompute full metrics in the keystroke path.
-- Add tests for main editor and detached editor if both surfaces exist.
+- Metadata saves and reloads.
+- Changing synopsis/status/tags does not rewrite the editor body unnecessarily.
+- Tests cover metadata roundtrip.
+- UI labels are Korean.
 
 ---
 
-### Task 3: Large document interaction smoke tests
+### Task 3: Search UI improvement
 
 Goal:
-Measure what happens after the large text exists in the editor.
+Turn search from a raw list into a usable manuscript navigation tool.
 
-Required scenarios:
+Implement:
 
-1. Append small text to a large document.
-2. Move caret to end after large text is loaded.
-3. Select small range near end, if practical.
-4. Trigger Ctrl+S after large text load.
-5. Switch to preview and back.
-6. Search for a known token.
-7. Close/reopen project or reload document through ProjectStore.
+1. Search result includes scene title, snippet, and rough location if available.
+2. Selecting a result loads the scene.
+3. Highlight or place caret near the matched text if practical.
+4. Empty query and no-result states show clear Korean messages.
+5. Search should use SQLite/index path when available.
 
 Acceptance:
 
-- Tests or perf probe identify timings separately.
-- Do not claim the app is smooth merely because unit tests pass.
-- If visible WPF layout cannot be measured in headless test, document that limitation and provide a manual probe command.
+- Tests cover search result formatting and selection behavior where practical.
+- Search does not run on every keystroke.
+- Large document search remains user-triggered.
 
 ---
 
-### Task 4: Decide bounded segment UX for huge documents
-
-Current behavior:
-
-- Large documents open as a bounded front segment, default around 5,000 characters.
-- Hidden paragraphs are preserved when the visible segment is edited.
-
-Problem:
-
-- This protects the editor but is not yet a complete authoring UX.
-- User needs a way to navigate segments or split/import large text into scenes.
-
-Codex should design first, then implement only the smallest safe UI if obvious.
-
-Required design output:
-
-```text
-Segment navigation options:
-- previous segment
-- next segment
-- jump to paragraph range
-- split selected range into new scene
-- large paste import staging
-```
-
-Do not implement a complex custom editor yet unless measurement proves TextBox is the actual bottleneck.
-
-Acceptance:
-
-- Add a design note to docs/pingpong.txt or a new docs file.
-- Prefer explicit segment navigation over silently hiding the rest of a large document.
-
----
-
-### Task 5: Search/index cost isolation
+### Task 4: Snapshot / backup MVP
 
 Goal:
-Search and SQLite indexing must not steal time from writing.
+Protect real manuscript work before more editing features land.
 
-Required checks:
+Implement:
 
-- ProjectStore.SaveDocumentAsync timing split:
-  - write canonical JSON/body
-  - write TXT export
-  - update manifest
-  - update SQLite index
-- Report manuscript save success separately from index refresh success.
-
-Expected behavior:
-
-```text
-If body/TXT save succeeds and SQLite index fails, status must say manuscript is saved and index refresh failed.
-```
+1. Manual snapshot command for active scene.
+2. Snapshot file written under snapshots/scene-id/.
+3. Snapshot list for active scene.
+4. Restore snapshot with confirmation.
+5. Optional snapshot before destructive actions: delete, restore, large overwrite.
 
 Acceptance:
 
-- Add test where index update failure does not imply manuscript body loss.
-- Add timing labels in perf probe for save vs index.
+- Snapshot file is human-readable or clearly derived from current document storage.
+- Tests cover snapshot create/list/restore.
+- Restore updates editor, binder title if needed, and save state.
 
 ---
 
-### Task 6: Preview remains explicit and cheap
+### Task 5: Export MVP
 
 Goal:
-Keep preview out of the typing loop.
+Make the workbench produce usable manuscript output.
 
-Required behavior:
+Implement:
 
-- Preview opens by explicit toggle/button/shortcut.
-- Large preview renders a limited chunk or uses a clear paused/truncated state.
-- Preview generation must not run on every keystroke.
+1. Export current scene to TXT.
+2. Export included scenes in binder order to one TXT file.
+3. Export destination under exports/.
+4. Status message shows output path.
+5. Excluded scenes are skipped in full manuscript export.
 
 Acceptance:
 
-- Test or inspect that EditorBox_TextChanged does not call preview rendering.
-- Large preview path displays or reports a truncation/limit state.
+- Tests cover binder-order export.
+- Tests cover excluded scene skip.
+- Output is UTF-8 and Korean text survives.
+- Export is explicit/user-triggered.
 
 ---
 
-### Task 7: Update pingpong after implementation
+### Task 6: Command palette MVP
 
-After Codex finishes work, update docs/pingpong.txt or append a dated section with:
+Goal:
+Support the customization spine with an actual command surface.
+
+Implement:
+
+1. Command palette window/dialog.
+2. Search commands by name/id/category.
+3. Execute selected command.
+4. Default shortcut, for example Ctrl+Shift+P.
+5. Include project, document, search, preview, focus, help, snapshot, export commands.
+
+Acceptance:
+
+- Command registry remains the source of truth.
+- Command palette lists registered commands, not hardcoded duplicate buttons.
+- Tests cover command filtering and execution routing where practical.
+
+---
+
+### Task 7: Toolbar/command slot editing MVP
+
+Goal:
+Make custom cockpit idea visible.
+
+Implement minimal command slot customization:
+
+1. Show current command slots.
+2. Allow replacing a slot with another registered command.
+3. Persist command slot layout.
+4. Restore layout on app startup.
+5. Provide reset-to-default.
+
+Acceptance:
+
+- Tests cover save/load/reset of command slots.
+- UI labels are Korean.
+- Unknown command ids fall back safely with a visible status message.
+
+---
+
+### Task 8: Focus session options UI
+
+Goal:
+Make focus mode user-configurable.
+
+Implement:
+
+1. Focus duration setting.
+2. Early-exit confirmation length setting.
+3. Fullscreen on/off setting.
+4. Save settings locally.
+5. Focus button uses saved settings.
+
+Acceptance:
+
+- Tests cover focus options persistence.
+- Focus remains app-level and user-controllable.
+- Ctrl+S stays available during focus.
+
+---
+
+## Performance guardrails during feature work
+
+Use these as regression checks, not as the main project track.
+
+Baseline to preserve:
 
 ```text
-2026-06-24 KST Codex implementation update:
-- Files changed
-- Tests added
-- Commands run
-- Measured timings
-- Remaining problems
-- Whether 85k paragraphs / 10M chars paste-save path is still acceptable
+85,000 paragraphs
+about 10,000,000 characters including spaces
+paste body into editor: about 2 seconds
+save: under 500 ms
 ```
 
-Do not write vague claims like "performance improved" without numbers.
+Feature work must keep these rules:
+
+- Editor text change path handles only cheap state changes.
+- Search, preview, export, indexing, snapshots, and metrics are user-triggered, delayed, or backgrounded.
+- Full document metrics avoid synchronous recalculation per keystroke.
+- Large preview uses explicit trigger and limit/truncation behavior.
+- Large export and snapshot commands show progress if they take noticeable time.
+
+Add performance probes only when a feature touches heavy paths.
 
 ---
 
-## Required verification commands
+## Required verification after each feature batch
 
-Run at minimum:
+Run:
 
 ```powershell
 dotnet build WriterWorkbench.sln --no-restore
 dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
 ```
 
-Run perf probe command once available, for example:
+When a feature touches large text, also run or update:
 
 ```powershell
 dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release
 ```
 
-If a probe cannot run in the current environment, document the reason exactly.
+If the probe is unavailable or out of date, update it only enough to measure the touched feature path.
 
 ---
 
-## Do not do
+## Pingpong update rule
 
-- Do not restart stack debate.
-- Do not switch to Tauri/Electron/Qt/WinUI.
-- Do not replace WPF TextBox with AvalonEdit before measuring the actual bottleneck.
-- Do not run preview/index/metrics synchronously on every keystroke.
-- Do not claim the 30-second freeze is solved unless the full create/load/save/render path is measured.
-- Do not hide large-document truncation from the user.
-- Do not send manuscript text to external APIs by default.
+After Codex finishes a feature batch, append to docs/pingpong.txt:
+
+```text
+2026-06-24 KST feature implementation update:
+- Feature(s) implemented
+- Files changed
+- Tests added
+- Commands run
+- Large manuscript regression check, if touched
+- Remaining problems
+```
+
+Use concrete results. Prefer measured values over adjectives.
 
 ---
 
 ## Priority summary
 
-P0:
+P0 Feature track:
 
-1. Reproduce and measure 85k paragraph / 10M character workflow.
-2. Identify whether remaining lag is load, render/layout, save/index, preview, search, or detached window.
-3. Keep keystroke path clean.
-4. Add timing probe and regression tests.
+1. Binder scene management.
+2. Scene inspector metadata.
+3. Snapshot/backup MVP.
+4. Full manuscript TXT export in binder order.
+5. Command palette MVP.
 
-P1:
+P1 Feature track:
 
-1. Segment navigation design.
-2. Save/index result separation.
-3. Large preview limit UX.
-4. Local/public repo alignment check.
+1. Command slot customization.
+2. Search UI polish.
+3. Focus options UI.
+4. Segment navigation design for huge documents.
 
-P2:
+Performance guardrail:
 
-1. Canonical storage direction decision: current *.wwdoc.json vs future *.wwtxt + *.meta.json.
-2. API/plugin bridge design.
-3. MainWindow responsibility split after P0 is stable.
+- Keep the large manuscript baseline from regressing.
+- Investigate heavy paths only when a feature crosses them.
+
+P2 Architecture track:
+
+1. Save/index result separation.
+2. MainWindow responsibility split after user-facing MVP features start to settle.
+3. Canonical storage decision: current *.wwdoc.json vs future *.wwtxt + *.meta.json.
+4. API/plugin bridge design.
