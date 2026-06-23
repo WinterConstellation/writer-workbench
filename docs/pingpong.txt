@@ -1,3 +1,266 @@
+# Writer Workbench Pingpong
+
+Updated: 2026-06-23
+Repository: WinterConstellation/writer-workbench
+
+## User Requirements
+
+1. This is a writing program.
+2. Writing work must stay light, especially when pasting large manuscripts.
+3. Customization and extensibility are the main differentiator.
+4. API integration is a future design target.
+5. Check similar external projects first, then choose the project direction, then continue detailed design.
+
+## Product Identity
+
+Writer Workbench is a Windows native long-form writing cockpit.
+
+The manuscript input loop is the highest-priority path. Writing, paste, cursor movement, undo, save state, and simple visible metrics must remain responsive before any preview, analysis, export, visualization, or API feature receives work.
+
+The app should not be shaped as a Scrivener clone, Markdown note app, or AI chat wrapper. It should be a local manuscript workbench where the user can assign commands to shortcuts, toolbar slots, context menus, panels, workspaces, and later macro/API workflows.
+
+## External Reference Map
+
+- Scrivener: reference for binder, scene/project organization, metadata, snapshots, split workflow, and export. Adopt project organization patterns, but keep the new app lighter and more command-customizable.
+- novelWriter: reference for small document units, human-readable manuscript files, and side metadata. This strongly supports a plain-text canonical manuscript body with JSON sidecar metadata.
+- Manuskript: reference for plot, character, world, premise, and outline panels. These should live beside the manuscript, not inside the editor input loop.
+- Obsidian: reference for command palette, plugin extensibility, workspace behavior, and user-configurable commands. The app should treat commands as first-class extension points.
+- Zettlr: reference for file-based writing workbench behavior, export pipeline, custom commands, templates, and writing statistics. Export should be a separate pipeline from editing.
+- AvalonEdit: WPF editor candidate for large text and Korean IME stress tests. It should be evaluated against WPF TextBox before committing to a long-term editor surface.
+
+## Direction Decision
+
+Keep the Windows native WPF/.NET direction.
+
+Reconsider the current `*.wwdoc.json` canonical manuscript source. For a writing program, the manuscript body should be human-readable and recoverable outside the app.
+
+Preferred storage direction:
+
+```text
+project.writerproj/
+  project.manifest.json
+  binder.json
+  commands.json
+  shortcuts.json
+  workspace.presets.json
+
+  documents/
+    scene-0001.wwtxt
+    scene-0001.meta.json
+    scene-0002.wwtxt
+    scene-0002.meta.json
+
+  index/
+    project.sqlite
+
+  snapshots/
+  exports/
+  plugins/
+  api-profiles/
+```
+
+Canonical manuscript body:
+
+```text
+documents/*.wwtxt
+```
+
+Canonical scene metadata:
+
+```text
+documents/*.meta.json
+```
+
+Working index and cache:
+
+```text
+index/project.sqlite
+```
+
+SQLite should support fast search, counts, recent lists, tags, and cached derived data. The manuscript must remain recoverable from visible files without SQLite.
+
+## Operating Loops
+
+### Editor Input Loop
+
+Responsibilities:
+
+- Accept typing and paste.
+- Update dirty state.
+- Record last edit timestamp.
+- Update only cheap visible metrics.
+- Keep Korean IME composition responsive.
+
+This loop is the royal road. Preview, indexing, export, API, visualization, and analysis enter through separate paths.
+
+### Save Loop
+
+Responsibilities:
+
+- Save current scene body.
+- Save scene metadata.
+- Optionally create a snapshot.
+- Queue background index refresh.
+- Report manuscript save success separately from index refresh success.
+
+A successful body/meta save means the manuscript is safe. Index refresh failure should be reported as a recoverable index problem.
+
+### Index Loop
+
+Responsibilities:
+
+- Run in the background.
+- Update SQLite search and statistics.
+- Rebuild from manuscript files when needed.
+- Avoid blocking the editor.
+
+### Preview Loop
+
+Preview is snapshot-based.
+
+Triggers:
+
+- User opens preview by button or shortcut.
+- Save completes and preview surface is visible.
+- Short document enters idle debounce, only if performance budget allows it.
+
+Large document behavior:
+
+- Render a limited chunk.
+- Show preview timestamp and render limit.
+- Offer explicit full preview generation as a separate operation.
+
+Preferred naming:
+
+```text
+Snapshot Preview
+```
+
+Avoid treating preview as a live dependency of the editor input loop.
+
+### Large Paste Loop
+
+Large paste needs a dedicated path.
+
+Flow:
+
+1. Measure pasted text size.
+2. If the text exceeds the configured threshold, stage it outside the active editor buffer.
+3. Write staged content to a temp file or memory-mapped/staged buffer as appropriate.
+4. Analyze possible split points by blank lines, headings, or custom rules.
+5. Present commit choices:
+   - insert into current scene,
+   - split into new scenes,
+   - store as import staging,
+   - cancel.
+6. Commit the selected result.
+7. Queue background indexing.
+
+Large paste is an import operation, not merely a keystroke event.
+
+### API Loop
+
+API integration should enter through command/plugin boundaries.
+
+Input scopes:
+
+- selected text,
+- current scene,
+- selected scenes,
+- character card,
+- plot card,
+- project export snapshot.
+
+Output modes:
+
+- new note,
+- suggestion patch,
+- comparison view,
+- export file,
+- metadata update after user approval.
+
+Preferred early structure:
+
+```text
+External command/plugin bridge
+```
+
+The app sends JSON input to a plugin or connector and receives JSON output. This keeps cloud API work outside the editor input loop and allows local tools, cloud APIs, and future model providers to share one integration pattern.
+
+## Customization Spine
+
+Every user-facing action should be a command.
+
+Command shape:
+
+```json
+{
+  "id": "manuscript.splitByBlankLines",
+  "name": "Split scene by blank lines",
+  "category": "Manuscript",
+  "scope": "Editor",
+  "parametersSchema": {
+    "minChunkCharacters": 1000
+  },
+  "surfaces": ["shortcut", "toolbar", "contextMenu", "commandPalette", "workspacePreset", "macro"]
+}
+```
+
+User customization files:
+
+```text
+shortcuts.json
+toolbar.layout.json
+context-menu.layout.json
+workspace.presets.json
+command-palette.favorites.json
+macros.json
+```
+
+The UI should be a command placement surface. This keeps the app extensible without turning the main window into a drawer full of buttons.
+
+## Immediate Review Notes For Current Repo
+
+1. Keep WPF/.NET as the implementation direction.
+2. Rework the canonical manuscript storage discussion before the file model hardens.
+3. Split MainWindow responsibilities before adding more features.
+4. Add explicit save-result separation: manuscript safe vs index refreshed.
+5. Add closing behavior for dirty documents.
+6. Add detached-window conflict policy.
+7. Add large paste staging design before expanding editor features.
+8. Add editor performance test plan: WPF TextBox vs AvalonEdit, Korean IME, large paste, undo, autosave under load.
+9. Keep preview snapshot-based.
+10. Put API behind command/plugin boundaries from the beginning.
+
+## Next Design Task
+
+Rewrite the design document around five paths:
+
+1. Editor input path.
+2. Save/recovery path.
+3. Index/search/statistics path.
+4. Preview/export path.
+5. Command/plugin/API path.
+
+Each path must specify:
+
+- trigger,
+- input,
+- work performed,
+- performance budget,
+- failure state,
+- visible user status,
+- background behavior.
+
+This is the next useful step before additional implementation.
+
+
+---
+
+# Current Implementation Snapshot
+
+The section below was merged from the local WPF implementation handoff after the in-app help and large-editor safeguards were added. It preserves concrete implementation, verification, and next-step notes.
+
 # Writer Workbench pingpong
 
 Last updated: 2026-06-23 KST
