@@ -1,6 +1,6 @@
 # Writer Workbench Pingpong
 
-Updated: 2026-06-23
+Updated: 2026-06-24
 Repository: WinterConstellation/writer-workbench
 
 ## User Requirements
@@ -10,6 +10,8 @@ Repository: WinterConstellation/writer-workbench
 3. Customization and extensibility are the main differentiator.
 4. API integration is a future design target.
 5. Check similar external projects first, then choose the project direction, then continue detailed design.
+6. If a task creates reusable fixtures, sample project data, measurement output, exports, snapshots, or other handoff data, upload those artifacts to the public repo with the code.
+7. If no separate data artifact is produced, state `No separate data artifact was produced` / `별도 데이터 산출물 없음` in the pingpong entry.
 
 ## Product Identity
 
