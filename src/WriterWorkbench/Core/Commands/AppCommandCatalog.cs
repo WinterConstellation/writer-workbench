@@ -9,6 +9,9 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.ProjectOpen, "프로젝트 열기", "프로젝트", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.ExportCurrentScene, "현재 장면 내보내기", "내보내기", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.ExportFullManuscript, "전체 원고 내보내기", "내보내기", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.SnapshotCreateCurrent, "현재 장면 스냅샷", "스냅샷", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.SnapshotRestoreSelected, "스냅샷 복원", "스냅샷", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.SnapshotDeleteSelected, "스냅샷 삭제", "스냅샷", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));

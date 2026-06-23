@@ -7,6 +7,9 @@ public static class AppCommandIds
     public const string ProjectSave = "project.save";
     public const string ExportCurrentScene = "export.currentScene";
     public const string ExportFullManuscript = "export.fullManuscript";
+    public const string SnapshotCreateCurrent = "snapshot.createCurrent";
+    public const string SnapshotRestoreSelected = "snapshot.restoreSelected";
+    public const string SnapshotDeleteSelected = "snapshot.deleteSelected";
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";

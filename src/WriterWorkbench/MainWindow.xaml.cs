@@ -12,6 +12,7 @@ using WriterWorkbench.Core.Documents;
 using WriterWorkbench.Core.Export;
 using WriterWorkbench.Core.Focus;
 using WriterWorkbench.Core.Progress;
+using WriterWorkbench.Core.Snapshots;
 using WriterWorkbench.Core.Storage;
 using WriterWorkbench.Core.Workspace;
 using Forms = System.Windows.Forms;
@@ -37,6 +38,7 @@ public partial class MainWindow : Window
     private ProjectStore _store;
     private SceneMetadataStore _metadataStore;
     private ManuscriptExportService _exportService;
+    private SceneSnapshotService _snapshotService;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
     private SceneMetadata? _activeSceneMetadata;
@@ -65,6 +67,7 @@ public partial class MainWindow : Window
         _store = new ProjectStore(projectPaths);
         _metadataStore = new SceneMetadataStore(projectPaths);
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
+        _snapshotService = new SceneSnapshotService(projectPaths, _store);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         ProjectPathText.Text = _projectRoot;
@@ -294,6 +297,7 @@ public partial class MainWindow : Window
             PreviewText.Text = "";
             UpdateMetrics(document);
             await LoadSceneMetadataAsync(document.Id);
+            await RefreshSnapshotsAsync(document.Id);
             ShowRequestedSurface(startupSurface);
             _dirty = false;
             StatusText.Text = editorView.IsSegmentMode
@@ -369,6 +373,9 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.ProjectOpen] = OpenProjectAsync;
         _commandHandlers[AppCommandIds.ExportCurrentScene] = ExportCurrentSceneAsync;
         _commandHandlers[AppCommandIds.ExportFullManuscript] = ExportFullManuscriptAsync;
+        _commandHandlers[AppCommandIds.SnapshotCreateCurrent] = CreateCurrentSnapshotAsync;
+        _commandHandlers[AppCommandIds.SnapshotRestoreSelected] = RestoreSelectedSnapshotAsync;
+        _commandHandlers[AppCommandIds.SnapshotDeleteSelected] = DeleteSelectedSnapshotAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
@@ -445,6 +452,7 @@ public partial class MainWindow : Window
         _store = new ProjectStore(projectPaths);
         _metadataStore = new SceneMetadataStore(projectPaths);
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
+        _snapshotService = new SceneSnapshotService(projectPaths, _store);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _activeDocumentId = "scene-0001";
@@ -456,6 +464,7 @@ public partial class MainWindow : Window
         _dirty = false;
         BinderList.ItemsSource = null;
         SearchResultsList.ItemsSource = null;
+        SnapshotList.ItemsSource = null;
         TitleBox.Text = "";
         EditorBox.Text = "";
         EditorBox.IsReadOnly = false;
@@ -513,6 +522,111 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
         {
             StatusText.Text = $"전체 원고 내보내기 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task CreateCurrentSnapshotAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_activeDocumentId))
+        {
+            StatusText.Text = "스냅샷을 만들 장면이 없습니다.";
+            return;
+        }
+
+        if (_dirty)
+        {
+            await SaveDocumentAsync("스냅샷 전 저장", offerLargeOverwriteSnapshot: false);
+            if (_dirty)
+            {
+                StatusText.Text = $"스냅샷 생성 중단 {_activeDocumentId} - 저장되지 않은 변경이 남아 있습니다.";
+                return;
+            }
+        }
+
+        try
+        {
+            var snapshot = await _snapshotService.CreateSnapshotAsync(_activeDocumentId, "수동", CancellationToken.None);
+            await RefreshSnapshotsAsync(_activeDocumentId);
+            StatusText.Text = $"스냅샷 생성됨 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            StatusText.Text = $"스냅샷 생성 실패 {_activeDocumentId} - {ex.Message}";
+        }
+    }
+
+    private async Task RestoreSelectedSnapshotAsync()
+    {
+        var snapshot = GetSelectedSnapshot();
+        if (snapshot is null)
+        {
+            StatusText.Text = "복원할 스냅샷을 선택하세요.";
+            return;
+        }
+
+        if (!ConfirmRestoreSnapshot(snapshot))
+        {
+            StatusText.Text = $"스냅샷 복원 취소 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+            return;
+        }
+
+        if (_dirty)
+        {
+            await SaveDocumentAsync("복원 전 저장", offerLargeOverwriteSnapshot: false);
+            if (_dirty)
+            {
+                StatusText.Text = $"스냅샷 복원 중단 {snapshot.DocumentId} - 저장되지 않은 변경이 남아 있습니다.";
+                return;
+            }
+        }
+
+        if (!await OfferOptionalSnapshotAsync(
+                snapshot.DocumentId,
+                "복원 전 자동",
+                $"스냅샷 복원 전에 현재 장면을 백업할까요?\n\n{snapshot.DocumentId}"))
+        {
+            StatusText.Text = $"스냅샷 복원 취소 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+            return;
+        }
+
+        try
+        {
+            var restored = await _snapshotService.RestoreSnapshotAsync(snapshot.DocumentId, snapshot.SnapshotId, CancellationToken.None);
+            await RefreshBinderAsync();
+            await SelectDocumentAsync(restored.DocumentId);
+            await RefreshSnapshotsAsync(restored.DocumentId);
+            StatusText.Text = $"스냅샷 복원됨 {restored.DocumentId} - {restored.Snapshot.SnapshotId}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or DirectoryNotFoundException or FileNotFoundException or JsonException)
+        {
+            StatusText.Text = $"스냅샷 복원 실패 {snapshot.DocumentId} - {ex.Message}";
+        }
+    }
+
+    private async Task DeleteSelectedSnapshotAsync()
+    {
+        var snapshot = GetSelectedSnapshot();
+        if (snapshot is null)
+        {
+            StatusText.Text = "삭제할 스냅샷을 선택하세요.";
+            return;
+        }
+
+        if (!ConfirmDeleteSnapshot(snapshot))
+        {
+            StatusText.Text = $"스냅샷 삭제 취소 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+            return;
+        }
+
+        try
+        {
+            await _snapshotService.DeleteSnapshotAsync(snapshot.DocumentId, snapshot.SnapshotId, CancellationToken.None);
+            await RefreshSnapshotsAsync(snapshot.DocumentId);
+            StatusText.Text = $"스냅샷 삭제됨 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DirectoryNotFoundException)
+        {
+            StatusText.Text = $"스냅샷 삭제 실패 {snapshot.DocumentId} - {ex.Message}";
         }
     }
 
@@ -605,6 +719,25 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (_dirty && string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+            {
+                await SaveDocumentAsync("삭제 전 저장", offerLargeOverwriteSnapshot: false);
+                if (_dirty)
+                {
+                    StatusText.Text = $"삭제 중단 {deleteTarget.Scene.Id} - 저장되지 않은 변경이 남아 있습니다.";
+                    return;
+                }
+            }
+
+            if (!await OfferOptionalSnapshotAsync(
+                    documentId,
+                    "삭제 전 자동",
+                    $"장면 삭제 전에 스냅샷을 만들까요?\n\n{deleteTarget.Scene.Id} - {deleteTarget.Scene.Title}"))
+            {
+                StatusText.Text = $"삭제 취소 {deleteTarget.Scene.Id} - {deleteTarget.Scene.Title}";
+                return;
+            }
+
             var manifest = await _store.DeleteDocumentAsync(documentId, CancellationToken.None);
             await RefreshBinderAsync(manifest);
 
@@ -623,6 +756,10 @@ public partial class MainWindow : Window
             StatusText.Text = ex.Message;
         }
         catch (KeyNotFoundException ex)
+        {
+            StatusText.Text = $"삭제 실패 {documentId} - {ex.Message}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
         {
             StatusText.Text = $"삭제 실패 {documentId} - {ex.Message}";
         }
@@ -656,6 +793,87 @@ public partial class MainWindow : Window
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning);
         return result == MessageBoxResult.Yes;
+    }
+
+    private bool ConfirmRestoreSnapshot(SceneSnapshotInfo snapshot)
+    {
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"선택한 스냅샷으로 현재 장면을 복원할까요?\n\n{snapshot.DocumentId} - {snapshot.Title}\n{snapshot.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}",
+            "스냅샷 복원 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
+    }
+
+    private bool ConfirmDeleteSnapshot(SceneSnapshotInfo snapshot)
+    {
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"이 스냅샷을 삭제할까요?\n\n{snapshot.DocumentId} - {snapshot.SnapshotId}",
+            "스냅샷 삭제 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
+    }
+
+    private async Task<bool> OfferOptionalSnapshotAsync(string documentId, string reason, string message)
+    {
+        if (!File.Exists(ProjectPaths.ForRoot(_projectRoot).DocumentJsonPath(documentId)))
+        {
+            return true;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"{message}\n\n예: 먼저 스냅샷 생성\n아니요: 그대로 진행\n취소: 작업 중단",
+            "작업 전 스냅샷",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+        if (result == MessageBoxResult.Cancel)
+        {
+            return false;
+        }
+
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                var snapshot = await _snapshotService.CreateSnapshotAsync(documentId, reason, CancellationToken.None);
+                await RefreshSnapshotsAsync(documentId);
+                StatusText.Text = $"작업 전 스냅샷 생성됨 {snapshot.DocumentId} - {snapshot.SnapshotId}";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+            {
+                StatusText.Text = $"작업 전 스냅샷 실패 {documentId} - {ex.Message}";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private SceneSnapshotInfo? GetSelectedSnapshot()
+    {
+        return SnapshotList.SelectedItem is SnapshotListItem item
+            ? item.Snapshot
+            : null;
+    }
+
+    private async Task RefreshSnapshotsAsync(string documentId)
+    {
+        try
+        {
+            var snapshots = await _snapshotService.ListSnapshotsAsync(documentId, CancellationToken.None);
+            SnapshotList.ItemsSource = snapshots
+                .Select(snapshot => new SnapshotListItem(snapshot))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            SnapshotList.ItemsSource = null;
+            StatusText.Text = $"스냅샷 목록 불러오기 실패 {documentId} - {ex.Message}";
+        }
     }
 
     private void UpdateActiveDocumentTitleIfNeeded(WriterDocument renamed)
@@ -1021,7 +1239,7 @@ public partial class MainWindow : Window
         _lastEditAt = DateTimeOffset.Now;
     }
 
-    private async Task SaveDocumentAsync(string verb)
+    private async Task SaveDocumentAsync(string verb, bool offerLargeOverwriteSnapshot = true)
     {
         if (_saveInProgress)
         {
@@ -1034,6 +1252,17 @@ public partial class MainWindow : Window
             var document = CreateCurrentDocument();
             var stopwatch = Stopwatch.StartNew();
             LongOperationProgressTracker? tracker = null;
+            if (offerLargeOverwriteSnapshot &&
+                ShouldOfferLargeOverwriteSnapshot(document, verb) &&
+                !await OfferOptionalSnapshotAsync(
+                    document.Id,
+                    "대형 저장 전 자동",
+                    $"대형 장면을 저장하기 전에 현재 저장본을 스냅샷으로 남길까요?\n\n{document.Id} - {document.Title}"))
+            {
+                StatusText.Text = $"저장 취소 {document.Id}";
+                return;
+            }
+
             if (document.Paragraphs.Count >= 1_000)
             {
                 tracker = new LongOperationProgressTracker($"저장 {document.Id}", 3);
@@ -1072,6 +1301,24 @@ public partial class MainWindow : Window
         {
             _saveInProgress = false;
         }
+    }
+
+    private bool ShouldOfferLargeOverwriteSnapshot(WriterDocument document, string verb)
+    {
+        if (document.Paragraphs.Count < 1_000)
+        {
+            return false;
+        }
+
+        if (verb.Contains("자동저장", StringComparison.OrdinalIgnoreCase) ||
+            verb.Contains("스냅샷 전 저장", StringComparison.OrdinalIgnoreCase) ||
+            verb.Contains("복원 전 저장", StringComparison.OrdinalIgnoreCase) ||
+            verb.Contains("삭제 전 저장", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return File.Exists(ProjectPaths.ForRoot(_projectRoot).DocumentJsonPath(document.Id));
     }
 
     private WriterDocument CreateCurrentDocument()
@@ -1521,6 +1768,12 @@ public partial class MainWindow : Window
     private sealed record SearchResultListItem(string DocumentId, string Title, string Snippet)
     {
         public string Display => $"{Title} - {Snippet}";
+    }
+
+    private sealed record SnapshotListItem(SceneSnapshotInfo Snapshot)
+    {
+        public string Display =>
+            $"{Snapshot.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {Snapshot.Reason} | {Snapshot.Title}";
     }
 
     private sealed record SceneStatusOption(SceneStatus Status, string Label)

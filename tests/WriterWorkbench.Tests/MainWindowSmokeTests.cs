@@ -67,6 +67,9 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.HelpOpen, commandTags);
                 Assert.Contains(AppCommandIds.ExportCurrentScene, commandTags);
                 Assert.Contains(AppCommandIds.ExportFullManuscript, commandTags);
+                Assert.Contains(AppCommandIds.SnapshotCreateCurrent, commandTags);
+                Assert.Contains(AppCommandIds.SnapshotRestoreSelected, commandTags);
+                Assert.Contains(AppCommandIds.SnapshotDeleteSelected, commandTags);
                 Assert.Contains(AppCommandIds.DocumentRenameScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDuplicateScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
@@ -147,6 +150,10 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("InspectorCurrentCountText"));
                 Assert.NotNull(window.FindName("InspectorUpdatedAtText"));
                 Assert.NotNull(window.FindName("InspectorSaveButton"));
+                Assert.NotNull(window.FindName("SnapshotList"));
+                Assert.NotNull(window.FindName("SnapshotCreateButton"));
+                Assert.NotNull(window.FindName("SnapshotRestoreButton"));
+                Assert.NotNull(window.FindName("SnapshotDeleteButton"));
                 window.Close();
             }
             catch (Exception ex)

@@ -111,6 +111,14 @@
                                 Margin="8,0,0,0"
                                 Padding="10,0"
                                 Click="CommandButton_Click"/>
+                        <Button Content="스냅샷"
+                                Tag="snapshot.createCurrent"
+                                ToolTip="현재 장면의 수동 스냅샷을 만듭니다."
+                                MinWidth="84"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
                         <Button Content="현재 TXT"
                                 Tag="export.currentScene"
                                 ToolTip="현재 장면을 exports 폴더에 TXT로 내보냅니다."
@@ -502,6 +510,10 @@
                                         Tag="export.fullManuscript"
                                         Margin="0,0,10,10"
                                         Click="CommandButton_Click"/>
+                                <Button Content="스냅샷"
+                                        Tag="snapshot.createCurrent"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
                             </UniformGrid>
 
                             <DockPanel Grid.Row="1"
@@ -533,7 +545,7 @@
                                Background="#F9FAFB"/>
                     <Border x:Name="InspectorPanel"
                             DockPanel.Dock="Bottom"
-                            Height="330"
+                            Height="430"
                             Padding="12"
                             Background="#F9FAFB"
                             BorderBrush="#D1D5DB"
@@ -558,12 +570,14 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="76"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="Auto"/>
+                                     <RowDefinition Height="82"/>
+                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="82"/>
                                     <ColumnDefinition Width="*"/>
@@ -635,12 +649,50 @@
                                            Grid.Column="0"
                                            Text="수정 시각"
                                            Margin="0,0,8,0"/>
-                                <TextBlock x:Name="InspectorUpdatedAtText"
-                                           Grid.Row="6"
-                                           Grid.Column="1"
-                                           Text="-"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </Grid>
+                                 <TextBlock x:Name="InspectorUpdatedAtText"
+                                            Grid.Row="6"
+                                            Grid.Column="1"
+                                            Text="-"
+                                            TextTrimming="CharacterEllipsis"/>
+                                 <DockPanel Grid.Row="7"
+                                            Grid.ColumnSpan="2"
+                                            Margin="0,10,0,6">
+                                     <StackPanel DockPanel.Dock="Right"
+                                                 Orientation="Horizontal">
+                                         <Button x:Name="SnapshotCreateButton"
+                                                 Content="생성"
+                                                 Tag="snapshot.createCurrent"
+                                                 MinWidth="52"
+                                                 Height="26"
+                                                 Margin="0,0,6,0"
+                                                 Padding="8,0"
+                                                 Click="CommandButton_Click"/>
+                                         <Button x:Name="SnapshotRestoreButton"
+                                                 Content="복원"
+                                                 Tag="snapshot.restoreSelected"
+                                                 MinWidth="52"
+                                                 Height="26"
+                                                 Margin="0,0,6,0"
+                                                 Padding="8,0"
+                                                 Click="CommandButton_Click"/>
+                                         <Button x:Name="SnapshotDeleteButton"
+                                                 Content="삭제"
+                                                 Tag="snapshot.deleteSelected"
+                                                 MinWidth="52"
+                                                 Height="26"
+                                                 Padding="8,0"
+                                                 Click="CommandButton_Click"/>
+                                     </StackPanel>
+                                     <TextBlock Text="스냅샷"
+                                                FontWeight="SemiBold"
+                                                VerticalAlignment="Center"/>
+                                 </DockPanel>
+                                 <ListBox x:Name="SnapshotList"
+                                          Grid.Row="8"
+                                          Grid.ColumnSpan="2"
+                                          BorderBrush="#D1D5DB"
+                                          DisplayMemberPath="Display"/>
+                             </Grid>
                         </DockPanel>
                     </Border>
                     <ListBox x:Name="SearchResultsList"

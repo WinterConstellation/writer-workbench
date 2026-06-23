@@ -945,3 +945,60 @@ Remaining problems:
 - Full export heading format is fixed as `# title`; this should become an export option later.
 - Actual running WPF UI still needs visual inspection for status-message fit.
 - No separate data artifact was produced; the perf result was not saved as a file.
+
+## 2026-06-24 KST feature implementation update: Snapshot / Backup MVP
+
+- Implemented manual current-scene snapshot creation.
+- Snapshots are stored under `snapshots/{scene-id}/{snapshot-id}/`.
+- Each snapshot stores fixed files: `snapshot.info.json`, `document.wwdoc.json`, `document.txt`, and `scene.meta.json` when scene metadata exists.
+- Added active-scene snapshot listing in the right Scene Inspector panel.
+- Added selected snapshot restore and selected snapshot delete commands.
+- Restore rewrites the document through `ProjectStore.SaveDocumentAsync`, so document JSON, derived TXT, manifest title, and SQLite search index are refreshed together.
+- Restore also restores the scene metadata sidecar from the snapshot.
+- Restore and snapshot delete both show confirmation dialogs before changing files.
+- Scene delete now offers an optional pre-delete snapshot after delete confirmation and before file removal.
+- Snapshot restore offers an optional pre-restore snapshot before overwriting the current scene.
+- Large manual overwrite saves offer an optional pre-save snapshot; autosave and snapshot-internal saves do not show this prompt, so the editor input loop is not blocked.
+- `EditorBox_TextChanged` remains dirty/edit-time only; snapshot work is not connected to typing.
+
+Files changed:
+- `src/WriterWorkbench/Core/Snapshots/SceneSnapshotInfo.cs`
+- `src/WriterWorkbench/Core/Snapshots/SceneSnapshotService.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/SceneSnapshotServiceTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+
+Tests added/expanded:
+- create snapshot writes document JSON, TXT, and metadata under the scene snapshot folder.
+- list snapshots returns only the active scene snapshots, newest first.
+- restore snapshot restores title, body, metadata, and SQLite search index.
+- delete snapshot removes only the snapshot folder and keeps live document files.
+- missing snapshot restore throws without mutating the document.
+- command catalog coverage for `snapshot.createCurrent`, `snapshot.restoreSelected`, and `snapshot.deleteSelected`.
+- MainWindow smoke coverage for snapshot buttons and active-scene snapshot list.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneSnapshotServiceTests|AppCommandCatalogTests|MainWindowContainsWorkspacePresetCommands|MainWindowContainsSceneInspectorSurface"` -> failed before `Core.Snapshots` existed, then 9 passed after implementation.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 107 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release` -> completed.
+
+Large manuscript guardrail:
+- MainWindow stress command total: 265.677 ms.
+- ProjectStore.SaveDocumentAsync total: 154.065 ms.
+- ProjectStore.LoadDocumentAsync: 81.781 ms.
+- MainWindow EditorBox segment set: 1.513 ms.
+- MainWindow preview switch/render: 1.526 ms.
+- Detached append sync: 7.204 ms.
+- Snapshot MVP adds no work to typing/input events.
+
+Remaining problems:
+- Snapshot UI is MVP-only; no snapshot notes, diff view, preview, pinning, or bulk cleanup yet.
+- Optional snapshot prompts are UI-level behavior and are covered by command/smoke tests plus service tests, not automated modal-click tests.
+- Large overwrite snapshot prompt is skipped for autosave by design to avoid blocking the writing loop.
+- No separate data artifact was produced; the tests create only temporary project data and no reusable fixture/sample project was added to the repo.
