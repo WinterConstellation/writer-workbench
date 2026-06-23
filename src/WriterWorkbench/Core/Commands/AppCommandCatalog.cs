@@ -7,6 +7,8 @@ public static class AppCommandCatalog
         var registry = new CommandRegistry();
         registry.Register(new AppCommand(AppCommandIds.ProjectNew, "새 프로젝트", "프로젝트", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.ProjectOpen, "프로젝트 열기", "프로젝트", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.ExportCurrentScene, "현재 장면 내보내기", "내보내기", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.ExportFullManuscript, "전체 원고 내보내기", "내보내기", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));

@@ -23,6 +23,20 @@ public sealed class SceneMetadataStoreTests
     }
 
     [Fact]
+    public async Task LoadExistingOrDefaultDoesNotCreateMetadataWhenMissing()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new SceneMetadataStore(paths);
+
+        var metadata = await store.LoadExistingOrDefaultAsync("scene-0001", CancellationToken.None);
+
+        Assert.Equal("scene-0001", metadata.DocumentId);
+        Assert.Equal(SceneStatus.Draft, metadata.Status);
+        Assert.False(File.Exists(paths.SceneMetadataPath("scene-0001")));
+    }
+
+    [Fact]
     public async Task SavesAndLoadsSynopsisStatusTagsAndTargetCharacterCount()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));

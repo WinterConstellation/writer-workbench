@@ -14,6 +14,8 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.ProjectNew,
             AppCommandIds.ProjectOpen,
             AppCommandIds.ProjectSave,
+            AppCommandIds.ExportCurrentScene,
+            AppCommandIds.ExportFullManuscript,
             AppCommandIds.DocumentCreateScene,
             AppCommandIds.DocumentCreateStressLarge,
             AppCommandIds.DocumentDetachCurrent,
@@ -47,6 +49,8 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("장면 삭제", registry.Get(AppCommandIds.DocumentDeleteScene).Name);
         Assert.Equal("장면 위로", registry.Get(AppCommandIds.DocumentMoveSceneUp).Name);
         Assert.Equal("장면 아래로", registry.Get(AppCommandIds.DocumentMoveSceneDown).Name);
+        Assert.Equal("현재 장면 내보내기", registry.Get(AppCommandIds.ExportCurrentScene).Name);
+        Assert.Equal("전체 원고 내보내기", registry.Get(AppCommandIds.ExportFullManuscript).Name);
     }
 
     [Fact]

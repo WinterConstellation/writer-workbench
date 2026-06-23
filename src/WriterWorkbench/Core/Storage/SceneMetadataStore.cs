@@ -26,6 +26,17 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
             return metadata;
         }
 
+        return await LoadExistingOrDefaultAsync(documentId, token);
+    }
+
+    public async Task<SceneMetadata> LoadExistingOrDefaultAsync(string documentId, CancellationToken token)
+    {
+        var path = paths.SceneMetadataPath(documentId);
+        if (!File.Exists(path))
+        {
+            return SceneMetadata.CreateDefault(documentId);
+        }
+
         await using var stream = File.OpenRead(path);
         var loaded = await JsonSerializer.DeserializeAsync<SceneMetadata>(stream, JsonOptions, token);
         return Normalize(loaded ?? SceneMetadata.CreateDefault(documentId), documentId);

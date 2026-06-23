@@ -9,6 +9,7 @@ using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Appearance;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Documents;
+using WriterWorkbench.Core.Export;
 using WriterWorkbench.Core.Focus;
 using WriterWorkbench.Core.Progress;
 using WriterWorkbench.Core.Storage;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
     private GraphicPreset _graphicPreset = GraphicPresetCatalog.GetOrDefault(null);
     private ProjectStore _store;
     private SceneMetadataStore _metadataStore;
+    private ManuscriptExportService _exportService;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
     private SceneMetadata? _activeSceneMetadata;
@@ -62,6 +64,7 @@ public partial class MainWindow : Window
         var projectPaths = ProjectPaths.ForRoot(_projectRoot);
         _store = new ProjectStore(projectPaths);
         _metadataStore = new SceneMetadataStore(projectPaths);
+        _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         ProjectPathText.Text = _projectRoot;
@@ -364,6 +367,8 @@ public partial class MainWindow : Window
     {
         _commandHandlers[AppCommandIds.ProjectNew] = CreateNewProjectAsync;
         _commandHandlers[AppCommandIds.ProjectOpen] = OpenProjectAsync;
+        _commandHandlers[AppCommandIds.ExportCurrentScene] = ExportCurrentSceneAsync;
+        _commandHandlers[AppCommandIds.ExportFullManuscript] = ExportFullManuscriptAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
@@ -439,6 +444,7 @@ public partial class MainWindow : Window
         var projectPaths = ProjectPaths.ForRoot(_projectRoot);
         _store = new ProjectStore(projectPaths);
         _metadataStore = new SceneMetadataStore(projectPaths);
+        _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _activeDocumentId = "scene-0001";
@@ -472,6 +478,42 @@ public partial class MainWindow : Window
         TitleBox.Focus();
         TitleBox.SelectAll();
         StatusText.Text = $"생성됨 {document.Id} - {document.Title}";
+    }
+
+    private async Task ExportCurrentSceneAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("내보내기 전 저장");
+        }
+
+        try
+        {
+            var result = await _exportService.ExportCurrentSceneAsync(_activeDocumentId, CancellationToken.None);
+            StatusText.Text = $"현재 장면 내보내기 완료 {result.SceneCount:N0}개 - {result.OutputPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or KeyNotFoundException)
+        {
+            StatusText.Text = $"현재 장면 내보내기 실패 {_activeDocumentId} - {ex.Message}";
+        }
+    }
+
+    private async Task ExportFullManuscriptAsync()
+    {
+        if (_dirty)
+        {
+            await SaveDocumentAsync("내보내기 전 저장");
+        }
+
+        try
+        {
+            var result = await _exportService.ExportFullManuscriptAsync(CancellationToken.None);
+            StatusText.Text = $"전체 원고 내보내기 완료 {result.SceneCount:N0}개 - {result.OutputPath}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
+        {
+            StatusText.Text = $"전체 원고 내보내기 실패 - {ex.Message}";
+        }
     }
 
     private async Task RenameSelectedSceneAsync()

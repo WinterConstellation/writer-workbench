@@ -840,3 +840,64 @@ Remaining problems:
 - Actual running WPF UI still needs visual inspection for right-panel spacing and Korean label fit.
 - Excluded scenes are stored for future Export MVP, but export skipping is not implemented yet.
 - No separate data artifact was produced; the perf result was not saved as a file.
+
+## 2026-06-24 KST feature implementation update: Export MVP
+
+- Implemented explicit TXT export commands for the current scene and full manuscript.
+- Added `exports/` as the export destination under each `.writerproj` project root.
+- Current scene export writes only the active scene body to UTF-8 TXT.
+- Full manuscript export follows binder/manifest order and joins included scenes into one UTF-8 TXT file.
+- Full manuscript export skips scenes whose `SceneMetadata.Status` is `Excluded`.
+- Export output path is shown in the status message after success.
+- Export is connected only through explicit buttons/commands: `export.currentScene` and `export.fullManuscript`.
+- `EditorBox_TextChanged` remains dirty/edit-time only; export is not connected to the input loop.
+- Added read-only metadata loading through `SceneMetadataStore.LoadExistingOrDefaultAsync` so full export can inspect status without creating or rewriting metadata files.
+
+Files changed:
+- `src/WriterWorkbench/Core/Export/ManuscriptExportService.cs`
+- `src/WriterWorkbench/Core/Export/ManuscriptExportResult.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Storage/SceneMetadataStore.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/ManuscriptExportServiceTests.cs`
+- `tests/WriterWorkbench.Tests/SceneMetadataStoreTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+
+Tests added/expanded:
+- current scene export writes UTF-8 TXT under `exports/`.
+- full manuscript export preserves binder order.
+- full manuscript export skips `SceneStatus.Excluded`.
+- Korean body text is preserved through UTF-8 export.
+- export creates the `exports/` directory when missing.
+- no-included-scene and empty-manifest full export fail without writing a misleading output file.
+- export does not mutate document JSON, sidecar TXT, or metadata JSON.
+- full export does not create a missing metadata sidecar just to inspect status.
+- repeated explicit exports create distinct TXT files instead of overwriting the prior export.
+- command catalog and MainWindow smoke coverage for export commands/buttons.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ExportFullManuscriptDoesNotCreateMissingMetadataFile"` -> 1 failed before the metadata read-only fix, then 1 passed after the fix.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ExportCurrentSceneDoesNotOverwriteRepeatedExports"` -> 1 failed before unique export suffixes, then 1 passed after the fix.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ManuscriptExportServiceTests|SceneMetadataStoreTests|AppCommandCatalogTests|MainWindowContainsWorkspacePresetCommands"` -> 16 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ManuscriptExportServiceTests"` -> 8 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 102 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj --no-restore` -> completed.
+
+Large manuscript guardrail:
+- MainWindow stress command total: 386.512 ms.
+- ProjectStore.SaveDocumentAsync total: 207.487 ms.
+- ProjectStore.LoadDocumentAsync: 110.425 ms.
+- MainWindow EditorBox segment set: 1.570 ms.
+- MainWindow preview switch/render: 1.904 ms.
+- Detached append sync: 7.561 ms.
+- Export MVP was checked as an explicit command path only; no export work was added to typing/input events.
+
+Remaining problems:
+- Export MVP is TXT-only; no compile format profiles, headings, chapter separators, cover-layout export, or per-status export filters beyond `Excluded`.
+- Actual running WPF UI still needs visual inspection for button placement and Korean label fit.
+- No separate data artifact was produced; the perf result was not saved as a file.

@@ -5,6 +5,7 @@ namespace WriterWorkbench.Core.Storage;
 public sealed record ProjectPaths(string RootPath)
 {
     public string DocumentsPath => Path.Combine(RootPath, "documents");
+    public string ExportsPath => Path.Combine(RootPath, "exports");
     public string ProjectDatabasePath => Path.Combine(RootPath, "project.sqlite");
     public string ManifestPath => Path.Combine(RootPath, "project.manifest.json");
     public string WorkspacePresetsPath => Path.Combine(RootPath, "workspace.presets.json");

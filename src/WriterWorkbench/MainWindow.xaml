@@ -111,6 +111,22 @@
                                 Margin="8,0,0,0"
                                 Padding="10,0"
                                 Click="CommandButton_Click"/>
+                        <Button Content="현재 TXT"
+                                Tag="export.currentScene"
+                                ToolTip="현재 장면을 exports 폴더에 TXT로 내보냅니다."
+                                MinWidth="86"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
+                        <Button Content="전체 TXT"
+                                Tag="export.fullManuscript"
+                                ToolTip="제외 상태가 아닌 장면을 바인더 순서대로 TXT로 내보냅니다."
+                                MinWidth="86"
+                                Height="30"
+                                Margin="8,0,0,0"
+                                Padding="10,0"
+                                Click="CommandButton_Click"/>
                     </StackPanel>
 
                     <StackPanel DockPanel.Dock="Right"
@@ -440,7 +456,7 @@
                             <UniformGrid Grid.Row="1"
                                          Grid.Column="0"
                                          Columns="2"
-                                         Rows="5"
+                                         Rows="6"
                                          Margin="0,0,24,0">
                                 <Button Content="새 장면"
                                         Tag="document.createScene"
@@ -476,6 +492,14 @@
                                         Click="CommandButton_Click"/>
                                 <Button Content="도움말"
                                         Tag="help.open"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="현재 TXT"
+                                        Tag="export.currentScene"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>
+                                <Button Content="전체 TXT"
+                                        Tag="export.fullManuscript"
                                         Margin="0,0,10,10"
                                         Click="CommandButton_Click"/>
                             </UniformGrid>

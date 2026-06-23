@@ -5,6 +5,8 @@ public static class AppCommandIds
     public const string ProjectNew = "project.new";
     public const string ProjectOpen = "project.open";
     public const string ProjectSave = "project.save";
+    public const string ExportCurrentScene = "export.currentScene";
+    public const string ExportFullManuscript = "export.fullManuscript";
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";
