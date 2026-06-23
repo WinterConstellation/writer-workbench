@@ -460,6 +460,49 @@ Graphic preset catalog exists with:
   - User's 30-second stress freeze still needs actual app create/load/save/render measurement.
   - Current large-document editor opens a bounded front segment; segment navigation/edit UX is still missing.
 
+2026-06-23 KST large pipeline perf probe:
+- Added reusable probe:
+  - tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj
+  - Run: dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release
+- Latest measured run:
+  - Date: 2026-06-23 23:47:35 KST
+  - Temp project: C:\Users\Masters\AppData\Local\Temp\WriterWorkbenchPerfProbe\20260623-234733
+
+| Area | Metric | ms |
+|---|---:|---:|
+| stress 15k 생성 | LargeDocumentFactory.Create | 40.761 |
+| stress 15k 생성 | MainWindow stress command total | 242.179 |
+| 문서 로드 | ProjectStore.LoadDocumentAsync | 92.971 |
+| EditorBox 주입 | Create editor segment | 0.919 |
+| EditorBox 주입 | MainWindow EditorBox segment set | 2.095 |
+| EditorBox 주입 | Standalone full TextBox set baseline | 2.045 |
+| WPF render/layout | MainWindow segment layout/render | 9.483 |
+| WPF render/layout | Standalone full TextBox layout/render | 1.254 |
+| 저장 하위 비용 | TXT export | 11.372 |
+| 저장 하위 비용 | JSON serialize | 78.627 |
+| 저장 하위 비용 | JSON atomic write | 58.601 |
+| 저장 하위 비용 | TXT atomic write | 17.302 |
+| 저장 하위 비용 | SQLite upsert | 114.381 |
+| 저장 total | ProjectStore.SaveDocumentAsync total | 125.607 |
+| preview/render 전환 | PreviewTextService.CreatePreview | 0.283 |
+| preview/render 전환 | MainWindow preview switch/render | 2.587 |
+| 분리창 동기화 | DetachedDocumentWindow construct | 56.779 |
+| 분리창 동기화 | Detached append sync | 5.628 |
+| 분리창 동기화 | Detached SaveAsync after edit | 206.731 |
+
+Interpretation:
+- The measured create/load/save/render paths do not reproduce a 30-second freeze.
+- Current stress command total is about 242 ms in the offscreen probe.
+- The cost centers are save/index paths, not the keystroke path:
+  - SQLite upsert around 114 ms.
+  - JSON serialize around 79 ms.
+  - ProjectStore save around 126 ms.
+  - Detached save after edit around 207 ms.
+- Current MainWindow large-document edit path is still segment-based:
+  - The visible editor segment is about 4,957 chars, not full 15k paragraphs.
+  - Segment navigation/edit UX remains missing.
+- Render/layout numbers are forced WPF offscreen layout/render passes. If the user still sees 30 seconds in the real app, next probe must attach to the running visible app/session or measure a launched exe end-to-end.
+
 Last local verification:
 - Command: dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
 - Current result: 78 passed, 0 failed, 0 skipped.

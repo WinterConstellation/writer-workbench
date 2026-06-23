@@ -11,6 +11,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{44E558D9
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WriterWorkbench.Tests", "tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj", "{DB18CE48-05A8-40A1-AED0-D43FF7460DD5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{22C7E0DA-C97A-408B-828B-EAB060617154}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WriterWorkbench.PerfProbe", "tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj", "{E74ED6CC-B381-4105-ABA1-8A8049F31216}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,9 +32,14 @@ Global
 		{DB18CE48-05A8-40A1-AED0-D43FF7460DD5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DB18CE48-05A8-40A1-AED0-D43FF7460DD5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DB18CE48-05A8-40A1-AED0-D43FF7460DD5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E74ED6CC-B381-4105-ABA1-8A8049F31216}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E74ED6CC-B381-4105-ABA1-8A8049F31216}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E74ED6CC-B381-4105-ABA1-8A8049F31216}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E74ED6CC-B381-4105-ABA1-8A8049F31216}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{26F2000E-0359-4F95-98F7-8A9428A28413} = {AB158513-6350-4B86-A3B6-7460A2E42313}
 		{DB18CE48-05A8-40A1-AED0-D43FF7460DD5} = {44E558D9-ACF9-410D-9F0A-E9FE33016EB4}
+		{E74ED6CC-B381-4105-ABA1-8A8049F31216} = {22C7E0DA-C97A-408B-828B-EAB060617154}
 	EndGlobalSection
 EndGlobal
