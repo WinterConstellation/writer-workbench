@@ -375,6 +375,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
         _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
+        _commandHandlers[AppCommandIds.HelpOpen] = OpenHelpWindowAsync;
         _commandHandlers[AppCommandIds.AutosaveToggle] = () =>
         {
             ToggleAutosave();
@@ -597,6 +598,18 @@ public partial class MainWindow : Window
         _shortcutManager = window.UpdatedShortcutManager;
         await _shortcuts.SaveAsync(_shortcutManager, CancellationToken.None);
         StatusText.Text = "단축키 저장됨";
+    }
+
+    private Task OpenHelpWindowAsync()
+    {
+        var window = new HelpWindow
+        {
+            Owner = this
+        };
+
+        window.Show();
+        StatusText.Text = "도움말 열림";
+        return Task.CompletedTask;
     }
 
     private async Task OpenMainSurfaceAsync()

@@ -55,6 +55,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.ShortcutsOpenSettings, commandTags);
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
+                Assert.Contains(AppCommandIds.HelpOpen, commandTags);
                 window.Close();
             }
             catch (Exception ex)
@@ -128,6 +129,38 @@ public sealed class MainWindowSmokeTests
                 editor.Text = new string('A', 50_000);
 
                 Assert.Equal("stale preview", preview.Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainEditorUsesLargeTextFriendlyInputSettings()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var editor = (TextBox)window.FindName("EditorBox");
+
+                Assert.Equal(TextWrapping.NoWrap, editor.TextWrapping);
+                Assert.Equal(0, editor.UndoLimit);
+                Assert.False(SpellCheck.GetIsEnabled(editor));
                 window.Close();
             }
             catch (Exception ex)

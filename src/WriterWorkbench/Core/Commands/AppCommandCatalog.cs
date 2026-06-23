@@ -21,6 +21,7 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.ViewPreviewToggle, "미리보기", "보기", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.SearchRun, "검색", "검색", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.AutosaveToggle, "자동저장", "프로젝트", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.HelpOpen, "도움말", "도움말", CommandScope.Workbench));
         return registry;
     }
 
@@ -42,7 +43,8 @@ public static class AppCommandCatalog
             new CommandSlot(12, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 끔"),
             new CommandSlot(13, AppCommandIds.ShortcutsOpenSettings, "단축키"),
             new CommandSlot(14, AppCommandIds.ViewMainOpen, "메인"),
-            new CommandSlot(15, AppCommandIds.ViewPreviewToggle, "미리보기")
+            new CommandSlot(15, AppCommandIds.ViewPreviewToggle, "미리보기"),
+            new CommandSlot(16, AppCommandIds.HelpOpen, "도움말")
         ];
     }
 }

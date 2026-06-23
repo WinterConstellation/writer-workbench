@@ -19,7 +19,8 @@ public sealed class EditorLargeTextSmokeTests
                 var box = new TextBox
                 {
                     AcceptsReturn = true,
-                    TextWrapping = System.Windows.TextWrapping.Wrap
+                    UndoLimit = 0,
+                    TextWrapping = System.Windows.TextWrapping.NoWrap
                 };
 
                 var stopwatch = Stopwatch.StartNew();
@@ -28,6 +29,49 @@ public sealed class EditorLargeTextSmokeTests
 
                 Assert.Contains("Large manuscript paragraph 15000", box.Text);
                 Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10), $"TextBox load took {stopwatch.Elapsed}.");
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void WpfTextBoxAppendsToLargeNoWrapTextWithinSmokeThreshold()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
+                var text = TextExportService.ToPlainText(document);
+                var box = new TextBox
+                {
+                    AcceptsReturn = true,
+                    UndoLimit = 0,
+                    TextWrapping = System.Windows.TextWrapping.NoWrap
+                };
+
+                box.Text = text;
+                box.CaretIndex = box.Text.Length;
+
+                var stopwatch = Stopwatch.StartNew();
+                box.SelectedText = " appended";
+                stopwatch.Stop();
+
+                Assert.EndsWith(" appended", box.Text, StringComparison.Ordinal);
+                Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1), $"Large TextBox append took {stopwatch.Elapsed}.");
             }
             catch (Exception ex)
             {

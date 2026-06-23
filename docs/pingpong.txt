@@ -1,0 +1,311 @@
+# Writer Workbench pingpong
+
+Last updated: 2026-06-23 KST
+Project root: C:\Users\Masters\Documents\글
+Public snapshot: https://github.com/WinterConstellation/writer-workbench
+
+## Current product frame
+
+This is a Windows-only native writing workbench, not a Scrivener clone and not a Tauri/HTML app.
+
+Core idea:
+- Binder, outline, manuscript editing, search, autosave, and export are baseline furniture.
+- The differentiator is a command-based custom writing cockpit.
+- Important actions should become commands that can later be assigned to shortcuts, toolbar slots, panels, context menus, workspace presets, focus mode, and macro sequences.
+
+Canonical direction:
+- UI stack: WPF / .NET 8 / C#.
+- Local-first and offline by default.
+- Default project storage under C:\WriterWorkbench\Projects.
+- Canonical manuscript file is structured JSON: *.wwdoc.json.
+- TXT export is derived automatically for recovery and external use.
+- SQLite is an index/settings store, not the only source of truth.
+- AI/API/Codex/browser automation are excluded from MVP unless explicitly reopened.
+
+## Implemented so far
+
+### App skeleton and packaging
+
+- WPF app project exists at src\WriterWorkbench.
+- Test project exists at tests\WriterWorkbench.Tests.
+- Solution file exists: WriterWorkbench.sln.
+- Public GitHub repo was created and pushed from a clean snapshot:
+  https://github.com/WinterConstellation/writer-workbench
+- The public repo is a clean snapshot, not the old local history.
+- Old Tauri-era docs still exist locally under docs\superpowers\*2026-06-22* but are superseded by the WPF docs from 2026-06-23.
+
+### Project and storage model
+
+- Project folder creation is implemented.
+- Project manifest model exists.
+- Document save/load is implemented.
+- Canonical document JSON and derived TXT export are written.
+- SQLite project index exists for metadata/search.
+- Search path exists through the SQLite index.
+- Starter/empty document repair exists.
+- Document metrics exist: paragraphs, characters, plain text bytes.
+
+### Document model and editor services
+
+- WriterDocument and WriterParagraph models exist.
+- Plain-text export service exists.
+- Paragraph-preserving text merge service exists.
+- Document edit session service exists.
+- Large document editor view service exists.
+- Large documents currently open as a bounded editable segment, default limit 5,000 characters.
+- Hidden paragraphs are preserved when the visible segment is edited.
+
+### Main UI
+
+- Main screen is the workbench, not a landing page.
+- UI includes:
+  - binder list
+  - title field
+  - editor surface
+  - search field and result list
+  - metrics/status strips
+  - operation progress panel
+  - main dashboard surface
+  - preview surface
+- Preview is not continuously forced on screen. It opens by explicit preview toggle and switches surface.
+- Main dashboard surface gives direct access to common actions.
+- UI text in MainWindow.xaml is Korean.
+- Shortcut settings, detached window, and focus exit dialog also have Korean UI text.
+
+### Commands and shortcuts
+
+- Command IDs exist in AppCommandIds.
+- Command registry exists.
+- Default command catalog and command slots exist.
+- Shortcut manager exists.
+- Shortcut conflict detection exists by scope.
+- Shortcut profile persistence exists.
+- Shortcut settings window exists.
+- Ctrl+S manual save is wired through WPF command binding.
+
+### Autosave and manual save
+
+- Manual save is implemented.
+- Autosave policy exists.
+- Autosave has an idle delay policy.
+- Overlapping autosaves are blocked.
+- Autosave can be toggled from the UI.
+
+### Focus session
+
+- Focus session service exists.
+- Default focus button uses 40 minutes.
+- Early exit confirmation minimum is 20 characters by default.
+- Focus exit dialog exists.
+- This is app-level soft focus only.
+- It does not change the Windows clock.
+- It does not block Task Manager or OS security shortcuts.
+
+### Workspace, windows, and session restore
+
+- Workspace preset model exists.
+- Preset slots 1, 2, 3 exist.
+- Presets can be saved/applied.
+- Startup preset selection exists.
+- Window placement model exists.
+- Detached document window exists.
+- App session state service exists.
+- Session restore tracks last project/document/surface/graphic preset.
+- Single-instance guard exists.
+
+### Graphic presets
+
+Graphic preset catalog exists with:
+- default
+- dark
+- comfort-1
+- comfort-2
+- comfort-3
+- lavender
+
+### Large operation feedback
+
+- 15k stress document generator exists.
+- Long operation progress tracker exists.
+- Progress panel exists.
+- ETA text exists.
+- Remaining-time graph canvas/polyline exists.
+- Preview update policy exists:
+  - immediate for small text
+  - debounced for medium text
+  - paused for large text
+
+## Verified recently
+
+2026-06-23 KST update:
+- P0 large-text input lag received a first direct fix.
+- Main editor TextBox now uses large-text-friendly settings:
+  - TextWrapping=NoWrap
+  - UndoLimit=0
+  - SpellCheck.IsEnabled=False
+- Added regression/smoke tests:
+  - MainEditorUsesLargeTextFriendlyInputSettings
+  - WpfTextBoxAppendsToLargeNoWrapTextWithinSmokeThreshold
+- Verification after this change:
+  - dotnet build WriterWorkbench.sln --no-restore
+  - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+  - Result: 69 passed, 0 failed, 0 skipped.
+- Important: this fixes the editor input surface first. If the user still sees freezing after pausing typing, inspect autosave/save/indexing next.
+
+2026-06-23 KST help update:
+- Added in-app Help.
+- Entry points:
+  - top workbench button: 도움말
+  - main dashboard button: 도움말
+  - default shortcut: F1
+- Help content is stored in Core\Help\HelpCatalog.cs as item-by-item role text.
+- Help window lists:
+  - 구역
+  - 항목
+  - 역할
+  - 사용
+- Added tests:
+  - HelpCatalogTests
+  - HelpCommandTests
+  - HelpWindowTests
+- Cleaned AppCommandCatalog command names to normal Korean strings while adding the help command.
+- Verification after this change:
+  - dotnet build WriterWorkbench.sln --no-restore
+  - dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+  - Result: 74 passed, 0 failed, 0 skipped.
+  - dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-win-x64 --no-restore
+
+Last local verification:
+- Command: dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+- Previous result: 67 passed, 0 failed, 0 skipped.
+
+Public repo verification:
+- Repo: WinterConstellation/writer-workbench
+- Visibility: public
+- Branch: master
+- Pushed commit: 2f1fbe2
+
+## Known problems / do not paper over
+
+### P0: Large text input still lags
+
+User reported that typing into a large file still lags.
+
+2026-06-23 first fix:
+- Editor input surface was changed from wrapping TextBox with undo history to NoWrap + UndoLimit=0 + spellcheck disabled.
+- Tests now cover the intended input settings and a large no-wrap append smoke path.
+
+Current mitigation is not enough:
+- large document editor segment is capped around 5,000 chars
+- preview update is throttled/paused
+- autosave is debounced
+- editor text wrapping is disabled for responsiveness
+
+Next work should treat this as the top bug, not as solved.
+
+Likely next fixes:
+- Measure MainWindow EditorBox_TextChanged cost directly.
+- Stop doing expensive metrics/search/save/preview work on every keystroke.
+- Move expensive work behind timers/background tasks.
+- Consider replacing WPF TextBox with AvalonEdit or a custom paragraph/segment editor.
+- Add a real typing-latency smoke test around large documents.
+
+### P0: Original local workspace is not clean
+
+The public GitHub repo was pushed from:
+C:\Users\Masters\AppData\Local\Temp\writer-workbench-public-20260623213732
+
+The active local workspace still has untracked/modified files.
+Do not assume C:\Users\Masters\Documents\글 is already committed or synced.
+
+Before future publish/sync work:
+- check git status -sb
+- decide whether to replace the local remote/history with the clean public repo or keep local history separate
+- avoid accidentally publishing old Tauri-era history unless the user explicitly wants it
+
+### P1: Old docs conflict with current direction
+
+Old 2026-06-22 docs mention Tauri/React/WebView assumptions.
+Current canonical docs are:
+- docs\superpowers\specs\2026-06-23-writer-workbench-wpf-design.md
+- docs\superpowers\plans\2026-06-23-writer-workbench-wpf-mvp-core.md
+
+Future agents should read the 2026-06-23 docs first.
+
+### P1: UI Korean must be verified in the running app
+
+MainWindow.xaml has Korean strings, and tests pass.
+Still verify in the actual app window after changes because console output can make encoding look broken.
+
+### P1: MainWindow is too behavior-heavy
+
+The app works, but MainWindow.xaml.cs currently owns too much behavior.
+After P0 performance is fixed, move toward view-model/service boundaries carefully.
+
+## Planned / next implementation
+
+### Immediate next work
+
+1. Fix large-file typing lag.
+2. Verify Korean UI in the actual running app.
+3. Clean up local/public repo alignment.
+4. Remove or archive superseded Tauri-era docs after user approval.
+
+### MVP 0.1 remaining direction
+
+- Make the editor stable under large manuscript workloads.
+- Keep autosave reliable and visible.
+- Keep TXT export automatic.
+- Keep preview explicit and cheap.
+- Keep command/shortcut system as first-class core.
+- Improve workspace preset reliability for one monitor first.
+
+### MVP 0.2 direction
+
+- Better detached tab/window workflow.
+- Multi-monitor preset restore with user-selected monitor assignment.
+- Startup preset auto-apply polish.
+- Better search UI.
+- Session logs.
+- Paragraph tags and review flags.
+
+### MVP 0.3 direction
+
+- Plot/person/reference panels.
+- Cover layout tools.
+- CSV/JSON data cleanup exports.
+- Rule-based manuscript checker.
+- Visualization.
+- Spellcheck/proofreading strategy.
+
+### Later, opt-in only
+
+- Chrome launcher bridge.
+- External API providers.
+- Local algorithms.
+- AI analysis.
+- Codex integration only if it can be done without unsafe account/session scraping.
+
+## Security and privacy notes
+
+- Default app behavior should require no internet.
+- Do not send manuscript text externally by default.
+- Do not read Chrome cookies/passwords/session tokens.
+- Do not store future API keys inside manuscript project folders.
+- Do not add hard OS lockout behavior.
+- Focus mode must remain app-level and user-controllable.
+
+## Handoff rule
+
+When resuming work, do not start with stack debate.
+Use WPF/.NET unless the user explicitly reopens stack choice.
+
+First read:
+1. this file
+2. docs\superpowers\specs\2026-06-23-writer-workbench-wpf-design.md
+3. docs\superpowers\plans\2026-06-23-writer-workbench-wpf-mvp-core.md
+
+Then check:
+1. git status -sb
+2. dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore
+3. current large-text typing behavior

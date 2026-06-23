@@ -25,6 +25,7 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("단축키", registry.Get(AppCommandIds.ShortcutsOpenSettings).Name);
         Assert.Equal("메인", registry.Get(AppCommandIds.ViewMainOpen).Name);
         Assert.Equal("미리보기", registry.Get(AppCommandIds.ViewPreviewToggle).Name);
+        Assert.Equal("도움말", registry.Get(AppCommandIds.HelpOpen).Name);
     }
 
     [Fact]
@@ -48,6 +49,7 @@ public sealed class AppCommandCatalogTests
             slot => Assert.Equal(AppCommandIds.WorkspaceStartupPresetCycle, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ShortcutsOpenSettings, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ViewMainOpen, slot.CommandId),
-            slot => Assert.Equal(AppCommandIds.ViewPreviewToggle, slot.CommandId));
+            slot => Assert.Equal(AppCommandIds.ViewPreviewToggle, slot.CommandId),
+            slot => Assert.Equal(AppCommandIds.HelpOpen, slot.CommandId));
     }
 }
