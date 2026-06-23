@@ -903,3 +903,45 @@ Remaining problems:
 - Export MVP is TXT-only; no compile format profiles, headings, chapter separators, cover-layout export, or per-status export filters beyond `Excluded`.
 - Actual running WPF UI still needs visual inspection for button placement and Korean label fit.
 - No separate data artifact was produced; the perf result was not saved as a file.
+
+## 2026-06-24 KST feature implementation update: Export MVP result polish
+
+- Updated `ManuscriptExportResult` to report included scene count, excluded scene count, and exported character count.
+- Full manuscript export now writes each included scene with a `# scene title` heading before the body.
+- Full manuscript export still follows binder/manifest order and skips `SceneStatus.Excluded`.
+- Current scene export still writes only the active scene body, but now returns included/excluded/character-count metadata.
+- UI status messages now show included count, excluded count for full export, character count, and output path.
+- Repeated explicit exports still create distinct TXT files through the timestamp plus unique suffix filename.
+- Export remains command/button only; no export work was added to `EditorBox_TextChanged` or other input-loop handlers.
+
+Files changed:
+- `src/WriterWorkbench/Core/Export/ManuscriptExportResult.cs`
+- `src/WriterWorkbench/Core/Export/ManuscriptExportService.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/ManuscriptExportServiceTests.cs`
+
+Tests added/expanded:
+- current scene export asserts included count, excluded count, and character count.
+- full manuscript export asserts included count, excluded count, character count, Korean scene headings, Korean body text, binder order, and excluded-scene skipping.
+- missing metadata full export now accepts the heading-bearing full manuscript format while still proving no metadata sidecar is created.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ManuscriptExportServiceTests"` -> failed before result metadata fields existed, then 8 passed after the fix.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 102 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release` -> completed.
+
+Large manuscript guardrail:
+- MainWindow stress command total: 419.704 ms.
+- ProjectStore.SaveDocumentAsync total: 261.214 ms.
+- ProjectStore.LoadDocumentAsync: 181.303 ms.
+- MainWindow EditorBox segment set: 1.418 ms.
+- MainWindow preview switch/render: 1.846 ms.
+- Detached append sync: 13.541 ms.
+- TXT export sub-cost in the perf probe: 59.444 ms.
+
+Remaining problems:
+- Export is still TXT-only; DOCX/PDF/EPUB, export templates, per-tag filters, and title-output options are intentionally out of scope.
+- Full export heading format is fixed as `# title`; this should become an export option later.
+- Actual running WPF UI still needs visual inspection for status-message fit.
+- No separate data artifact was produced; the perf result was not saved as a file.

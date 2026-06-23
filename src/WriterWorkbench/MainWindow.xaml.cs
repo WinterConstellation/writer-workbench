@@ -490,7 +490,7 @@ public partial class MainWindow : Window
         try
         {
             var result = await _exportService.ExportCurrentSceneAsync(_activeDocumentId, CancellationToken.None);
-            StatusText.Text = $"현재 장면 내보내기 완료 {result.SceneCount:N0}개 - {result.OutputPath}";
+            StatusText.Text = $"현재 장면 내보내기 완료 포함 {result.IncludedSceneCount:N0}개, 글자 {result.CharacterCount:N0} - {result.OutputPath}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or KeyNotFoundException)
         {
@@ -508,7 +508,7 @@ public partial class MainWindow : Window
         try
         {
             var result = await _exportService.ExportFullManuscriptAsync(CancellationToken.None);
-            StatusText.Text = $"전체 원고 내보내기 완료 {result.SceneCount:N0}개 - {result.OutputPath}";
+            StatusText.Text = $"전체 원고 내보내기 완료 포함 {result.IncludedSceneCount:N0}개, 제외 {result.ExcludedSceneCount:N0}개, 글자 {result.CharacterCount:N0} - {result.OutputPath}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or KeyNotFoundException or InvalidOperationException)
         {

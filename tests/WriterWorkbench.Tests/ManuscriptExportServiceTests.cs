@@ -28,6 +28,9 @@ public sealed class ManuscriptExportServiceTests
         Assert.StartsWith(paths.ExportsPath, result.OutputPath, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("한국어 본문입니다.", text);
         Assert.Equal("한국어 본문입니다.", System.Text.Encoding.UTF8.GetString(bytes));
+        Assert.Equal(1, result.IncludedSceneCount);
+        Assert.Equal(0, result.ExcludedSceneCount);
+        Assert.Equal(text.Length, result.CharacterCount);
     }
 
     [Fact]
@@ -39,9 +42,9 @@ public sealed class ManuscriptExportServiceTests
         var first = await store.CreateDocumentAsync("First", CancellationToken.None);
         var second = await store.CreateDocumentAsync("Second", CancellationToken.None);
         var third = await store.CreateDocumentAsync("Third", CancellationToken.None);
-        await store.SaveDocumentAsync(CreateDocument(first.Id, "첫 장면"), CancellationToken.None);
-        await store.SaveDocumentAsync(CreateDocument(second.Id, "둘째 장면"), CancellationToken.None);
-        await store.SaveDocumentAsync(CreateDocument(third.Id, "셋째 장면"), CancellationToken.None);
+        await store.SaveDocumentAsync(CreateDocument(first.Id, "첫 장면", "첫 본문"), CancellationToken.None);
+        await store.SaveDocumentAsync(CreateDocument(second.Id, "둘째 장면", "둘째 본문"), CancellationToken.None);
+        await store.SaveDocumentAsync(CreateDocument(third.Id, "셋째 장면", "셋째 본문"), CancellationToken.None);
         await store.MoveDocumentAsync(third.Id, -1, CancellationToken.None);
         await store.MoveDocumentAsync(third.Id, -1, CancellationToken.None);
         var metadataStore = new SceneMetadataStore(paths);
@@ -54,11 +57,15 @@ public sealed class ManuscriptExportServiceTests
         var text = await File.ReadAllTextAsync(result.OutputPath, CancellationToken.None);
 
         Assert.Equal(ManuscriptExportKind.FullManuscript, result.Kind);
-        Assert.Equal(2, result.SceneCount);
-        Assert.Contains("셋째 장면", text);
-        Assert.Contains("첫 장면", text);
-        Assert.DoesNotContain("둘째 장면", text);
-        Assert.True(text.IndexOf("셋째 장면", StringComparison.Ordinal) < text.IndexOf("첫 장면", StringComparison.Ordinal));
+        Assert.Equal(2, result.IncludedSceneCount);
+        Assert.Equal(1, result.ExcludedSceneCount);
+        Assert.Equal(text.Length, result.CharacterCount);
+        Assert.Contains("# 셋째 장면", text);
+        Assert.Contains("셋째 본문", text);
+        Assert.Contains("# 첫 장면", text);
+        Assert.Contains("첫 본문", text);
+        Assert.DoesNotContain("둘째 본문", text);
+        Assert.True(text.IndexOf("# 셋째 장면", StringComparison.Ordinal) < text.IndexOf("# 첫 장면", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -187,7 +194,7 @@ public sealed class ManuscriptExportServiceTests
         var result = await service.ExportFullManuscriptAsync(CancellationToken.None);
         var text = await File.ReadAllTextAsync(result.OutputPath, CancellationToken.None);
 
-        Assert.Equal("메타 없음 본문", text);
+        Assert.Contains("메타 없음 본문", text);
         Assert.False(File.Exists(paths.SceneMetadataPath(document.Id)));
     }
 
@@ -198,9 +205,14 @@ public sealed class ManuscriptExportServiceTests
 
     private static WriterDocument CreateDocument(string id, string text)
     {
+        return CreateDocument(id, id, text);
+    }
+
+    private static WriterDocument CreateDocument(string id, string title, string text)
+    {
         return new WriterDocument(
             id,
-            id,
+            title,
             [new WriterParagraph("p-0001", text, "body", [], [])]);
     }
 }

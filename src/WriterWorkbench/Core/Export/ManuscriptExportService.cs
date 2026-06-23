@@ -14,25 +14,28 @@ public sealed class ManuscriptExportService(
     {
         var document = await projectStore.LoadDocumentAsync(documentId, token);
         var outputPath = ExportPath($"{SanitizeFileName(document.Id)}-{SanitizeFileName(document.Title)}.txt");
-        await WriteUtf8Async(outputPath, TextExportService.ToPlainText(document), token);
-        return new ManuscriptExportResult(ManuscriptExportKind.CurrentScene, outputPath, 1);
+        var content = TextExportService.ToPlainText(document);
+        await WriteUtf8Async(outputPath, content, token);
+        return new ManuscriptExportResult(ManuscriptExportKind.CurrentScene, outputPath, 1, 0, content.Length);
     }
 
     public async Task<ManuscriptExportResult> ExportFullManuscriptAsync(CancellationToken token)
     {
         var manifest = await projectStore.LoadManifestAsync(token);
         var sections = new List<string>();
+        var excludedSceneCount = 0;
 
         foreach (var documentInfo in manifest.Documents)
         {
             var metadata = await metadataStore.LoadExistingOrDefaultAsync(documentInfo.Id, token);
             if (metadata.Status == SceneStatus.Excluded)
             {
+                excludedSceneCount++;
                 continue;
             }
 
             var document = await projectStore.LoadDocumentAsync(documentInfo.Id, token);
-            sections.Add(TextExportService.ToPlainText(document));
+            sections.Add(FormatFullManuscriptSection(document));
         }
 
         if (sections.Count == 0)
@@ -41,8 +44,14 @@ public sealed class ManuscriptExportService(
         }
 
         var outputPath = ExportPath($"{SanitizeFileName(manifest.Title)}-full.txt");
-        await WriteUtf8Async(outputPath, string.Join(Environment.NewLine + Environment.NewLine, sections), token);
-        return new ManuscriptExportResult(ManuscriptExportKind.FullManuscript, outputPath, sections.Count);
+        var content = string.Join(Environment.NewLine + Environment.NewLine, sections);
+        await WriteUtf8Async(outputPath, content, token);
+        return new ManuscriptExportResult(
+            ManuscriptExportKind.FullManuscript,
+            outputPath,
+            sections.Count,
+            excludedSceneCount,
+            content.Length);
     }
 
     private string ExportPath(string fileName)
@@ -51,6 +60,11 @@ public sealed class ManuscriptExportService(
         var timestamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         var uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
         return Path.Combine(paths.ExportsPath, $"{timestamp}-{uniqueSuffix}-{fileName}");
+    }
+
+    private static string FormatFullManuscriptSection(WriterDocument document)
+    {
+        return $"# {document.Title}{Environment.NewLine}{Environment.NewLine}{TextExportService.ToPlainText(document)}";
     }
 
     private static async Task WriteUtf8Async(string path, string content, CancellationToken token)
