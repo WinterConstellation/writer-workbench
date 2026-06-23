@@ -77,6 +77,7 @@ public sealed class ProjectStore(ProjectPaths paths)
 
         var manifest = await LoadManifestOrDefaultAsync(token);
         var documentInfo = await WriteDocumentAsync(document, token);
+        await EnsureMetadataAsync(document.Id, token);
         var existingIndex = FindDocumentIndex(manifest, document.Id);
         var documents = manifest.Documents.ToList();
         if (existingIndex >= 0)
@@ -113,6 +114,7 @@ public sealed class ProjectStore(ProjectPaths paths)
                 .ToList()
         };
         var duplicateInfo = await WriteDocumentAsync(duplicate, token);
+        await CopyMetadataAsync(source.Id, duplicate.Id, token);
         var documents = manifest.Documents.ToList();
         documents.Insert(sourceIndex + 1, duplicateInfo);
 
@@ -141,6 +143,7 @@ public sealed class ProjectStore(ProjectPaths paths)
 
         DeleteFileIfExists(paths.DocumentJsonPath(documentId));
         DeleteFileIfExists(paths.DocumentTextPath(documentId));
+        new SceneMetadataStore(paths).Delete(documentId);
         var indexStore = new SqliteProjectIndex(paths.ProjectDatabasePath);
         await indexStore.DeleteDocumentAsync(documentId, token);
 
@@ -292,5 +295,18 @@ public sealed class ProjectStore(ProjectPaths paths)
         {
             File.Delete(path);
         }
+    }
+
+    private async Task EnsureMetadataAsync(string documentId, CancellationToken token)
+    {
+        var metadataStore = new SceneMetadataStore(paths);
+        await metadataStore.LoadAsync(documentId, token);
+    }
+
+    private async Task CopyMetadataAsync(string sourceDocumentId, string targetDocumentId, CancellationToken token)
+    {
+        var metadataStore = new SceneMetadataStore(paths);
+        var sourceMetadata = await metadataStore.LoadAsync(sourceDocumentId, token);
+        await metadataStore.SaveAsync(sourceMetadata.CopyForDocument(targetDocumentId), token);
     }
 }

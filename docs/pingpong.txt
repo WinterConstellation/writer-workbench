@@ -786,3 +786,57 @@ Remaining problems:
 - Actual app UI should still be visually checked in a running WPF window after more Korean-label cleanup.
 - Large-file typing lag remains a separate editor workflow task; this batch did not investigate performance beyond guardrail checks.
 - No separate data artifact was produced; the perf result was not saved as a file.
+
+## 2026-06-24 KST feature implementation update: Scene Inspector MVP
+
+- Implemented `SceneMetadata` sidecar storage under `documents/{scene-id}.meta.json`.
+- Added `SceneStatus` values for Draft/Revising/Final/Excluded, shown in Korean as 초고/수정중/완료/제외.
+- Added `SceneMetadataStore` for default metadata creation, load, save, and delete.
+- Metadata JSON stores status as a readable string, for example `"Status": "Revising"`.
+- Connected `ProjectStore` so new scenes get default metadata, duplicated scenes copy synopsis/status/tags/target count with a refreshed `UpdatedAt`, and deleted scenes remove metadata files.
+- Added a right-panel Scene Inspector MVP below search results with 시놉시스, 상태, 태그, 목표 글자 수, 현재 글자 수, 수정 시각, and a metadata-only 저장 button.
+- Active scene load refreshes Inspector metadata. Inspector save writes only `.meta.json`; `EditorBox_TextChanged` still only marks dirty/edit time and does not save metadata or rewrite body files.
+- Current character count uses `DocumentMetricsService` during document load/save metric refresh, not on every keystroke.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/Core/Storage/SceneMetadata.cs`
+- `src/WriterWorkbench/Core/Storage/SceneMetadataStore.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/SceneMetadataStoreTests.cs`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+
+Tests added/expanded:
+- `SceneMetadataStoreTests.LoadCreatesDefaultMetadataWhenMissing`
+- `SceneMetadataStoreTests.SavesAndLoadsSynopsisStatusTagsAndTargetCharacterCount`
+- `SceneMetadataStoreTests.MetadataSaveDoesNotRewriteDocumentBodyFiles`
+- `SceneMetadataStoreTests.DeleteRemovesMetadataFileWhenPresent`
+- `ProjectStoreTests.CreateDocumentGeneratesSequentialSceneIdsAndStoresEditableTitle` now verifies default metadata.
+- `ProjectStoreTests.DuplicateDocumentCopiesSceneAfterSource` now verifies metadata copy behavior.
+- `ProjectStoreTests.DeleteDocumentRemovesFilesManifestEntryAndSearchIndex` now verifies metadata cleanup.
+- `MainWindowSmokeTests.MainWindowContainsSceneInspectorSurface`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneMetadataStoreTests|ProjectStoreTests|MainWindowContainsSceneInspectorSurface"` -> 18 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 93 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release` -> completed.
+
+Large manuscript guardrail:
+- MainWindow stress command total: 233.815 ms.
+- ProjectStore.SaveDocumentAsync total: 182.813 ms.
+- ProjectStore.LoadDocumentAsync: 169.107 ms.
+- MainWindow EditorBox segment set: 2.008 ms.
+- MainWindow preview switch/render: 2.410 ms.
+- Detached append sync: 5.305 ms.
+- Detached SaveAsync after edit: 302.007 ms.
+- Save path stayed under the user baseline of 500 ms in this probe.
+
+Remaining problems:
+- Inspector UI is MVP only; no tag autocomplete, search/inspector tab switch, or command-palette metadata command yet.
+- Actual running WPF UI still needs visual inspection for right-panel spacing and Korean label fit.
+- Excluded scenes are stored for future Export MVP, but export skipping is not implemented yet.
+- No separate data artifact was produced; the perf result was not saved as a file.

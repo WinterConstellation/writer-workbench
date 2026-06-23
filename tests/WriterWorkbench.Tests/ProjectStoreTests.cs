@@ -41,12 +41,14 @@ public sealed class ProjectStoreTests
     public async Task CreateDocumentGeneratesSequentialSceneIdsAndStoresEditableTitle()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
-        var store = new ProjectStore(ProjectPaths.ForRoot(root));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
 
         var first = await store.CreateDocumentAsync("새 장면", CancellationToken.None);
         var second = await store.CreateDocumentAsync("두 번째 장면", CancellationToken.None);
         var manifest = await store.LoadManifestAsync(CancellationToken.None);
         var loadedSecond = await store.LoadDocumentAsync(second.Id, CancellationToken.None);
+        var metadata = await new SceneMetadataStore(paths).LoadAsync(second.Id, CancellationToken.None);
 
         Assert.Equal("scene-0001", first.Id);
         Assert.Equal("scene-0002", second.Id);
@@ -54,6 +56,8 @@ public sealed class ProjectStoreTests
         Assert.Equal("두 번째 장면", loadedSecond.Title);
         Assert.Equal([first.Id, second.Id], manifest.Documents.Select(document => document.Id));
         Assert.Equal("두 번째 장면", manifest.Documents.Single(document => document.Id == second.Id).Title);
+        Assert.Equal(second.Id, metadata.DocumentId);
+        Assert.Equal(SceneStatus.Draft, metadata.Status);
     }
 
     [Fact]
@@ -198,12 +202,16 @@ public sealed class ProjectStoreTests
                 new WriterParagraph("p-0002", "Second paragraph", "body", [], [])
             ]);
         await store.SaveDocumentAsync(source, CancellationToken.None);
+        await new SceneMetadataStore(ProjectPaths.ForRoot(root)).SaveAsync(
+            new SceneMetadata(1, source.Id, "복제할 시놉시스", SceneStatus.Revising, ["태그A", "태그B"], 4200, DateTimeOffset.UtcNow),
+            CancellationToken.None);
         var after = await store.CreateDocumentAsync("After", CancellationToken.None);
 
         var duplicate = await store.DuplicateDocumentAsync(source.Id, CancellationToken.None);
         var manifest = await store.LoadManifestAsync(CancellationToken.None);
         var reloadedManifest = await new ProjectStore(ProjectPaths.ForRoot(root)).LoadManifestAsync(CancellationToken.None);
         var loadedDuplicate = await store.LoadDocumentAsync(duplicate.Id, CancellationToken.None);
+        var duplicateMetadata = await new SceneMetadataStore(ProjectPaths.ForRoot(root)).LoadAsync(duplicate.Id, CancellationToken.None);
 
         Assert.Equal([source.Id, duplicate.Id, after.Id], manifest.Documents.Select(document => document.Id));
         Assert.Equal([source.Id, duplicate.Id, after.Id], reloadedManifest.Documents.Select(document => document.Id));
@@ -211,6 +219,11 @@ public sealed class ProjectStoreTests
         Assert.NotEqual(source.Id, duplicate.Id);
         Assert.Equal(source.Paragraphs.Select(paragraph => paragraph.Text), loadedDuplicate.Paragraphs.Select(paragraph => paragraph.Text));
         Assert.Equal(["p-0001", "p-0002"], loadedDuplicate.Paragraphs.Select(paragraph => paragraph.Id));
+        Assert.Equal(duplicate.Id, duplicateMetadata.DocumentId);
+        Assert.Equal("복제할 시놉시스", duplicateMetadata.Synopsis);
+        Assert.Equal(SceneStatus.Revising, duplicateMetadata.Status);
+        Assert.Equal(["태그A", "태그B"], duplicateMetadata.Tags);
+        Assert.Equal(4200, duplicateMetadata.TargetCharacterCount);
     }
 
     [Fact]
@@ -225,6 +238,9 @@ public sealed class ProjectStoreTests
             "Second",
             [new WriterParagraph("p-0001", "needle text", "body", [], [])]);
         await store.SaveDocumentAsync(second, CancellationToken.None);
+        await new SceneMetadataStore(paths).SaveAsync(
+            new SceneMetadata(1, second.Id, "삭제될 메타", SceneStatus.Excluded, ["삭제"], 900, DateTimeOffset.UtcNow),
+            CancellationToken.None);
 
         var manifest = await store.DeleteDocumentAsync(second.Id, CancellationToken.None);
         var reloadedManifest = await new ProjectStore(paths).LoadManifestAsync(CancellationToken.None);
@@ -234,6 +250,7 @@ public sealed class ProjectStoreTests
         Assert.Equal([first.Id], reloadedManifest.Documents.Select(document => document.Id));
         Assert.False(File.Exists(paths.DocumentJsonPath(second.Id)));
         Assert.False(File.Exists(paths.DocumentTextPath(second.Id)));
+        Assert.False(File.Exists(paths.SceneMetadataPath(second.Id)));
         Assert.Empty(results);
     }
 

@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -33,8 +34,10 @@ public partial class MainWindow : Window
     private AppSessionState _sessionState = AppSessionState.Empty;
     private GraphicPreset _graphicPreset = GraphicPresetCatalog.GetOrDefault(null);
     private ProjectStore _store;
+    private SceneMetadataStore _metadataStore;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
+    private SceneMetadata? _activeSceneMetadata;
     private bool _dirty;
     private bool _saveInProgress;
     private bool _focusMode;
@@ -58,11 +61,14 @@ public partial class MainWindow : Window
 
         var projectPaths = ProjectPaths.ForRoot(_projectRoot);
         _store = new ProjectStore(projectPaths);
+        _metadataStore = new SceneMetadataStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         ProjectPathText.Text = _projectRoot;
         StatusText.Text = "프로젝트 불러오는 중...";
         GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
+        InspectorStatusBox.ItemsSource = SceneStatusOption.All;
+        InspectorStatusBox.SelectedValue = SceneStatus.Draft;
         RegisterCommandHandlers();
 
         Loaded += async (_, _) => await InitializeProjectAsync();
@@ -284,6 +290,7 @@ public partial class MainWindow : Window
             EditorBox.Text = editorView.Text;
             PreviewText.Text = "";
             UpdateMetrics(document);
+            await LoadSceneMetadataAsync(document.Id);
             ShowRequestedSurface(startupSurface);
             _dirty = false;
             StatusText.Text = editorView.IsSegmentMode
@@ -431,10 +438,12 @@ public partial class MainWindow : Window
         _projectRoot = root;
         var projectPaths = ProjectPaths.ForRoot(_projectRoot);
         _store = new ProjectStore(projectPaths);
+        _metadataStore = new SceneMetadataStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _activeDocumentId = "scene-0001";
         _activeDocument = null;
+        _activeSceneMetadata = null;
         _editorTextView = DocumentEditorTextView.Empty;
         _previewMode = false;
         _lastAppliedPresetSlot = null;
@@ -445,6 +454,7 @@ public partial class MainWindow : Window
         EditorBox.Text = "";
         EditorBox.IsReadOnly = false;
         PreviewText.Text = "";
+        ClearSceneInspector();
         ShowEditorSurface();
         ProjectPathText.Text = _projectRoot;
     }
@@ -789,6 +799,116 @@ public partial class MainWindow : Window
         return Task.CompletedTask;
     }
 
+    private async void InspectorSaveButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_activeDocumentId))
+        {
+            StatusText.Text = "저장할 장면 정보가 없습니다.";
+            return;
+        }
+
+        if (!TryReadTargetCharacterCount(out var targetCharacterCount))
+        {
+            StatusText.Text = $"장면 정보 저장 실패 {_activeDocumentId} - 목표 글자 수는 숫자로 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var metadata = new SceneMetadata(
+                1,
+                _activeDocumentId,
+                InspectorSynopsisBox.Text.Trim(),
+                InspectorStatusBox.SelectedValue is SceneStatus status ? status : SceneStatus.Draft,
+                ParseInspectorTags(),
+                targetCharacterCount,
+                DateTimeOffset.UtcNow);
+
+            await _metadataStore.SaveAsync(metadata, CancellationToken.None);
+            _activeSceneMetadata = metadata;
+            PopulateSceneInspector(metadata);
+            StatusText.Text = $"장면 정보 저장됨 {metadata.DocumentId} - {FormatSceneStatus(metadata.Status)}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"장면 정보 저장 실패 {_activeDocumentId} - {ex.Message}";
+        }
+    }
+
+    private async Task LoadSceneMetadataAsync(string documentId)
+    {
+        try
+        {
+            var metadata = await _metadataStore.LoadAsync(documentId, CancellationToken.None);
+            _activeSceneMetadata = metadata;
+            PopulateSceneInspector(metadata);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            ClearSceneInspector();
+            StatusText.Text = $"장면 정보 불러오기 실패 {documentId} - {ex.Message}";
+        }
+    }
+
+    private void PopulateSceneInspector(SceneMetadata metadata)
+    {
+        InspectorSynopsisBox.Text = metadata.Synopsis;
+        InspectorStatusBox.SelectedValue = metadata.Status;
+        InspectorTagsBox.Text = string.Join(", ", metadata.Tags);
+        InspectorTargetCountBox.Text = metadata.TargetCharacterCount?.ToString() ?? "";
+        InspectorUpdatedAtText.Text = metadata.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
+    }
+
+    private void ClearSceneInspector()
+    {
+        InspectorSynopsisBox.Text = "";
+        InspectorStatusBox.SelectedValue = SceneStatus.Draft;
+        InspectorTagsBox.Text = "";
+        InspectorTargetCountBox.Text = "";
+        InspectorCurrentCountText.Text = "0";
+        InspectorUpdatedAtText.Text = "-";
+    }
+
+    private bool TryReadTargetCharacterCount(out int? targetCharacterCount)
+    {
+        var text = InspectorTargetCountBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            targetCharacterCount = null;
+            return true;
+        }
+
+        if (int.TryParse(text, out var value) && value >= 0)
+        {
+            targetCharacterCount = value;
+            return true;
+        }
+
+        targetCharacterCount = null;
+        return false;
+    }
+
+    private IReadOnlyList<string> ParseInspectorTags()
+    {
+        return InspectorTagsBox.Text
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(tag => tag.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string FormatSceneStatus(SceneStatus status)
+    {
+        return status switch
+        {
+            SceneStatus.Draft => "초고",
+            SceneStatus.Revising => "수정중",
+            SceneStatus.Final => "완료",
+            SceneStatus.Excluded => "제외",
+            _ => status.ToString()
+        };
+    }
+
     private async Task OpenMainSurfaceAsync()
     {
         ShowMainSurface();
@@ -982,6 +1102,7 @@ public partial class MainWindow : Window
         var metrics = DocumentMetricsService.Measure(document);
         MetricsText.Text =
             $"{document.Id} | 문단 {metrics.ParagraphCount:N0} | 글자 {metrics.CharacterCount:N0} | UTF-8 {metrics.PlainTextUtf8Bytes / 1024.0:N1} KB";
+        InspectorCurrentCountText.Text = metrics.CharacterCount.ToString("N0");
     }
 
     private void BeginLongOperation(string operationName)
@@ -1269,7 +1390,12 @@ public partial class MainWindow : Window
             return CommandScope.Binder;
         }
 
-        if (SearchResultsList.IsKeyboardFocusWithin || SearchBox.IsKeyboardFocusWithin)
+        if (SearchResultsList.IsKeyboardFocusWithin ||
+            SearchBox.IsKeyboardFocusWithin ||
+            InspectorSynopsisBox.IsKeyboardFocusWithin ||
+            InspectorStatusBox.IsKeyboardFocusWithin ||
+            InspectorTagsBox.IsKeyboardFocusWithin ||
+            InspectorTargetCountBox.IsKeyboardFocusWithin)
         {
             return CommandScope.Preview;
         }
@@ -1353,5 +1479,16 @@ public partial class MainWindow : Window
     private sealed record SearchResultListItem(string DocumentId, string Title, string Snippet)
     {
         public string Display => $"{Title} - {Snippet}";
+    }
+
+    private sealed record SceneStatusOption(SceneStatus Status, string Label)
+    {
+        public static IReadOnlyList<SceneStatusOption> All { get; } =
+        [
+            new SceneStatusOption(SceneStatus.Draft, "초고"),
+            new SceneStatusOption(SceneStatus.Revising, "수정중"),
+            new SceneStatusOption(SceneStatus.Final, "완료"),
+            new SceneStatusOption(SceneStatus.Excluded, "제외")
+        ];
     }
 }

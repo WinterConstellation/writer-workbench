@@ -24,4 +24,9 @@ public sealed record ProjectPaths(string RootPath)
     {
         return Path.Combine(DocumentsPath, $"{documentId}.txt");
     }
+
+    public string SceneMetadataPath(string documentId)
+    {
+        return Path.Combine(DocumentsPath, $"{documentId}.meta.json");
+    }
 }

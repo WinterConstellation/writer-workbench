@@ -128,6 +128,42 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowContainsSceneInspectorSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+
+                Assert.NotNull(window.FindName("InspectorPanel"));
+                Assert.NotNull(window.FindName("InspectorSynopsisBox"));
+                Assert.NotNull(window.FindName("InspectorStatusBox"));
+                Assert.NotNull(window.FindName("InspectorTagsBox"));
+                Assert.NotNull(window.FindName("InspectorTargetCountBox"));
+                Assert.NotNull(window.FindName("InspectorCurrentCountText"));
+                Assert.NotNull(window.FindName("InspectorUpdatedAtText"));
+                Assert.NotNull(window.FindName("InspectorSaveButton"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void EditingTextDoesNotRefreshPreviewAutomatically()
     {
         Exception? failure = null;

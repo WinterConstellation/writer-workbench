@@ -507,6 +507,118 @@
                                FontSize="13"
                                Padding="12,8"
                                Background="#F9FAFB"/>
+                    <Border x:Name="InspectorPanel"
+                            DockPanel.Dock="Bottom"
+                            Height="330"
+                            Padding="12"
+                            Background="#F9FAFB"
+                            BorderBrush="#D1D5DB"
+                            BorderThickness="0,1,0,0">
+                        <DockPanel>
+                            <DockPanel DockPanel.Dock="Top"
+                                       Margin="0,0,0,8">
+                                <Button x:Name="InspectorSaveButton"
+                                        DockPanel.Dock="Right"
+                                        Content="저장"
+                                        MinWidth="64"
+                                        Height="28"
+                                        Padding="8,0"
+                                        Click="InspectorSaveButton_Click"/>
+                                <TextBlock Text="장면 정보"
+                                           FontWeight="SemiBold"
+                                           FontSize="13"
+                                           VerticalAlignment="Center"/>
+                            </DockPanel>
+
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="76"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="82"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Row="0"
+                                           Grid.Column="0"
+                                           Text="시놉시스"
+                                           Margin="0,0,8,6"
+                                           VerticalAlignment="Top"/>
+                                <TextBox x:Name="InspectorSynopsisBox"
+                                         Grid.Row="0"
+                                         Grid.Column="1"
+                                         Grid.RowSpan="2"
+                                         Height="72"
+                                         AcceptsReturn="True"
+                                         TextWrapping="Wrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="2"
+                                           Grid.Column="0"
+                                           Text="상태"
+                                           Margin="0,0,8,8"
+                                           VerticalAlignment="Center"/>
+                                <ComboBox x:Name="InspectorStatusBox"
+                                          Grid.Row="2"
+                                          Grid.Column="1"
+                                          Height="28"
+                                          DisplayMemberPath="Label"
+                                          SelectedValuePath="Status"
+                                          Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="3"
+                                           Grid.Column="0"
+                                           Text="태그"
+                                           Margin="0,0,8,8"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="InspectorTagsBox"
+                                         Grid.Row="3"
+                                         Grid.Column="1"
+                                         Height="28"
+                                         VerticalContentAlignment="Center"
+                                         Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="4"
+                                           Grid.Column="0"
+                                           Text="목표 글자"
+                                           Margin="0,0,8,8"
+                                           VerticalAlignment="Center"/>
+                                <TextBox x:Name="InspectorTargetCountBox"
+                                         Grid.Row="4"
+                                         Grid.Column="1"
+                                         Height="28"
+                                         VerticalContentAlignment="Center"
+                                         Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="5"
+                                           Grid.Column="0"
+                                           Text="현재 글자"
+                                           Margin="0,0,8,8"/>
+                                <TextBlock x:Name="InspectorCurrentCountText"
+                                           Grid.Row="5"
+                                           Grid.Column="1"
+                                           Text="0"
+                                           Margin="0,0,0,8"/>
+
+                                <TextBlock Grid.Row="6"
+                                           Grid.Column="0"
+                                           Text="수정 시각"
+                                           Margin="0,0,8,0"/>
+                                <TextBlock x:Name="InspectorUpdatedAtText"
+                                           Grid.Row="6"
+                                           Grid.Column="1"
+                                           Text="-"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </Grid>
+                        </DockPanel>
+                    </Border>
                     <ListBox x:Name="SearchResultsList"
                              BorderThickness="0"
                              DisplayMemberPath="Display"
