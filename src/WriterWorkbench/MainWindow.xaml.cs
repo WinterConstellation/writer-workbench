@@ -2,6 +2,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -60,6 +61,8 @@ public partial class MainWindow : Window
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
+    private string? _draggedRelationshipMapEntityId;
+    private System.Windows.Point _relationshipMapDragOffset;
 
     public MainWindow()
     {
@@ -78,10 +81,12 @@ public partial class MainWindow : Window
         GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
         InspectorStatusBox.ItemsSource = SceneStatusOption.All;
         InspectorStatusBox.SelectedValue = SceneStatus.Draft;
-        StoryNodeKindBox.ItemsSource = StoryNodeKindOption.All;
-        StoryNodeKindBox.Text = "PlotPoint";
+        StoryNodeKindBox.ItemsSource = StoryEntityTypeOption.All;
+        StoryNodeKindBox.Text = StoryEntityType.Character.ToString();
+        RelationshipEntityTypeBox.ItemsSource = StoryEntityTypeOption.All;
+        RelationshipEntityTypeBox.Text = StoryEntityType.Character.ToString();
         StoryRelationshipKindBox.ItemsSource = RelationshipKindOption.All;
-        StoryRelationshipKindBox.Text = "related";
+        StoryRelationshipKindBox.Text = "관계";
         RegisterCommandHandlers();
 
         Loaded += async (_, _) => await InitializeProjectAsync();
@@ -348,6 +353,9 @@ public partial class MainWindow : Window
             case AppSessionState.MainSurface:
                 ShowMainSurface();
                 break;
+            case AppSessionState.RelationshipMapSurface:
+                ShowRelationshipMapSurface();
+                break;
             default:
                 ShowEditorSurface();
                 break;
@@ -394,8 +402,13 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.SnapshotCreateCurrent] = CreateCurrentSnapshotAsync;
         _commandHandlers[AppCommandIds.SnapshotRestoreSelected] = RestoreSelectedSnapshotAsync;
         _commandHandlers[AppCommandIds.SnapshotDeleteSelected] = DeleteSelectedSnapshotAsync;
+        _commandHandlers[AppCommandIds.StoryRelationshipMapOpen] = OpenRelationshipMapAsync;
         _commandHandlers[AppCommandIds.StoryAddNode] = AddStoryNodeAsync;
+        _commandHandlers[AppCommandIds.StoryUpdateNode] = UpdateStoryNodeAsync;
+        _commandHandlers[AppCommandIds.StoryDeleteNode] = DeleteStoryNodeAsync;
         _commandHandlers[AppCommandIds.StoryAddRelationship] = AddStoryRelationshipAsync;
+        _commandHandlers[AppCommandIds.StoryUpdateRelationship] = UpdateStoryRelationshipAsync;
+        _commandHandlers[AppCommandIds.StoryDeleteRelationship] = DeleteStoryRelationshipAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
@@ -490,6 +503,11 @@ public partial class MainWindow : Window
         StoryRelationshipList.ItemsSource = null;
         StoryRelationshipSourceBox.ItemsSource = null;
         StoryRelationshipTargetBox.ItemsSource = null;
+        RelationshipEntityList.ItemsSource = null;
+        RelationshipList.ItemsSource = null;
+        RelationshipSourceBox.ItemsSource = null;
+        RelationshipTargetBox.ItemsSource = null;
+        RelationshipMapCanvas.Children.Clear();
         TitleBox.Text = "";
         EditorBox.Text = "";
         EditorBox.IsReadOnly = false;
@@ -504,80 +522,154 @@ public partial class MainWindow : Window
     {
         try
         {
-            var structure = await _storyStructureStore.LoadOrCreateAsync(CancellationToken.None);
-            var nodeItems = structure.Nodes
-                .Select(node => new StoryNodeListItem(node))
+            var entities = await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None);
+            var relationships = await _storyStructureStore.LoadRelationshipsAsync(CancellationToken.None);
+            var layout = await _storyStructureStore.LoadRelationLayoutAsync(CancellationToken.None);
+            var entityItems = entities
+                .Select(entity => new StoryEntityListItem(entity))
                 .ToList();
-            StoryNodeList.ItemsSource = nodeItems;
-            StoryRelationshipSourceBox.ItemsSource = nodeItems;
-            StoryRelationshipTargetBox.ItemsSource = nodeItems;
-            StoryRelationshipList.ItemsSource = structure.Relationships
-                .Select(relationship => new RelationshipListItem(relationship))
+            var relationshipItems = relationships
+                .Select(relationship => RelationshipListItem.From(relationship, entities))
                 .ToList();
+
+            StoryNodeList.ItemsSource = entityItems;
+            StoryRelationshipSourceBox.ItemsSource = entityItems;
+            StoryRelationshipTargetBox.ItemsSource = entityItems;
+            StoryRelationshipList.ItemsSource = relationshipItems;
+            RelationshipEntityList.ItemsSource = entityItems;
+            RelationshipSourceBox.ItemsSource = entityItems;
+            RelationshipTargetBox.ItemsSource = entityItems;
+            RelationshipList.ItemsSource = relationshipItems;
+            RenderRelationshipMap(entities, relationships, layout);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             StoryNodeList.ItemsSource = null;
             StoryRelationshipList.ItemsSource = null;
+            RelationshipEntityList.ItemsSource = null;
+            RelationshipList.ItemsSource = null;
+            RelationshipMapCanvas.Children.Clear();
             StatusText.Text = $"스토리 구조 로드 실패 - {ex.Message}";
         }
     }
 
     private async Task AddStoryNodeAsync()
     {
-        var name = StoryNodeNameBox.Text.Trim();
+        var name = ReadEntityName();
         if (name.Length == 0)
         {
-            StatusText.Text = "구조 노드 이름을 입력하세요.";
+            StatusText.Text = "캐릭터 이름을 입력하세요.";
             return;
         }
 
         try
         {
-            var linkedScenes = string.IsNullOrWhiteSpace(_activeDocumentId)
-                ? Array.Empty<string>()
-                : [_activeDocumentId];
-            var node = await _storyStructureStore.AddNodeAsync(
+            var entity = await _storyStructureStore.AddEntityAsync(
+                ReadEntityType(),
                 name,
-                ReadStoryNodeKind(),
-                StoryNodeSummaryBox.Text,
-                [],
-                linkedScenes,
+                ReadEntityRole(),
+                ReadEntitySummary(),
+                ReadEntityColor(),
+                ParseEntityTags(),
                 CancellationToken.None);
             StoryNodeNameBox.Text = "";
             StoryNodeSummaryBox.Text = "";
+            RelationshipEntityNameBox.Text = "";
+            RelationshipEntitySummaryBox.Text = "";
             await RefreshStoryStructureAsync();
-            StatusText.Text = $"구조 노드 추가됨 {node.Id} - {node.Name}";
+            SelectEntityInLists(entity.Id);
+            StatusText.Text = $"캐릭터 추가됨 {entity.Id} - {entity.Name}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            StatusText.Text = $"구조 노드 추가 실패 - {ex.Message}";
+            StatusText.Text = $"캐릭터 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task UpdateStoryNodeAsync()
+    {
+        var selected = GetSelectedStoryEntity();
+        if (selected is null)
+        {
+            StatusText.Text = "수정할 캐릭터를 선택하세요.";
+            return;
+        }
+
+        try
+        {
+            var updated = await _storyStructureStore.UpdateEntityAsync(
+                selected.Entity with
+                {
+                    Type = ReadEntityType(selected.Entity.Type),
+                    Name = ReadEntityName(selected.Entity.Name),
+                    Role = ReadEntityRole(),
+                    Summary = ReadEntitySummary(),
+                    Color = ReadEntityColor(selected.Entity.Color),
+                    Tags = ParseEntityTags()
+                },
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            SelectEntityInLists(updated.Id);
+            StatusText.Text = $"캐릭터 수정됨 {updated.Id} - {updated.Name}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"캐릭터 수정 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task DeleteStoryNodeAsync()
+    {
+        var selected = GetSelectedStoryEntity();
+        if (selected is null)
+        {
+            StatusText.Text = "삭제할 캐릭터를 선택하세요.";
+            return;
+        }
+
+        if (!ConfirmDeleteStoryEntity(selected.Entity))
+        {
+            StatusText.Text = $"캐릭터 삭제 취소 {selected.Id} - {selected.Entity.Name}";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.DeleteEntityAsync(selected.Id, CancellationToken.None);
+            ClearStoryStructureInputs();
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"캐릭터 삭제됨 {selected.Id} - {selected.Entity.Name}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"캐릭터 삭제 실패 {selected.Id} - {ex.Message}";
         }
     }
 
     private async Task AddStoryRelationshipAsync()
     {
-        var sourceNodeId = ReadRelationshipEndpoint(StoryRelationshipSourceBox);
-        var targetNodeId = ReadRelationshipEndpoint(StoryRelationshipTargetBox);
-        if (sourceNodeId.Length == 0 || targetNodeId.Length == 0)
+        var sourceEntityId = ReadRelationshipEndpoint(RelationshipSourceBox, StoryRelationshipSourceBox);
+        var targetEntityId = ReadRelationshipEndpoint(RelationshipTargetBox, StoryRelationshipTargetBox);
+        if (sourceEntityId.Length == 0 || targetEntityId.Length == 0)
         {
-            StatusText.Text = "관계의 시작/도착 노드를 선택하세요.";
+            StatusText.Text = "관계의 시작/도착 캐릭터를 선택하세요.";
             return;
         }
 
         try
         {
             var relationship = await _storyStructureStore.AddRelationshipAsync(
-                sourceNodeId,
-                targetNodeId,
-                ReadRelationshipKind(),
-                StoryRelationshipSummaryBox.Text,
-                1,
-                [],
+                sourceEntityId,
+                targetEntityId,
+                ReadRelationshipLabel(),
+                ReadRelationshipNotes(),
+                RelationshipDirectionalBox.IsChecked == true,
                 CancellationToken.None);
             StoryRelationshipSummaryBox.Text = "";
+            RelationshipNotesBox.Text = "";
             await RefreshStoryStructureAsync();
-            StatusText.Text = $"관계 추가됨 {relationship.Id} - {relationship.SourceNodeId} -> {relationship.TargetNodeId}";
+            SelectRelationshipInLists(relationship.Id);
+            StatusText.Text = $"관계 추가됨 {relationship.Id} - {relationship.SourceEntityId} -> {relationship.TargetEntityId}";
         }
         catch (InvalidOperationException ex)
         {
@@ -589,42 +681,471 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task UpdateStoryRelationshipAsync()
+    {
+        var selected = GetSelectedStoryRelationship();
+        if (selected is null)
+        {
+            StatusText.Text = "수정할 관계를 선택하세요.";
+            return;
+        }
+
+        var sourceEntityId = ReadRelationshipEndpoint(RelationshipSourceBox, StoryRelationshipSourceBox);
+        var targetEntityId = ReadRelationshipEndpoint(RelationshipTargetBox, StoryRelationshipTargetBox);
+        try
+        {
+            var updated = await _storyStructureStore.UpdateRelationshipAsync(
+                selected.Relationship with
+                {
+                    SourceEntityId = sourceEntityId,
+                    TargetEntityId = targetEntityId,
+                    Label = ReadRelationshipLabel(selected.Relationship.Label),
+                    Notes = ReadRelationshipNotes(),
+                    IsDirectional = RelationshipDirectionalBox.IsChecked == true
+                },
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            SelectRelationshipInLists(updated.Id);
+            StatusText.Text = $"관계 수정됨 {updated.Id}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            StatusText.Text = $"관계 수정 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task DeleteStoryRelationshipAsync()
+    {
+        var selected = GetSelectedStoryRelationship();
+        if (selected is null)
+        {
+            StatusText.Text = "삭제할 관계를 선택하세요.";
+            return;
+        }
+
+        if (!ConfirmDeleteStoryRelationship(selected.Relationship))
+        {
+            StatusText.Text = $"관계 삭제 취소 {selected.Id}";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.DeleteRelationshipAsync(selected.Id, CancellationToken.None);
+            RelationshipLabelBox.Text = "";
+            RelationshipNotesBox.Text = "";
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계 삭제됨 {selected.Id}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계 삭제 실패 {selected.Id} - {ex.Message}";
+        }
+    }
+
     private void StoryNodeList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        if (StoryNodeList.SelectedItem is not StoryNodeListItem item)
+        if (StoryNodeList.SelectedItem is not StoryEntityListItem item)
         {
             return;
         }
 
         StoryRelationshipSourceBox.SelectedItem ??= item;
+        PopulateEntityEditor(item.Entity);
+    }
+
+    private void RelationshipEntityList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (RelationshipEntityList.SelectedItem is not StoryEntityListItem item)
+        {
+            return;
+        }
+
+        RelationshipSourceBox.SelectedItem ??= item;
+        PopulateEntityEditor(item.Entity);
+    }
+
+    private void RelationshipList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (RelationshipList.SelectedItem is not RelationshipListItem item)
+        {
+            return;
+        }
+
+        PopulateRelationshipEditor(item.Relationship);
     }
 
     private void ClearStoryStructureInputs()
     {
         StoryNodeNameBox.Text = "";
         StoryNodeSummaryBox.Text = "";
-        StoryNodeKindBox.Text = "PlotPoint";
-        StoryRelationshipKindBox.Text = "related";
+        StoryNodeKindBox.Text = StoryEntityType.Character.ToString();
+        RelationshipEntityNameBox.Text = "";
+        RelationshipEntityRoleBox.Text = "";
+        RelationshipEntitySummaryBox.Text = "";
+        RelationshipEntityColorBox.Text = "#2563EB";
+        RelationshipEntityTagsBox.Text = "";
+        RelationshipEntityTypeBox.Text = StoryEntityType.Character.ToString();
+        StoryRelationshipKindBox.Text = "관계";
         StoryRelationshipSummaryBox.Text = "";
+        RelationshipLabelBox.Text = "";
+        RelationshipNotesBox.Text = "";
+        RelationshipDirectionalBox.IsChecked = false;
     }
 
-    private string ReadStoryNodeKind()
+    private StoryEntityType ReadEntityType(StoryEntityType fallback = StoryEntityType.Character)
     {
-        var kind = StoryNodeKindBox.Text.Trim();
-        return kind.Length == 0 ? "PlotPoint" : kind;
+        var text = RelationshipEntityTypeBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            text = StoryNodeKindBox.Text.Trim();
+        }
+
+        return Enum.TryParse<StoryEntityType>(text, ignoreCase: true, out var type)
+            ? type
+            : fallback;
     }
 
-    private string ReadRelationshipKind()
+    private string ReadEntityName(string fallback = "")
     {
-        var kind = StoryRelationshipKindBox.Text.Trim();
-        return kind.Length == 0 ? "related" : kind;
+        var text = RelationshipEntityNameBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            text = StoryNodeNameBox.Text.Trim();
+        }
+
+        return text.Length == 0 ? fallback : text;
     }
 
-    private static string ReadRelationshipEndpoint(System.Windows.Controls.ComboBox comboBox)
+    private string ReadEntityRole()
     {
-        return comboBox.SelectedItem is StoryNodeListItem item
-            ? item.Id
-            : comboBox.Text.Trim();
+        return RelationshipEntityRoleBox.Text.Trim();
+    }
+
+    private string ReadEntitySummary()
+    {
+        var text = RelationshipEntitySummaryBox.Text.Trim();
+        return text.Length == 0 ? StoryNodeSummaryBox.Text.Trim() : text;
+    }
+
+    private string ReadEntityColor(string fallback = "#2563EB")
+    {
+        var text = RelationshipEntityColorBox.Text.Trim();
+        return text.Length == 0 ? fallback : text;
+    }
+
+    private IReadOnlyList<string> ParseEntityTags()
+    {
+        return RelationshipEntityTagsBox.Text
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(tag => tag.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private string ReadRelationshipLabel(string fallback = "Relationship")
+    {
+        var text = RelationshipLabelBox.Text.Trim();
+        if (text.Length == 0)
+        {
+            text = StoryRelationshipKindBox.Text.Trim();
+        }
+
+        return text.Length == 0 ? fallback : text;
+    }
+
+    private string ReadRelationshipNotes()
+    {
+        var text = RelationshipNotesBox.Text.Trim();
+        return text.Length == 0 ? StoryRelationshipSummaryBox.Text.Trim() : text;
+    }
+
+    private static string ReadRelationshipEndpoint(
+        System.Windows.Controls.ComboBox primaryComboBox,
+        System.Windows.Controls.ComboBox fallbackComboBox)
+    {
+        if (primaryComboBox.SelectedItem is StoryEntityListItem primary)
+        {
+            return primary.Id;
+        }
+
+        if (!string.IsNullOrWhiteSpace(primaryComboBox.Text))
+        {
+            return primaryComboBox.Text.Trim();
+        }
+
+        return fallbackComboBox.SelectedItem is StoryEntityListItem fallback
+            ? fallback.Id
+            : fallbackComboBox.Text.Trim();
+    }
+    private async Task OpenRelationshipMapAsync()
+    {
+        await RefreshStoryStructureAsync();
+        ShowRelationshipMapSurface();
+        await PersistSessionStateAsync();
+    }
+
+    private void RenderRelationshipMap(
+        IReadOnlyList<StoryEntity> entities,
+        IReadOnlyList<StoryRelationship> relationships,
+        IReadOnlyList<StoryMapNodeLayout> layout)
+    {
+        RelationshipMapCanvas.Children.Clear();
+        var positions = CreateRelationshipMapPositions(entities, layout);
+        foreach (var relationship in relationships)
+        {
+            if (!positions.TryGetValue(relationship.SourceEntityId, out var source) ||
+                !positions.TryGetValue(relationship.TargetEntityId, out var target))
+            {
+                continue;
+            }
+
+            RelationshipMapCanvas.Children.Add(new System.Windows.Shapes.Line
+            {
+                X1 = source.X + 65,
+                Y1 = source.Y + 26,
+                X2 = target.X + 65,
+                Y2 = target.Y + 26,
+                Stroke = CreateBrush("#64748B"),
+                StrokeThickness = relationship.IsDirectional ? 2.5 : 1.5
+            });
+
+            var label = new TextBlock
+            {
+                Text = relationship.Label,
+                Background = CreateBrush("#FFFFFF"),
+                Foreground = CreateBrush("#111827"),
+                Padding = new Thickness(4, 1, 4, 1),
+                FontSize = 11
+            };
+            Canvas.SetLeft(label, (source.X + target.X) / 2 + 52);
+            Canvas.SetTop(label, (source.Y + target.Y) / 2 + 16);
+            RelationshipMapCanvas.Children.Add(label);
+        }
+
+        foreach (var entity in entities)
+        {
+            var node = CreateRelationshipMapNode(entity);
+            Canvas.SetLeft(node, positions[entity.Id].X);
+            Canvas.SetTop(node, positions[entity.Id].Y);
+            RelationshipMapCanvas.Children.Add(node);
+        }
+    }
+
+    private static Dictionary<string, System.Windows.Point> CreateRelationshipMapPositions(
+        IReadOnlyList<StoryEntity> entities,
+        IReadOnlyList<StoryMapNodeLayout> layout)
+    {
+        var saved = layout.ToDictionary(node => node.EntityId, node => new System.Windows.Point(node.X, node.Y), StringComparer.OrdinalIgnoreCase);
+        var positions = new Dictionary<string, System.Windows.Point>(StringComparer.OrdinalIgnoreCase);
+        for (var index = 0; index < entities.Count; index++)
+        {
+            var entity = entities[index];
+            positions[entity.Id] = saved.TryGetValue(entity.Id, out var point)
+                ? point
+                : new System.Windows.Point(44 + (index % 4) * 176, 44 + (index / 4) * 118);
+        }
+
+        return positions;
+    }
+
+    private Border CreateRelationshipMapNode(StoryEntity entity)
+    {
+        var stack = new StackPanel { Margin = new Thickness(8, 6, 8, 6) };
+        stack.Children.Add(new TextBlock
+        {
+            Text = entity.Name,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = CreateBrush("#FFFFFF"),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        stack.Children.Add(new TextBlock
+        {
+            Text = $"{entity.Type} | {entity.Role}",
+            Foreground = CreateBrush("#E5E7EB"),
+            FontSize = 11,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        var node = new Border
+        {
+            Width = 130,
+            Height = 52,
+            CornerRadius = new CornerRadius(6),
+            Background = CreateBrushOrFallback(entity.Color, "#2563EB"),
+            BorderBrush = CreateBrush("#111827"),
+            BorderThickness = new Thickness(1),
+            Child = stack,
+            Tag = entity.Id,
+            Cursor = System.Windows.Input.Cursors.SizeAll,
+            ToolTip = $"{entity.Name}\n{entity.Summary}"
+        };
+        node.MouseLeftButtonDown += RelationshipMapNode_MouseLeftButtonDown;
+        node.MouseMove += RelationshipMapNode_MouseMove;
+        node.MouseLeftButtonUp += RelationshipMapNode_MouseLeftButtonUp;
+        return node;
+    }
+
+    private void RelationshipMapNode_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not Border node || node.Tag is not string entityId)
+        {
+            return;
+        }
+
+        _draggedRelationshipMapEntityId = entityId;
+        _relationshipMapDragOffset = e.GetPosition(node);
+        node.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void RelationshipMapNode_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_draggedRelationshipMapEntityId is null ||
+            sender is not Border node ||
+            e.LeftButton != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        var point = e.GetPosition(RelationshipMapCanvas);
+        Canvas.SetLeft(node, Math.Max(0, point.X - _relationshipMapDragOffset.X));
+        Canvas.SetTop(node, Math.Max(0, point.Y - _relationshipMapDragOffset.Y));
+    }
+
+    private async void RelationshipMapNode_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_draggedRelationshipMapEntityId is null || sender is not Border node)
+        {
+            return;
+        }
+
+        var entityId = _draggedRelationshipMapEntityId;
+        _draggedRelationshipMapEntityId = null;
+        node.ReleaseMouseCapture();
+        var x = Canvas.GetLeft(node);
+        var y = Canvas.GetTop(node);
+        try
+        {
+            await _storyStructureStore.SaveNodeLayoutAsync(entityId, x, y, CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 위치 저장됨 {entityId} - X {x:N0}, Y {y:N0}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계도 위치 저장 실패 {entityId} - {ex.Message}";
+        }
+    }
+
+    private StoryEntityListItem? GetSelectedStoryEntity()
+    {
+        return RelationshipEntityList.SelectedItem as StoryEntityListItem
+            ?? StoryNodeList.SelectedItem as StoryEntityListItem;
+    }
+
+    private RelationshipListItem? GetSelectedStoryRelationship()
+    {
+        return RelationshipList.SelectedItem as RelationshipListItem
+            ?? StoryRelationshipList.SelectedItem as RelationshipListItem;
+    }
+
+    private void PopulateEntityEditor(StoryEntity entity)
+    {
+        RelationshipEntityNameBox.Text = entity.Name;
+        RelationshipEntityTypeBox.Text = entity.Type.ToString();
+        RelationshipEntityRoleBox.Text = entity.Role;
+        RelationshipEntitySummaryBox.Text = entity.Summary;
+        RelationshipEntityColorBox.Text = entity.Color;
+        RelationshipEntityTagsBox.Text = string.Join(", ", entity.Tags);
+        StoryNodeNameBox.Text = entity.Name;
+        StoryNodeKindBox.Text = entity.Type.ToString();
+        StoryNodeSummaryBox.Text = entity.Summary;
+    }
+
+    private void PopulateRelationshipEditor(StoryRelationship relationship)
+    {
+        SelectComboBoxItem(RelationshipSourceBox, relationship.SourceEntityId);
+        SelectComboBoxItem(RelationshipTargetBox, relationship.TargetEntityId);
+        SelectComboBoxItem(StoryRelationshipSourceBox, relationship.SourceEntityId);
+        SelectComboBoxItem(StoryRelationshipTargetBox, relationship.TargetEntityId);
+        RelationshipLabelBox.Text = relationship.Label;
+        StoryRelationshipKindBox.Text = relationship.Label;
+        RelationshipNotesBox.Text = relationship.Notes;
+        StoryRelationshipSummaryBox.Text = relationship.Notes;
+        RelationshipDirectionalBox.IsChecked = relationship.IsDirectional;
+    }
+
+    private void SelectEntityInLists(string entityId)
+    {
+        SelectListBoxItem(StoryNodeList, entityId);
+        SelectListBoxItem(RelationshipEntityList, entityId);
+    }
+
+    private void SelectRelationshipInLists(string relationshipId)
+    {
+        SelectListBoxItem(StoryRelationshipList, relationshipId);
+        SelectListBoxItem(RelationshipList, relationshipId);
+    }
+
+    private static void SelectListBoxItem(System.Windows.Controls.ListBox listBox, string id)
+    {
+        foreach (var item in listBox.Items)
+        {
+            if (item is StoryEntityListItem entity && string.Equals(entity.Id, id, StringComparison.OrdinalIgnoreCase) ||
+                item is RelationshipListItem relationship && string.Equals(relationship.Id, id, StringComparison.OrdinalIgnoreCase))
+            {
+                listBox.SelectedItem = item;
+                return;
+            }
+        }
+    }
+
+    private static void SelectComboBoxItem(System.Windows.Controls.ComboBox comboBox, string entityId)
+    {
+        foreach (var item in comboBox.Items)
+        {
+            if (item is StoryEntityListItem entity && string.Equals(entity.Id, entityId, StringComparison.OrdinalIgnoreCase))
+            {
+                comboBox.SelectedItem = item;
+                return;
+            }
+        }
+
+        comboBox.Text = entityId;
+    }
+
+    private bool ConfirmDeleteStoryEntity(StoryEntity entity)
+    {
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"캐릭터를 삭제할까요?\n관련 관계와 관계도 위치도 함께 삭제됩니다.\n\n{entity.Id} - {entity.Name}",
+            "캐릭터 삭제 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
+    }
+
+    private bool ConfirmDeleteStoryRelationship(StoryRelationship relationship)
+    {
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"관계를 삭제할까요?\n\n{relationship.Id} - {relationship.Label}",
+            "관계 삭제 확인",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        return result == MessageBoxResult.Yes;
+    }
+
+    private static SolidColorBrush CreateBrushOrFallback(string color, string fallback)
+    {
+        try
+        {
+            return CreateBrush(color);
+        }
+        catch (FormatException)
+        {
+            return CreateBrush(fallback);
+        }
     }
 
     private async Task CreateNewSceneAsync()
@@ -1524,6 +2045,7 @@ public partial class MainWindow : Window
 
         PreviewText.Text = PreviewTextService.CreatePreview(sourceText);
         MainSurface.Visibility = Visibility.Collapsed;
+        RelationshipMapSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Visible;
         PreviewModeButton.Content = "편집";
@@ -1535,6 +2057,7 @@ public partial class MainWindow : Window
     private void ShowEditorSurface()
     {
         MainSurface.Visibility = Visibility.Collapsed;
+        RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Visible;
         PreviewModeButton.Content = "미리보기";
@@ -1546,12 +2069,25 @@ public partial class MainWindow : Window
     private void ShowMainSurface()
     {
         MainSurface.Visibility = Visibility.Visible;
+        RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
         _previewMode = false;
         RememberSessionState(AppSessionState.MainSurface);
         StatusText.Text = "메인 화면";
+    }
+
+    private void ShowRelationshipMapSurface()
+    {
+        MainSurface.Visibility = Visibility.Collapsed;
+        PreviewSurface.Visibility = Visibility.Collapsed;
+        EditorSurface.Visibility = Visibility.Collapsed;
+        RelationshipMapSurface.Visibility = Visibility.Visible;
+        PreviewModeButton.Content = "미리보기";
+        _previewMode = false;
+        RememberSessionState(AppSessionState.RelationshipMapSurface);
+        StatusText.Text = "관계도 화면";
     }
 
     private async void ReturnToEditorButton_Click(object sender, RoutedEventArgs e)
@@ -1869,7 +2405,20 @@ public partial class MainWindow : Window
             StoryRelationshipTargetBox.IsKeyboardFocusWithin ||
             StoryRelationshipKindBox.IsKeyboardFocusWithin ||
             StoryRelationshipSummaryBox.IsKeyboardFocusWithin ||
-            StoryRelationshipList.IsKeyboardFocusWithin)
+            StoryRelationshipList.IsKeyboardFocusWithin ||
+            RelationshipEntityList.IsKeyboardFocusWithin ||
+            RelationshipList.IsKeyboardFocusWithin ||
+            RelationshipEntityNameBox.IsKeyboardFocusWithin ||
+            RelationshipEntityTypeBox.IsKeyboardFocusWithin ||
+            RelationshipEntityRoleBox.IsKeyboardFocusWithin ||
+            RelationshipEntitySummaryBox.IsKeyboardFocusWithin ||
+            RelationshipEntityColorBox.IsKeyboardFocusWithin ||
+            RelationshipEntityTagsBox.IsKeyboardFocusWithin ||
+            RelationshipSourceBox.IsKeyboardFocusWithin ||
+            RelationshipTargetBox.IsKeyboardFocusWithin ||
+            RelationshipLabelBox.IsKeyboardFocusWithin ||
+            RelationshipNotesBox.IsKeyboardFocusWithin ||
+            RelationshipDirectionalBox.IsKeyboardFocusWithin)
         {
             return CommandScope.Preview;
         }
@@ -1985,28 +2534,47 @@ public partial class MainWindow : Window
             $"{Snapshot.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {Snapshot.Reason} | {Snapshot.Title}";
     }
 
-    private sealed record StoryNodeListItem(StoryStructureNode Node)
+    private sealed record StoryEntityListItem(StoryEntity Entity)
     {
-        public string Id => Node.Id;
-        public string Display => $"{Node.Id} | {Node.Name} | {Node.Kind}";
+        public string Id => Entity.Id;
+        public string Display => $"{Entity.Name} | {Entity.Type} | {Entity.Role}";
     }
 
-    private sealed record RelationshipListItem(RelationshipLink Relationship)
+    private sealed record RelationshipListItem(
+        string Id,
+        StoryRelationship Relationship,
+        string SourceName,
+        string TargetName)
     {
         public string Display =>
-            $"{Relationship.SourceNodeId} -> {Relationship.TargetNodeId} | {Relationship.Kind} | {Relationship.Summary}";
+            $"{SourceName} -> {TargetName} | {Relationship.Label}";
+
+        public static RelationshipListItem From(
+            StoryRelationship relationship,
+            IReadOnlyList<StoryEntity> entities)
+        {
+            var source = entities.FirstOrDefault(entity =>
+                string.Equals(entity.Id, relationship.SourceEntityId, StringComparison.OrdinalIgnoreCase));
+            var target = entities.FirstOrDefault(entity =>
+                string.Equals(entity.Id, relationship.TargetEntityId, StringComparison.OrdinalIgnoreCase));
+            return new RelationshipListItem(
+                relationship.Id,
+                relationship,
+                source?.Name ?? relationship.SourceEntityId,
+                target?.Name ?? relationship.TargetEntityId);
+        }
     }
 
-    private sealed record StoryNodeKindOption(string Value)
+    private sealed record StoryEntityTypeOption(string Value)
     {
-        public static IReadOnlyList<StoryNodeKindOption> All { get; } =
+        public static IReadOnlyList<StoryEntityTypeOption> All { get; } =
         [
-            new StoryNodeKindOption("PlotPoint"),
-            new StoryNodeKindOption("Arc"),
-            new StoryNodeKindOption("Character"),
-            new StoryNodeKindOption("Theme"),
-            new StoryNodeKindOption("Place"),
-            new StoryNodeKindOption("Conflict")
+            new StoryEntityTypeOption(StoryEntityType.Character.ToString()),
+            new StoryEntityTypeOption(StoryEntityType.Faction.ToString()),
+            new StoryEntityTypeOption(StoryEntityType.Place.ToString()),
+            new StoryEntityTypeOption(StoryEntityType.Event.ToString()),
+            new StoryEntityTypeOption(StoryEntityType.Item.ToString()),
+            new StoryEntityTypeOption(StoryEntityType.Concept.ToString())
         ];
 
         public override string ToString() => Value;

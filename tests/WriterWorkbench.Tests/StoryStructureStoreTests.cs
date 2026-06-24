@@ -7,79 +7,110 @@ namespace WriterWorkbench.Tests;
 public sealed class StoryStructureStoreTests
 {
     [Fact]
-    public async Task LoadOrCreateCreatesEmptyStoryStructureFile()
+    public async Task MissingStoryFilesReturnEmptyLists()
     {
-        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
-        var paths = ProjectPaths.ForRoot(root);
+        var paths = ProjectPaths.ForRoot(NewRoot());
         var store = new StoryStructureStore(paths);
 
-        var document = await store.LoadOrCreateAsync(CancellationToken.None);
+        var entities = await store.LoadEntitiesAsync(CancellationToken.None);
+        var relationships = await store.LoadRelationshipsAsync(CancellationToken.None);
+        var layout = await store.LoadRelationLayoutAsync(CancellationToken.None);
 
-        Assert.Equal(1, document.SchemaVersion);
-        Assert.Empty(document.Nodes);
-        Assert.Empty(document.Relationships);
-        Assert.True(File.Exists(paths.StoryStructurePath));
+        Assert.Empty(entities);
+        Assert.Empty(relationships);
+        Assert.Empty(layout);
+        Assert.False(File.Exists(paths.StoryEntitiesPath));
+        Assert.False(File.Exists(paths.StoryRelationshipsPath));
+        Assert.False(File.Exists(paths.StoryRelationLayoutPath));
     }
 
     [Fact]
-    public async Task SaveAndLoadRoundtripsNodesAndRelationships()
+    public async Task SaveAndLoadSplitStoryFilesRoundtripsKoreanText()
     {
-        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
-        var paths = ProjectPaths.ForRoot(root);
+        var paths = ProjectPaths.ForRoot(NewRoot());
         var store = new StoryStructureStore(paths);
         var createdAt = DateTimeOffset.Parse("2026-06-24T01:02:03+09:00");
         var updatedAt = DateTimeOffset.Parse("2026-06-24T02:03:04+09:00");
-        var document = new StoryStructureDocument(
-            1,
-            [
-                new StoryStructureNode("arc-main", "중심 줄기", "Arc", "주인공 선택의 압력", ["핵심", "1부"], ["scene-0001"], 10, createdAt, updatedAt),
-                new StoryStructureNode("char-lead", "주인공", "Character", "말을 아끼는 인물", ["인물"], ["scene-0001", "scene-0002"], 20, createdAt, updatedAt)
-            ],
-            [
-                new RelationshipLink("rel-arc-lead", "arc-main", "char-lead", "drives", "구조가 인물을 밀어붙임", 4, ["갈등"], createdAt, updatedAt)
-            ],
-            updatedAt);
+        var entities = new[]
+        {
+            new StoryEntity("entity-0001", StoryEntityType.Character, "주인공", "화자", "말을 아끼는 인물", "#4F46E5", ["핵심", "1부"], createdAt, updatedAt),
+            new StoryEntity("entity-0002", StoryEntityType.Faction, "동부 길드", "세력", "자금줄", "#0F766E", ["세력"], createdAt, updatedAt)
+        };
+        var relationships = new[]
+        {
+            new StoryRelationship("rel-0001", "entity-0001", "entity-0002", "소속", "표면적으로만 협력", true, createdAt, updatedAt)
+        };
+        var layout = new[]
+        {
+            new StoryMapNodeLayout("entity-0001", 120, 220),
+            new StoryMapNodeLayout("entity-0002", 480, 260)
+        };
 
-        await store.SaveAsync(document, CancellationToken.None);
-        var loaded = await store.LoadOrCreateAsync(CancellationToken.None);
+        await store.SaveEntitiesAsync(entities, CancellationToken.None);
+        await store.SaveRelationshipsAsync(relationships, CancellationToken.None);
+        await store.SaveRelationLayoutAsync(layout, CancellationToken.None);
 
-        Assert.Equal(["arc-main", "char-lead"], loaded.Nodes.Select(node => node.Id));
-        Assert.Equal("중심 줄기", loaded.Nodes[0].Name);
-        Assert.Equal(["scene-0001", "scene-0002"], loaded.Nodes[1].LinkedSceneIds);
-        var relationship = Assert.Single(loaded.Relationships);
-        Assert.Equal("rel-arc-lead", relationship.Id);
-        Assert.Equal("arc-main", relationship.SourceNodeId);
-        Assert.Equal("char-lead", relationship.TargetNodeId);
-        Assert.Equal(4, relationship.Strength);
+        Assert.Contains("주인공", await File.ReadAllTextAsync(paths.StoryEntitiesPath, CancellationToken.None));
+        Assert.Contains("표면적으로만 협력", await File.ReadAllTextAsync(paths.StoryRelationshipsPath, CancellationToken.None));
+        Assert.Equal(["entity-0001", "entity-0002"], (await store.LoadEntitiesAsync(CancellationToken.None)).Select(entity => entity.Id));
+        Assert.Equal("소속", Assert.Single(await store.LoadRelationshipsAsync(CancellationToken.None)).Label);
+        Assert.Equal(480, (await store.LoadRelationLayoutAsync(CancellationToken.None))[1].X);
     }
 
     [Fact]
-    public async Task SaveDropsRelationshipsWithMissingEndpoints()
+    public async Task AddRelationshipRejectsMissingEntityId()
     {
-        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
-        var paths = ProjectPaths.ForRoot(root);
+        var paths = ProjectPaths.ForRoot(NewRoot());
         var store = new StoryStructureStore(paths);
-        var now = DateTimeOffset.UtcNow;
-        var document = new StoryStructureDocument(
-            1,
-            [new StoryStructureNode("node-a", "A", "Theme", "", [], [], 0, now, now)],
-            [
-                new RelationshipLink("rel-valid", "node-a", "node-a", "echo", "", 1, [], now, now),
-                new RelationshipLink("rel-broken", "node-a", "missing", "broken", "", 1, [], now, now)
-            ],
-            now);
+        var entity = await store.AddEntityAsync(StoryEntityType.Character, "인물 A", "주연", "", "#2563EB", [], CancellationToken.None);
 
-        await store.SaveAsync(document, CancellationToken.None);
-        var loaded = await store.LoadOrCreateAsync(CancellationToken.None);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.AddRelationshipAsync(entity.Id, "missing", "관계", "", false, CancellationToken.None));
 
-        var relationship = Assert.Single(loaded.Relationships);
-        Assert.Equal("rel-valid", relationship.Id);
+        Assert.Empty(await store.LoadRelationshipsAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeleteEntityRemovesRelatedRelationshipsAndLayout()
+    {
+        var paths = ProjectPaths.ForRoot(NewRoot());
+        var store = new StoryStructureStore(paths);
+        var first = await store.AddEntityAsync(StoryEntityType.Character, "인물 A", "주연", "", "#2563EB", [], CancellationToken.None);
+        var second = await store.AddEntityAsync(StoryEntityType.Character, "인물 B", "조연", "", "#DB2777", [], CancellationToken.None);
+        var third = await store.AddEntityAsync(StoryEntityType.Character, "인물 C", "조연", "", "#059669", [], CancellationToken.None);
+        await store.AddRelationshipAsync(first.Id, second.Id, "협력", "", true, CancellationToken.None);
+        await store.AddRelationshipAsync(second.Id, third.Id, "견제", "", true, CancellationToken.None);
+        await store.SaveNodeLayoutAsync(second.Id, 300, 140, CancellationToken.None);
+        await store.SaveNodeLayoutAsync(third.Id, 600, 240, CancellationToken.None);
+
+        await store.DeleteEntityAsync(second.Id, CancellationToken.None);
+
+        Assert.Equal([first.Id, third.Id], (await store.LoadEntitiesAsync(CancellationToken.None)).Select(entity => entity.Id));
+        Assert.Empty(await store.LoadRelationshipsAsync(CancellationToken.None));
+        Assert.Equal([third.Id], (await store.LoadRelationLayoutAsync(CancellationToken.None)).Select(node => node.EntityId));
+    }
+
+    [Fact]
+    public async Task SaveNodeLayoutUpdatesSingleEntityPosition()
+    {
+        var paths = ProjectPaths.ForRoot(NewRoot());
+        var store = new StoryStructureStore(paths);
+        var first = await store.AddEntityAsync(StoryEntityType.Character, "인물 A", "주연", "", "#2563EB", [], CancellationToken.None);
+        var second = await store.AddEntityAsync(StoryEntityType.Character, "인물 B", "조연", "", "#DB2777", [], CancellationToken.None);
+
+        await store.SaveNodeLayoutAsync(first.Id, 120, 160, CancellationToken.None);
+        await store.SaveNodeLayoutAsync(second.Id, 420, 260, CancellationToken.None);
+        await store.SaveNodeLayoutAsync(first.Id, 180, 220, CancellationToken.None);
+
+        var layout = await store.LoadRelationLayoutAsync(CancellationToken.None);
+        Assert.Equal(2, layout.Count);
+        Assert.Equal(new StoryMapNodeLayout(first.Id, 180, 220), layout.Single(node => node.EntityId == first.Id));
     }
 
     [Fact]
     public async Task SavingStoryStructureDoesNotRewriteDocumentBodies()
     {
-        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var root = NewRoot();
         var paths = ProjectPaths.ForRoot(root);
         var projectStore = new ProjectStore(paths);
         var document = new WriterDocument(
@@ -89,40 +120,22 @@ public sealed class StoryStructureStoreTests
         await projectStore.SaveDocumentAsync(document, CancellationToken.None);
         var jsonTimestamp = File.GetLastWriteTimeUtc(paths.DocumentJsonPath(document.Id));
         var textTimestamp = File.GetLastWriteTimeUtc(paths.DocumentTextPath(document.Id));
-        var now = DateTimeOffset.UtcNow;
-        var structure = new StoryStructureDocument(
-            1,
-            [new StoryStructureNode("node-body", "본문 연결", "PlotPoint", "", [], [document.Id], 0, now, now)],
-            [],
-            now);
 
-        await new StoryStructureStore(paths).SaveAsync(structure, CancellationToken.None);
+        await new StoryStructureStore(paths).AddEntityAsync(
+            StoryEntityType.Character,
+            "본문과 분리된 인물",
+            "주연",
+            "원고 파일을 건드리지 않는다",
+            "#2563EB",
+            ["검증"],
+            CancellationToken.None);
 
         Assert.Equal(jsonTimestamp, File.GetLastWriteTimeUtc(paths.DocumentJsonPath(document.Id)));
         Assert.Equal(textTimestamp, File.GetLastWriteTimeUtc(paths.DocumentTextPath(document.Id)));
     }
 
-    [Fact]
-    public async Task PreservesKoreanTextAsUtf8()
+    private static string NewRoot()
     {
-        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
-        var paths = ProjectPaths.ForRoot(root);
-        var store = new StoryStructureStore(paths);
-        var now = DateTimeOffset.UtcNow;
-        var structure = new StoryStructureDocument(
-            1,
-            [new StoryStructureNode("node-korean", "감정선", "Theme", "후반부에서 의미가 뒤집히는 관계", ["복선"], ["scene-0001"], 0, now, now)],
-            [new RelationshipLink("rel-korean", "node-korean", "node-korean", "mirror", "같은 사건을 다르게 해석", 2, ["반복"], now, now)],
-            now);
-
-        await store.SaveAsync(structure, CancellationToken.None);
-
-        var raw = await File.ReadAllTextAsync(paths.StoryStructurePath, CancellationToken.None);
-        var loaded = await store.LoadOrCreateAsync(CancellationToken.None);
-
-        Assert.Contains("감정선", raw);
-        Assert.Contains("같은 사건을 다르게 해석", raw);
-        Assert.Equal("감정선", loaded.Nodes[0].Name);
-        Assert.Equal("같은 사건을 다르게 해석", loaded.Relationships[0].Summary);
+        return Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
     }
 }

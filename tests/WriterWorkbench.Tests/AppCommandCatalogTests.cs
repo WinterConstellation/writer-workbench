@@ -19,8 +19,13 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.SnapshotCreateCurrent,
             AppCommandIds.SnapshotRestoreSelected,
             AppCommandIds.SnapshotDeleteSelected,
+            AppCommandIds.StoryRelationshipMapOpen,
             AppCommandIds.StoryAddNode,
+            AppCommandIds.StoryUpdateNode,
+            AppCommandIds.StoryDeleteNode,
             AppCommandIds.StoryAddRelationship,
+            AppCommandIds.StoryUpdateRelationship,
+            AppCommandIds.StoryDeleteRelationship,
             AppCommandIds.DocumentCreateScene,
             AppCommandIds.DocumentCreateStressLarge,
             AppCommandIds.DocumentDetachCurrent,
@@ -59,8 +64,13 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("현재 장면 스냅샷", registry.Get(AppCommandIds.SnapshotCreateCurrent).Name);
         Assert.Equal("스냅샷 복원", registry.Get(AppCommandIds.SnapshotRestoreSelected).Name);
         Assert.Equal("스냅샷 삭제", registry.Get(AppCommandIds.SnapshotDeleteSelected).Name);
-        Assert.Equal("구조 노드 추가", registry.Get(AppCommandIds.StoryAddNode).Name);
+        Assert.Equal("관계도 열기", registry.Get(AppCommandIds.StoryRelationshipMapOpen).Name);
+        Assert.Equal("캐릭터 추가", registry.Get(AppCommandIds.StoryAddNode).Name);
+        Assert.Equal("캐릭터 수정", registry.Get(AppCommandIds.StoryUpdateNode).Name);
+        Assert.Equal("캐릭터 삭제", registry.Get(AppCommandIds.StoryDeleteNode).Name);
         Assert.Equal("관계 추가", registry.Get(AppCommandIds.StoryAddRelationship).Name);
+        Assert.Equal("관계 수정", registry.Get(AppCommandIds.StoryUpdateRelationship).Name);
+        Assert.Equal("관계 삭제", registry.Get(AppCommandIds.StoryDeleteRelationship).Name);
     }
 
     [Fact]
@@ -79,6 +89,7 @@ public sealed class AppCommandCatalogTests
             slot => Assert.Equal(AppCommandIds.AutosaveToggle, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.DocumentCreateStressLarge, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.DocumentDetachCurrent, slot.CommandId),
+            slot => Assert.Equal(AppCommandIds.StoryRelationshipMapOpen, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.WorkspacePresetTwo, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.WorkspacePresetThree, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.WorkspaceStartupPresetCycle, slot.CommandId),

@@ -464,7 +464,7 @@
                             <UniformGrid Grid.Row="1"
                                          Grid.Column="0"
                                          Columns="2"
-                                         Rows="6"
+                                         Rows="7"
                                          Margin="0,0,24,0">
                                 <Button Content="새 장면"
                                         Tag="document.createScene"
@@ -514,7 +514,10 @@
                                         Tag="snapshot.createCurrent"
                                         Margin="0,0,10,10"
                                         Click="CommandButton_Click"/>
-                            </UniformGrid>
+                                <Button Content="관계도"
+                                        Tag="story.relationshipMap.open"
+                                        Margin="0,0,10,10"
+                                        Click="CommandButton_Click"/>                            </UniformGrid>
 
                             <DockPanel Grid.Row="1"
                                        Grid.Column="1">
@@ -676,7 +679,162 @@
                             </DockPanel>
                         </Grid>
                     </DockPanel>
-                </Grid>
+
+                    <DockPanel x:Name="RelationshipMapSurface"
+                               Visibility="Collapsed"
+                               Background="White">
+                        <Border DockPanel.Dock="Top"
+                                Height="44"
+                                Background="#F9FAFB"
+                                BorderBrush="#E5E7EB"
+                                BorderThickness="0,0,0,1">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Content="작업대로"
+                                        MinWidth="92"
+                                        Height="30"
+                                        Margin="0,0,12,0"
+                                        Padding="10,0"
+                                        Click="ReturnToEditorButton_Click"/>
+                                <TextBlock Text="관계도"
+                                           FontWeight="SemiBold"
+                                           FontSize="14"
+                                           VerticalAlignment="Center"
+                                           Margin="14,0"/>
+                            </DockPanel>
+                        </Border>
+
+                        <Grid Margin="14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="250"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="280"/>
+                            </Grid.ColumnDefinitions>
+
+                            <DockPanel Grid.Column="0" Margin="0,0,12,0">
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="캐릭터"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,6"/>
+                                <ListBox x:Name="RelationshipEntityList"
+                                         DockPanel.Dock="Top"
+                                         Height="210"
+                                         DisplayMemberPath="Display"
+                                         SelectionChanged="RelationshipEntityList_SelectionChanged"/>
+                                <TextBlock DockPanel.Dock="Top"
+                                           Text="관계"
+                                           FontWeight="SemiBold"
+                                           Margin="0,12,0,6"/>
+                                <ListBox x:Name="RelationshipList"
+                                         DisplayMemberPath="Display"
+                                         SelectionChanged="RelationshipList_SelectionChanged"/>
+                            </DockPanel>
+
+                            <Border Grid.Column="1"
+                                    Background="#F8FAFC"
+                                    BorderBrush="#CBD5E1"
+                                    BorderThickness="1">
+                                <Canvas x:Name="RelationshipMapCanvas"
+                                        ClipToBounds="True"
+                                        Background="#F8FAFC"/>
+                            </Border>
+
+                            <ScrollViewer Grid.Column="2"
+                                          Margin="12,0,0,0"
+                                          VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock Text="캐릭터 편집"
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock Text="이름"/>
+                                    <TextBox x:Name="RelationshipEntityNameBox"
+                                             Height="28"
+                                             Margin="0,2,0,8"/>
+                                    <TextBlock Text="유형"/>
+                                    <ComboBox x:Name="RelationshipEntityTypeBox"
+                                              Height="28"
+                                              IsEditable="True"
+                                              Margin="0,2,0,8"/>
+                                    <TextBlock Text="역할"/>
+                                    <TextBox x:Name="RelationshipEntityRoleBox"
+                                             Height="28"
+                                             Margin="0,2,0,8"/>
+                                    <TextBlock Text="요약"/>
+                                    <TextBox x:Name="RelationshipEntitySummaryBox"
+                                             Height="74"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             Margin="0,2,0,8"/>
+                                    <TextBlock Text="색상"/>
+                                    <TextBox x:Name="RelationshipEntityColorBox"
+                                             Height="28"
+                                             Text="#2563EB"
+                                             Margin="0,2,0,8"/>
+                                    <TextBlock Text="태그"/>
+                                    <TextBox x:Name="RelationshipEntityTagsBox"
+                                             Height="28"
+                                             Margin="0,2,0,8"/>
+                                    <UniformGrid Columns="3" Margin="0,2,0,14">
+                                        <Button Content="추가"
+                                                Tag="story.structure.addNode"
+                                                Margin="0,0,4,0"
+                                                Click="CommandButton_Click"/>
+                                        <Button Content="수정"
+                                                Tag="story.structure.updateNode"
+                                                Margin="2,0,2,0"
+                                                Click="CommandButton_Click"/>
+                                        <Button Content="삭제"
+                                                Tag="story.structure.deleteNode"
+                                                Margin="4,0,0,0"
+                                                Click="CommandButton_Click"/>
+                                    </UniformGrid>
+
+                                    <TextBlock Text="관계 편집"
+                                               FontWeight="SemiBold"
+                                               Margin="0,4,0,8"/>
+                                    <TextBlock Text="시작"/>
+                                    <ComboBox x:Name="RelationshipSourceBox"
+                                              Height="28"
+                                              IsEditable="True"
+                                              DisplayMemberPath="Display"
+                                              Margin="0,2,0,8"/>
+                                    <TextBlock Text="도착"/>
+                                    <ComboBox x:Name="RelationshipTargetBox"
+                                              Height="28"
+                                              IsEditable="True"
+                                              DisplayMemberPath="Display"
+                                              Margin="0,2,0,8"/>
+                                    <TextBlock Text="라벨"/>
+                                    <TextBox x:Name="RelationshipLabelBox"
+                                             Height="28"
+                                             Margin="0,2,0,8"/>
+                                    <TextBlock Text="메모"/>
+                                    <TextBox x:Name="RelationshipNotesBox"
+                                             Height="74"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             Margin="0,2,0,8"/>
+                                    <CheckBox x:Name="RelationshipDirectionalBox"
+                                              Content="방향 관계"
+                                              Margin="0,0,0,8"/>
+                                    <UniformGrid Columns="3">
+                                        <Button Content="추가"
+                                                Tag="story.relationship.add"
+                                                Margin="0,0,4,0"
+                                                Click="CommandButton_Click"/>
+                                        <Button Content="수정"
+                                                Tag="story.relationship.update"
+                                                Margin="2,0,2,0"
+                                                Click="CommandButton_Click"/>
+                                        <Button Content="삭제"
+                                                Tag="story.relationship.delete"
+                                                Margin="4,0,0,0"
+                                                Click="CommandButton_Click"/>
+                                    </UniformGrid>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
+                    </DockPanel>                </Grid>
             </Border>
 
             <Border Grid.Column="2"

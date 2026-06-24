@@ -1,43 +1,43 @@
 namespace WriterWorkbench.Core.Story;
 
-public sealed record StoryStructureDocument(
-    int SchemaVersion,
-    IReadOnlyList<StoryStructureNode> Nodes,
-    IReadOnlyList<RelationshipLink> Relationships,
-    DateTimeOffset UpdatedAt)
-{
-    public const int CurrentSchemaVersion = 1;
-
-    public static StoryStructureDocument Empty(DateTimeOffset updatedAt)
-    {
-        return new StoryStructureDocument(CurrentSchemaVersion, [], [], updatedAt);
-    }
-}
-
-public sealed record StoryStructureNode(
+public sealed record StoryEntity(
     string Id,
+    StoryEntityType Type,
     string Name,
-    string Kind,
+    string Role,
     string Summary,
+    string Color,
     IReadOnlyList<string> Tags,
-    IReadOnlyList<string> LinkedSceneIds,
-    int Order,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
-    public string Display => $"{Id} | {Name} | {Kind}";
+    public string Display => $"{Name} | {Type} | {Role}";
 }
 
-public sealed record RelationshipLink(
+public enum StoryEntityType
+{
+    Character,
+    Faction,
+    Place,
+    Event,
+    Item,
+    Concept
+}
+
+public sealed record StoryRelationship(
     string Id,
-    string SourceNodeId,
-    string TargetNodeId,
-    string Kind,
-    string Summary,
-    int Strength,
-    IReadOnlyList<string> Tags,
+    string SourceEntityId,
+    string TargetEntityId,
+    string Label,
+    string Notes,
+    bool IsDirectional,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt)
 {
-    public string Display => $"{Id} | {SourceNodeId} -> {TargetNodeId} | {Kind}";
+    public string Display => $"{SourceEntityId} -> {TargetEntityId} | {Label}";
 }
+
+public sealed record StoryMapNodeLayout(
+    string EntityId,
+    double X,
+    double Y);

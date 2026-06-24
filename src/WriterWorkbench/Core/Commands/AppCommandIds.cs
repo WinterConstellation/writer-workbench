@@ -10,8 +10,13 @@ public static class AppCommandIds
     public const string SnapshotCreateCurrent = "snapshot.createCurrent";
     public const string SnapshotRestoreSelected = "snapshot.restoreSelected";
     public const string SnapshotDeleteSelected = "snapshot.deleteSelected";
+    public const string StoryRelationshipMapOpen = "story.relationshipMap.open";
     public const string StoryAddNode = "story.structure.addNode";
+    public const string StoryUpdateNode = "story.structure.updateNode";
+    public const string StoryDeleteNode = "story.structure.deleteNode";
     public const string StoryAddRelationship = "story.relationship.add";
+    public const string StoryUpdateRelationship = "story.relationship.update";
+    public const string StoryDeleteRelationship = "story.relationship.delete";
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";

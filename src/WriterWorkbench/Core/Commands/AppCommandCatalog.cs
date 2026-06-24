@@ -12,8 +12,13 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.SnapshotCreateCurrent, "현재 장면 스냅샷", "스냅샷", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.SnapshotRestoreSelected, "스냅샷 복원", "스냅샷", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.SnapshotDeleteSelected, "스냅샷 삭제", "스냅샷", CommandScope.Workbench));
-        registry.Register(new AppCommand(AppCommandIds.StoryAddNode, "구조 노드 추가", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryRelationshipMapOpen, "관계도 열기", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryAddNode, "캐릭터 추가", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryUpdateNode, "캐릭터 수정", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryDeleteNode, "캐릭터 삭제", "구조", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.StoryAddRelationship, "관계 추가", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryUpdateRelationship, "관계 수정", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryDeleteRelationship, "관계 삭제", "구조", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));
@@ -50,13 +55,14 @@ public static class AppCommandCatalog
             new CommandSlot(7, AppCommandIds.AutosaveToggle, "자동저장 켬"),
             new CommandSlot(8, AppCommandIds.DocumentCreateStressLarge, "스트레스 15k"),
             new CommandSlot(9, AppCommandIds.DocumentDetachCurrent, "창 분리"),
-            new CommandSlot(10, AppCommandIds.WorkspacePresetTwo, "프리셋 2"),
-            new CommandSlot(11, AppCommandIds.WorkspacePresetThree, "프리셋 3"),
-            new CommandSlot(12, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 안 함"),
-            new CommandSlot(13, AppCommandIds.ShortcutsOpenSettings, "단축키"),
-            new CommandSlot(14, AppCommandIds.ViewMainOpen, "메인"),
-            new CommandSlot(15, AppCommandIds.ViewPreviewToggle, "미리보기"),
-            new CommandSlot(16, AppCommandIds.HelpOpen, "도움말")
+            new CommandSlot(10, AppCommandIds.StoryRelationshipMapOpen, "관계도"),
+            new CommandSlot(11, AppCommandIds.WorkspacePresetTwo, "프리셋 2"),
+            new CommandSlot(12, AppCommandIds.WorkspacePresetThree, "프리셋 3"),
+            new CommandSlot(13, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 안 함"),
+            new CommandSlot(14, AppCommandIds.ShortcutsOpenSettings, "단축키"),
+            new CommandSlot(15, AppCommandIds.ViewMainOpen, "메인"),
+            new CommandSlot(16, AppCommandIds.ViewPreviewToggle, "미리보기"),
+            new CommandSlot(17, AppCommandIds.HelpOpen, "도움말")
         ];
     }
 }

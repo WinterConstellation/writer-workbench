@@ -70,8 +70,13 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.SnapshotCreateCurrent, commandTags);
                 Assert.Contains(AppCommandIds.SnapshotRestoreSelected, commandTags);
                 Assert.Contains(AppCommandIds.SnapshotDeleteSelected, commandTags);
+                Assert.Contains(AppCommandIds.StoryRelationshipMapOpen, commandTags);
                 Assert.Contains(AppCommandIds.StoryAddNode, commandTags);
+                Assert.Contains(AppCommandIds.StoryUpdateNode, commandTags);
+                Assert.Contains(AppCommandIds.StoryDeleteNode, commandTags);
                 Assert.Contains(AppCommandIds.StoryAddRelationship, commandTags);
+                Assert.Contains(AppCommandIds.StoryUpdateRelationship, commandTags);
+                Assert.Contains(AppCommandIds.StoryDeleteRelationship, commandTags);
                 Assert.Contains(AppCommandIds.DocumentRenameScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDuplicateScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
@@ -154,6 +159,19 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("StoryRelationshipKindBox"));
                 Assert.NotNull(window.FindName("StoryRelationshipSummaryBox"));
                 Assert.NotNull(window.FindName("StoryRelationshipList"));
+                Assert.NotNull(window.FindName("RelationshipMapSurface"));
+                Assert.NotNull(window.FindName("RelationshipEntityList"));
+                Assert.NotNull(window.FindName("RelationshipList"));
+                Assert.NotNull(window.FindName("RelationshipMapCanvas"));
+                Assert.NotNull(window.FindName("RelationshipEntityNameBox"));
+                Assert.NotNull(window.FindName("RelationshipEntityTypeBox"));
+                Assert.NotNull(window.FindName("RelationshipEntityRoleBox"));
+                Assert.NotNull(window.FindName("RelationshipEntitySummaryBox"));
+                Assert.NotNull(window.FindName("RelationshipSourceBox"));
+                Assert.NotNull(window.FindName("RelationshipTargetBox"));
+                Assert.NotNull(window.FindName("RelationshipLabelBox"));
+                Assert.NotNull(window.FindName("RelationshipNotesBox"));
+                Assert.NotNull(window.FindName("RelationshipDirectionalBox"));
                 window.Close();
             }
             catch (Exception ex)

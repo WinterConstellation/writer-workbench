@@ -2,6 +2,7 @@ using System.IO;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using WriterWorkbench.Core.Storage;
 
 namespace WriterWorkbench.Core.Story;
@@ -11,171 +12,367 @@ public sealed class StoryStructureStore(ProjectPaths paths)
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters = { new JsonStringEnumConverter() }
     };
 
-    public async Task<StoryStructureDocument> LoadOrCreateAsync(CancellationToken token)
+    public async Task<IReadOnlyList<StoryEntity>> LoadEntitiesAsync(CancellationToken token)
+    {
+        return File.Exists(paths.StoryEntitiesPath)
+            ? NormalizeEntities(await ReadJsonAsync<List<StoryEntity>>(paths.StoryEntitiesPath, token) ?? [])
+            : [];
+    }
+
+    public async Task SaveEntitiesAsync(IEnumerable<StoryEntity> entities, CancellationToken token)
     {
         Directory.CreateDirectory(paths.StoryPath);
-        if (!File.Exists(paths.StoryStructurePath))
+        await WriteUtf8AtomicAsync(paths.StoryEntitiesPath, NormalizeEntities(entities), token);
+    }
+
+    public async Task<IReadOnlyList<StoryRelationship>> LoadRelationshipsAsync(CancellationToken token)
+    {
+        if (!File.Exists(paths.StoryRelationshipsPath))
         {
-            var created = StoryStructureDocument.Empty(DateTimeOffset.UtcNow);
-            await SaveAsync(created, token);
-            return created;
+            return [];
         }
 
-        await using var stream = File.OpenRead(paths.StoryStructurePath);
-        var loaded = await JsonSerializer.DeserializeAsync<StoryStructureDocument>(stream, JsonOptions, token);
-        return Normalize(loaded ?? StoryStructureDocument.Empty(DateTimeOffset.UtcNow));
+        var entities = await LoadEntitiesAsync(token);
+        var relationships = await ReadJsonAsync<List<StoryRelationship>>(paths.StoryRelationshipsPath, token) ?? [];
+        return NormalizeRelationships(relationships, entities);
     }
 
-    public async Task SaveAsync(StoryStructureDocument document, CancellationToken token)
+    public async Task SaveRelationshipsAsync(IEnumerable<StoryRelationship> relationships, CancellationToken token)
     {
         Directory.CreateDirectory(paths.StoryPath);
-        var normalized = Normalize(document);
-        var json = JsonSerializer.Serialize(normalized, JsonOptions);
-        await WriteUtf8AtomicAsync(paths.StoryStructurePath, json, token);
+        var entities = await LoadEntitiesAsync(token);
+        await WriteUtf8AtomicAsync(paths.StoryRelationshipsPath, NormalizeRelationships(relationships, entities), token);
     }
 
-    public async Task<StoryStructureNode> AddNodeAsync(
+    public async Task<IReadOnlyList<StoryMapNodeLayout>> LoadRelationLayoutAsync(CancellationToken token)
+    {
+        if (!File.Exists(paths.StoryRelationLayoutPath))
+        {
+            return [];
+        }
+
+        var entities = await LoadEntitiesAsync(token);
+        var layout = await ReadJsonAsync<List<StoryMapNodeLayout>>(paths.StoryRelationLayoutPath, token) ?? [];
+        return NormalizeLayout(layout, entities);
+    }
+
+    public async Task SaveRelationLayoutAsync(IEnumerable<StoryMapNodeLayout> layout, CancellationToken token)
+    {
+        Directory.CreateDirectory(paths.StoryPath);
+        var entities = await LoadEntitiesAsync(token);
+        await WriteUtf8AtomicAsync(paths.StoryRelationLayoutPath, NormalizeLayout(layout, entities), token);
+    }
+
+    public async Task<StoryEntity> AddEntityAsync(
+        StoryEntityType type,
         string name,
-        string kind,
+        string role,
         string summary,
+        string color,
         IEnumerable<string> tags,
-        IEnumerable<string> linkedSceneIds,
         CancellationToken token)
     {
-        var document = await LoadOrCreateAsync(token);
+        var entities = (await LoadEntitiesAsync(token)).ToList();
         var now = DateTimeOffset.UtcNow;
-        var node = new StoryStructureNode(
-            NextId("node", document.Nodes.Select(node => node.Id)),
-            NormalizeText(name, "새 구조"),
-            NormalizeText(kind, "PlotPoint"),
-            summary.Trim(),
-            NormalizeTextList(tags),
-            NormalizeTextList(linkedSceneIds),
-            document.Nodes.Select(node => node.Order).DefaultIfEmpty(0).Max() + 10,
+        var entity = NormalizeEntity(new StoryEntity(
+            NextId("entity", entities.Select(entity => entity.Id)),
+            type,
+            name,
+            role,
+            summary,
+            color,
+            tags.ToList(),
             now,
-            now);
-
-        await SaveAsync(document with
-        {
-            Nodes = document.Nodes.Append(node).ToList(),
-            UpdatedAt = now
-        }, token);
-        return node;
+            now));
+        entities.Add(entity);
+        await SaveEntitiesAsync(entities, token);
+        return entity;
     }
 
-    public async Task<RelationshipLink> AddRelationshipAsync(
-        string sourceNodeId,
-        string targetNodeId,
-        string kind,
-        string summary,
-        int strength,
-        IEnumerable<string> tags,
-        CancellationToken token)
+    public async Task<StoryEntity> UpdateEntityAsync(StoryEntity entity, CancellationToken token)
     {
-        var document = await LoadOrCreateAsync(token);
-        var nodeIds = document.Nodes.Select(node => node.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var source = sourceNodeId.Trim();
-        var target = targetNodeId.Trim();
-        if (!nodeIds.Contains(source) || !nodeIds.Contains(target))
+        var entities = (await LoadEntitiesAsync(token)).ToList();
+        var index = FindEntityIndex(entities, entity.Id);
+        if (index < 0)
         {
-            throw new InvalidOperationException("Relationship endpoints must exist in the story structure.");
+            throw new KeyNotFoundException($"Story entity not found: {entity.Id}");
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var relationship = new RelationshipLink(
-            NextId("rel", document.Relationships.Select(relationship => relationship.Id)),
-            source,
-            target,
-            NormalizeText(kind, "related"),
-            summary.Trim(),
-            Math.Clamp(strength, 0, 5),
-            NormalizeTextList(tags),
-            now,
-            now);
-
-        await SaveAsync(document with
+        var existing = entities[index];
+        var updated = NormalizeEntity(entity with
         {
-            Relationships = document.Relationships.Append(relationship).ToList(),
-            UpdatedAt = now
-        }, token);
+            CreatedAt = existing.CreatedAt,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+        entities[index] = updated;
+        await SaveEntitiesAsync(entities, token);
+        return updated;
+    }
+
+    public async Task DeleteEntityAsync(string entityId, CancellationToken token)
+    {
+        var entities = (await LoadEntitiesAsync(token)).ToList();
+        var index = FindEntityIndex(entities, entityId);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Story entity not found: {entityId}");
+        }
+
+        entities.RemoveAt(index);
+        await SaveEntitiesAsync(entities, token);
+
+        var relationships = (await LoadRelationshipsAsync(token))
+            .Where(relationship =>
+                !string.Equals(relationship.SourceEntityId, entityId, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(relationship.TargetEntityId, entityId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        await SaveRelationshipsAsync(relationships, token);
+
+        var layout = (await LoadRelationLayoutAsync(token))
+            .Where(node => !string.Equals(node.EntityId, entityId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        await SaveRelationLayoutAsync(layout, token);
+    }
+
+    public async Task<StoryRelationship> AddRelationshipAsync(
+        string sourceEntityId,
+        string targetEntityId,
+        string label,
+        string notes,
+        bool isDirectional,
+        CancellationToken token)
+    {
+        var entities = await LoadEntitiesAsync(token);
+        ValidateRelationshipEndpoints(entities, sourceEntityId, targetEntityId);
+        var relationships = (await LoadRelationshipsAsync(token)).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var relationship = NormalizeRelationship(
+            new StoryRelationship(
+                NextId("rel", relationships.Select(relationship => relationship.Id)),
+                sourceEntityId,
+                targetEntityId,
+                label,
+                notes,
+                isDirectional,
+                now,
+                now),
+            entities);
+        relationships.Add(relationship);
+        await SaveRelationshipsAsync(relationships, token);
         return relationship;
     }
 
-    private static StoryStructureDocument Normalize(StoryStructureDocument document)
+    public async Task<StoryRelationship> UpdateRelationshipAsync(StoryRelationship relationship, CancellationToken token)
+    {
+        var entities = await LoadEntitiesAsync(token);
+        ValidateRelationshipEndpoints(entities, relationship.SourceEntityId, relationship.TargetEntityId);
+        var relationships = (await LoadRelationshipsAsync(token)).ToList();
+        var index = FindRelationshipIndex(relationships, relationship.Id);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Story relationship not found: {relationship.Id}");
+        }
+
+        var existing = relationships[index];
+        var updated = NormalizeRelationship(relationship with
+        {
+            CreatedAt = existing.CreatedAt,
+            UpdatedAt = DateTimeOffset.UtcNow
+        }, entities);
+        relationships[index] = updated;
+        await SaveRelationshipsAsync(relationships, token);
+        return updated;
+    }
+
+    public async Task DeleteRelationshipAsync(string relationshipId, CancellationToken token)
+    {
+        var relationships = (await LoadRelationshipsAsync(token)).ToList();
+        var index = FindRelationshipIndex(relationships, relationshipId);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Story relationship not found: {relationshipId}");
+        }
+
+        relationships.RemoveAt(index);
+        await SaveRelationshipsAsync(relationships, token);
+    }
+
+    public async Task SaveNodeLayoutAsync(string entityId, double x, double y, CancellationToken token)
+    {
+        var entities = await LoadEntitiesAsync(token);
+        if (!entities.Any(entity => string.Equals(entity.Id, entityId, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new KeyNotFoundException($"Story entity not found: {entityId}");
+        }
+
+        var layout = (await LoadRelationLayoutAsync(token)).ToList();
+        var index = layout.FindIndex(node => string.Equals(node.EntityId, entityId, StringComparison.OrdinalIgnoreCase));
+        var node = new StoryMapNodeLayout(entityId.Trim(), Math.Max(0, x), Math.Max(0, y));
+        if (index >= 0)
+        {
+            layout[index] = node;
+        }
+        else
+        {
+            layout.Add(node);
+        }
+
+        await SaveRelationLayoutAsync(layout, token);
+    }
+
+    private static async Task<T?> ReadJsonAsync<T>(string path, CancellationToken token)
+    {
+        await using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<T>(stream, JsonOptions, token);
+    }
+
+    private static IReadOnlyList<StoryEntity> NormalizeEntities(IEnumerable<StoryEntity> entities)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<StoryEntity>();
+        foreach (var entity in entities)
+        {
+            var item = NormalizeEntity(entity);
+            if (seen.Add(item.Id))
+            {
+                normalized.Add(item);
+            }
+        }
+
+        return normalized;
+    }
+
+    private static StoryEntity NormalizeEntity(StoryEntity entity)
     {
         var now = DateTimeOffset.UtcNow;
-        var nodeIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var nodes = new List<StoryStructureNode>();
-        foreach (var node in document.Nodes ?? [])
+        var createdAt = entity.CreatedAt == default ? now : entity.CreatedAt;
+        return entity with
         {
-            var id = NormalizeText(node.Id, NextId("node", nodeIds));
-            if (!nodeIds.Add(id))
-            {
-                continue;
-            }
-
-            var createdAt = node.CreatedAt == default ? now : node.CreatedAt;
-            nodes.Add(node with
-            {
-                Id = id,
-                Name = NormalizeText(node.Name, id),
-                Kind = NormalizeText(node.Kind, "PlotPoint"),
-                Summary = node.Summary?.Trim() ?? "",
-                Tags = NormalizeTextList(node.Tags ?? []),
-                LinkedSceneIds = NormalizeTextList(node.LinkedSceneIds ?? []),
-                CreatedAt = createdAt,
-                UpdatedAt = node.UpdatedAt == default ? createdAt : node.UpdatedAt
-            });
-        }
-
-        nodes = nodes
-            .OrderBy(node => node.Order)
-            .ThenBy(node => node.Id, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var normalizedNodeIds = nodes.Select(node => node.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var relationshipIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var relationships = new List<RelationshipLink>();
-        foreach (var relationship in document.Relationships ?? [])
-        {
-            var source = relationship.SourceNodeId?.Trim() ?? "";
-            var target = relationship.TargetNodeId?.Trim() ?? "";
-            if (!normalizedNodeIds.Contains(source) || !normalizedNodeIds.Contains(target))
-            {
-                continue;
-            }
-
-            var id = NormalizeText(relationship.Id, NextId("rel", relationshipIds));
-            if (!relationshipIds.Add(id))
-            {
-                continue;
-            }
-
-            var createdAt = relationship.CreatedAt == default ? now : relationship.CreatedAt;
-            relationships.Add(relationship with
-            {
-                Id = id,
-                SourceNodeId = source,
-                TargetNodeId = target,
-                Kind = NormalizeText(relationship.Kind, "related"),
-                Summary = relationship.Summary?.Trim() ?? "",
-                Strength = Math.Clamp(relationship.Strength, 0, 5),
-                Tags = NormalizeTextList(relationship.Tags ?? []),
-                CreatedAt = createdAt,
-                UpdatedAt = relationship.UpdatedAt == default ? createdAt : relationship.UpdatedAt
-            });
-        }
-
-        return document with
-        {
-            SchemaVersion = Math.Max(document.SchemaVersion, StoryStructureDocument.CurrentSchemaVersion),
-            Nodes = nodes,
-            Relationships = relationships,
-            UpdatedAt = document.UpdatedAt == default ? now : document.UpdatedAt
+            Id = NormalizeText(entity.Id, "entity-0001"),
+            Name = NormalizeText(entity.Name, "새 캐릭터"),
+            Role = entity.Role?.Trim() ?? "",
+            Summary = entity.Summary?.Trim() ?? "",
+            Color = NormalizeColor(entity.Color),
+            Tags = NormalizeTextList(entity.Tags ?? []),
+            CreatedAt = createdAt,
+            UpdatedAt = entity.UpdatedAt == default ? createdAt : entity.UpdatedAt
         };
+    }
+
+    private static IReadOnlyList<StoryRelationship> NormalizeRelationships(
+        IEnumerable<StoryRelationship> relationships,
+        IEnumerable<StoryEntity> entities)
+    {
+        var entityIds = entities.Select(entity => entity.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<StoryRelationship>();
+        foreach (var relationship in relationships)
+        {
+            var item = NormalizeRelationshipOrNull(relationship, entityIds);
+            if (item is not null && seen.Add(item.Id))
+            {
+                normalized.Add(item);
+            }
+        }
+
+        return normalized;
+    }
+
+    private static StoryRelationship NormalizeRelationship(
+        StoryRelationship relationship,
+        IEnumerable<StoryEntity> entities)
+    {
+        var entityIds = entities.Select(entity => entity.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return NormalizeRelationshipOrNull(relationship, entityIds)
+            ?? throw new InvalidOperationException("Relationship endpoints must exist in the story structure.");
+    }
+
+    private static StoryRelationship? NormalizeRelationshipOrNull(
+        StoryRelationship relationship,
+        IReadOnlySet<string> entityIds)
+    {
+        var source = relationship.SourceEntityId?.Trim() ?? "";
+        var target = relationship.TargetEntityId?.Trim() ?? "";
+        if (!entityIds.Contains(source) || !entityIds.Contains(target))
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var createdAt = relationship.CreatedAt == default ? now : relationship.CreatedAt;
+        return relationship with
+        {
+            Id = NormalizeText(relationship.Id, "rel-0001"),
+            SourceEntityId = source,
+            TargetEntityId = target,
+            Label = NormalizeText(relationship.Label, "관계"),
+            Notes = relationship.Notes?.Trim() ?? "",
+            CreatedAt = createdAt,
+            UpdatedAt = relationship.UpdatedAt == default ? createdAt : relationship.UpdatedAt
+        };
+    }
+
+    private static IReadOnlyList<StoryMapNodeLayout> NormalizeLayout(
+        IEnumerable<StoryMapNodeLayout> layout,
+        IEnumerable<StoryEntity> entities)
+    {
+        var entityIds = entities.Select(entity => entity.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<StoryMapNodeLayout>();
+        foreach (var node in layout)
+        {
+            var entityId = node.EntityId?.Trim() ?? "";
+            if (!entityIds.Contains(entityId) || !seen.Add(entityId))
+            {
+                continue;
+            }
+
+            normalized.Add(new StoryMapNodeLayout(entityId, Math.Max(0, node.X), Math.Max(0, node.Y)));
+        }
+
+        return normalized;
+    }
+
+    private static void ValidateRelationshipEndpoints(
+        IEnumerable<StoryEntity> entities,
+        string sourceEntityId,
+        string targetEntityId)
+    {
+        var entityIds = entities.Select(entity => entity.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (!entityIds.Contains(sourceEntityId.Trim()) || !entityIds.Contains(targetEntityId.Trim()))
+        {
+            throw new InvalidOperationException("Relationship endpoints must exist in the story structure.");
+        }
+    }
+
+    private static int FindEntityIndex(IReadOnlyList<StoryEntity> entities, string entityId)
+    {
+        for (var index = 0; index < entities.Count; index++)
+        {
+            if (string.Equals(entities[index].Id, entityId, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int FindRelationshipIndex(IReadOnlyList<StoryRelationship> relationships, string relationshipId)
+    {
+        for (var index = 0; index < relationships.Count; index++)
+        {
+            if (string.Equals(relationships[index].Id, relationshipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     private static string NextId(string prefix, IEnumerable<string> existingIds)
@@ -194,6 +391,12 @@ public sealed class StoryStructureStore(ProjectPaths paths)
         return trimmed.Length == 0 ? fallback : trimmed;
     }
 
+    private static string NormalizeColor(string value)
+    {
+        var color = value?.Trim() ?? "";
+        return color.StartsWith('#') && color.Length is 7 or 9 ? color : "#2563EB";
+    }
+
     private static IReadOnlyList<string> NormalizeTextList(IEnumerable<string> values)
     {
         return values
@@ -203,8 +406,9 @@ public sealed class StoryStructureStore(ProjectPaths paths)
             .ToList();
     }
 
-    private static async Task WriteUtf8AtomicAsync(string targetPath, string content, CancellationToken token)
+    private static async Task WriteUtf8AtomicAsync<T>(string targetPath, T value, CancellationToken token)
     {
+        var json = JsonSerializer.Serialize(value, JsonOptions);
         var tempPath = targetPath + ".tmp";
         await using (var stream = new FileStream(
                          tempPath,
@@ -214,7 +418,7 @@ public sealed class StoryStructureStore(ProjectPaths paths)
                          bufferSize: 16 * 1024,
                          useAsync: true))
         {
-            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(content);
+            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false).GetBytes(json);
             await stream.WriteAsync(bytes, token);
             await stream.FlushAsync(token);
             stream.Flush(flushToDisk: true);

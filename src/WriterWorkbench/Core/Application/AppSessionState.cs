@@ -10,6 +10,7 @@ public sealed record AppSessionState(
     public const string EditorSurface = "editor";
     public const string PreviewSurface = "preview";
     public const string MainSurface = "main";
+    public const string RelationshipMapSurface = "relationship-map";
     public const string DefaultGraphicPresetId = "default";
 
     public static AppSessionState Empty { get; } = new(null, null, EditorSurface, null, DefaultGraphicPresetId);

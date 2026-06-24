@@ -1216,3 +1216,73 @@ Remaining problems:
 
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary project data.
+
+## 2026-06-24 KST feature implementation update: Relationship Map MVP split story store + canvas
+
+Feature(s) implemented:
+- Replaced the first-pass single `story/story.structure.json` direction with split story files:
+  - `story/entities.json`
+  - `story/relationships.json`
+  - `story/relation-layout.json`
+- Added `StoryEntity`, `StoryEntityType`, `StoryRelationship`, and `StoryMapNodeLayout`.
+- Expanded `StoryStructureStore` with entity/relationship/layout load-save APIs.
+- Missing story files now load as empty lists without creating files.
+- Added explicit entity add/update/delete and relationship add/update/delete store operations.
+- Deleting an entity removes related relationships and saved map layout entries.
+- Relationship creation/update rejects missing source/target entity ids.
+- Added `story.relationshipMap.open` command plus relationship map command handlers.
+- Added a Relationship Map surface with:
+  - character/entity list
+  - relationship list
+  - Canvas node display
+  - relationship lines
+  - relationship labels
+  - character edit form
+  - relationship edit form
+  - node drag movement
+  - drag-end layout persistence
+- Kept story structure operations explicit-command only; no AI extraction, no manuscript parsing, no automatic graph layout, no 3D graph, no LLL compatibility.
+
+Files changed:
+- `src/WriterWorkbench/Core/Application/AppSessionState.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureDocument.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureStore.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/StoryStructureStoreTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Missing split story files return empty lists.
+- Entity, relationship, and relation layout files roundtrip Korean UTF-8 text.
+- Missing relationship endpoint is rejected.
+- Entity delete removes related relationships and layout entries.
+- Node layout save updates one entity position.
+- Story structure save does not rewrite document JSON/TXT bodies.
+- Command catalog covers relationship map and entity/relationship edit commands.
+- MainWindow smoke covers relationship map surface, lists, Canvas, and edit controls.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "StoryStructureStoreTests|AppCommandCatalogTests|MainWindowContainsStoryStructureSurface|MainWindowContainsWorkspacePresetCommands"` in the public repo -> failed before new split APIs and commands existed.
+- Same focused test command after implementation -> 10 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 117 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release --no-restore` in the public repo -> completed.
+
+Large manuscript regression check, if touched:
+- MainWindow was touched for the relationship map surface, but `EditorBox_TextChanged`, document save, export, snapshot, preview render, and manuscript parsing paths were not connected to relationship map writes.
+- Perf guardrail completed: MainWindow stress command total 498.060 ms; MainWindow EditorBox segment set 0.356 ms; MainWindow segment layout/render 38.567 ms; MainWindow preview switch/render 3.017 ms; ProjectStore.SaveDocumentAsync total 297.639 ms; Detached append sync 5.795 ms.
+
+Remaining problems:
+- The map is a first-pass manual Canvas, not an advanced graph editor.
+- Lines rerender after drag-end save; live line-following during drag is future polish.
+- Entity/relationship edit is functional but still compact and utilitarian; later work should improve selection states and validation messages.
+- Story entities are not yet linked to scenes, settings book, timeline, export, snapshots, or binder metadata.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests create only temporary project data.
