@@ -523,6 +523,153 @@
                                            FontWeight="SemiBold"
                                            FontSize="13"
                                            Margin="0,0,0,8"/>
+                                <Border x:Name="StoryStructurePanel"
+                                        DockPanel.Dock="Bottom"
+                                        Height="380"
+                                        Margin="0,12,0,0"
+                                        Padding="10"
+                                        Background="#F9FAFB"
+                                        BorderBrush="#D1D5DB"
+                                        BorderThickness="1">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="74"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="82"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="72"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="78"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Row="0"
+                                                   Grid.ColumnSpan="2"
+                                                   Text="스토리 구조 / 관계"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="13"
+                                                   Margin="0,0,0,8"/>
+
+                                        <TextBlock Grid.Row="1"
+                                                   Grid.Column="0"
+                                                   Text="이름"
+                                                   Margin="0,0,8,6"
+                                                   VerticalAlignment="Center"/>
+                                        <TextBox x:Name="StoryNodeNameBox"
+                                                 Grid.Row="1"
+                                                 Grid.Column="1"
+                                                 Height="26"
+                                                 VerticalContentAlignment="Center"
+                                                 Margin="0,0,0,6"/>
+
+                                        <TextBlock Grid.Row="2"
+                                                   Grid.Column="0"
+                                                   Text="요약"
+                                                   Margin="0,0,8,6"
+                                                   VerticalAlignment="Top"/>
+                                        <TextBox x:Name="StoryNodeSummaryBox"
+                                                 Grid.Row="2"
+                                                 Grid.Column="1"
+                                                 Height="66"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Margin="0,0,0,6"/>
+
+                                        <TextBlock Grid.Row="3"
+                                                   Grid.Column="0"
+                                                   Text="유형"
+                                                   Margin="0,0,8,6"
+                                                   VerticalAlignment="Center"/>
+                                        <DockPanel Grid.Row="3"
+                                                   Grid.Column="1"
+                                                   Margin="0,0,0,6">
+                                            <Button DockPanel.Dock="Right"
+                                                    Content="추가"
+                                                    Tag="story.structure.addNode"
+                                                    MinWidth="56"
+                                                    Height="26"
+                                                    Margin="6,0,0,0"
+                                                    Padding="8,0"
+                                                    Click="CommandButton_Click"/>
+                                            <ComboBox x:Name="StoryNodeKindBox"
+                                                      Height="26"
+                                                      IsEditable="True"/>
+                                        </DockPanel>
+
+                                        <ListBox x:Name="StoryNodeList"
+                                                 Grid.Row="4"
+                                                 Grid.ColumnSpan="2"
+                                                 BorderBrush="#D1D5DB"
+                                                 DisplayMemberPath="Display"
+                                                 SelectionChanged="StoryNodeList_SelectionChanged"
+                                                 Margin="0,0,0,8"/>
+
+                                        <TextBlock Grid.Row="5"
+                                                   Grid.ColumnSpan="2"
+                                                   Text="관계"
+                                                   FontWeight="SemiBold"
+                                                   Margin="0,0,0,6"/>
+
+                                        <Grid Grid.Row="6"
+                                              Grid.ColumnSpan="2"
+                                              Margin="0,0,0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ComboBox x:Name="StoryRelationshipSourceBox"
+                                                      Grid.Column="0"
+                                                      Height="26"
+                                                      IsEditable="True"
+                                                      DisplayMemberPath="Display"
+                                                      Margin="0,0,4,0"/>
+                                            <ComboBox x:Name="StoryRelationshipTargetBox"
+                                                      Grid.Column="1"
+                                                      Height="26"
+                                                      IsEditable="True"
+                                                      DisplayMemberPath="Display"
+                                                      Margin="4,0,0,0"/>
+                                        </Grid>
+
+                                        <TextBox x:Name="StoryRelationshipSummaryBox"
+                                                 Grid.Row="7"
+                                                 Grid.ColumnSpan="2"
+                                                 Height="64"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="Wrap"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Margin="0,0,0,6"/>
+
+                                        <DockPanel Grid.Row="8"
+                                                   Grid.ColumnSpan="2"
+                                                   Margin="0,0,0,6">
+                                            <Button DockPanel.Dock="Right"
+                                                    Content="관계 추가"
+                                                    Tag="story.relationship.add"
+                                                    MinWidth="78"
+                                                    Height="26"
+                                                    Margin="6,0,0,0"
+                                                    Padding="8,0"
+                                                    Click="CommandButton_Click"/>
+                                            <ComboBox x:Name="StoryRelationshipKindBox"
+                                                      Height="26"
+                                                      IsEditable="True"/>
+                                        </DockPanel>
+
+                                        <ListBox x:Name="StoryRelationshipList"
+                                                 Grid.Row="9"
+                                                 Grid.ColumnSpan="2"
+                                                 BorderBrush="#D1D5DB"
+                                                 DisplayMemberPath="Display"/>
+                                    </Grid>
+                                </Border>
                                 <ListBox x:Name="MainRecentList"
                                          DisplayMemberPath="Display"
                                          SelectionChanged="MainRecentList_SelectionChanged"/>

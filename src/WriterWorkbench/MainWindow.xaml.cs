@@ -14,6 +14,7 @@ using WriterWorkbench.Core.Focus;
 using WriterWorkbench.Core.Progress;
 using WriterWorkbench.Core.Snapshots;
 using WriterWorkbench.Core.Storage;
+using WriterWorkbench.Core.Story;
 using WriterWorkbench.Core.Workspace;
 using Forms = System.Windows.Forms;
 
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
     private SceneMetadataStore _metadataStore;
     private ManuscriptExportService _exportService;
     private SceneSnapshotService _snapshotService;
+    private StoryStructureStore _storyStructureStore;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
     private SceneMetadata? _activeSceneMetadata;
@@ -68,6 +70,7 @@ public partial class MainWindow : Window
         _metadataStore = new SceneMetadataStore(projectPaths);
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _snapshotService = new SceneSnapshotService(projectPaths, _store);
+        _storyStructureStore = new StoryStructureStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         ProjectPathText.Text = _projectRoot;
@@ -75,6 +78,10 @@ public partial class MainWindow : Window
         GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
         InspectorStatusBox.ItemsSource = SceneStatusOption.All;
         InspectorStatusBox.SelectedValue = SceneStatus.Draft;
+        StoryNodeKindBox.ItemsSource = StoryNodeKindOption.All;
+        StoryNodeKindBox.Text = "PlotPoint";
+        StoryRelationshipKindBox.ItemsSource = RelationshipKindOption.All;
+        StoryRelationshipKindBox.Text = "related";
         RegisterCommandHandlers();
 
         Loaded += async (_, _) => await InitializeProjectAsync();
@@ -124,6 +131,7 @@ public partial class MainWindow : Window
 
             UpdateStartupPresetButton();
             await RefreshBinderAsync(manifest);
+            await RefreshStoryStructureAsync();
 
             var startupDocument = ResolveStartupDocument(manifest);
             if (startupDocument is not null)
@@ -386,6 +394,8 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.SnapshotCreateCurrent] = CreateCurrentSnapshotAsync;
         _commandHandlers[AppCommandIds.SnapshotRestoreSelected] = RestoreSelectedSnapshotAsync;
         _commandHandlers[AppCommandIds.SnapshotDeleteSelected] = DeleteSelectedSnapshotAsync;
+        _commandHandlers[AppCommandIds.StoryAddNode] = AddStoryNodeAsync;
+        _commandHandlers[AppCommandIds.StoryAddRelationship] = AddStoryRelationshipAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
@@ -463,6 +473,7 @@ public partial class MainWindow : Window
         _metadataStore = new SceneMetadataStore(projectPaths);
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _snapshotService = new SceneSnapshotService(projectPaths, _store);
+        _storyStructureStore = new StoryStructureStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _activeDocumentId = "scene-0001";
@@ -475,13 +486,145 @@ public partial class MainWindow : Window
         BinderList.ItemsSource = null;
         SearchResultsList.ItemsSource = null;
         SnapshotList.ItemsSource = null;
+        StoryNodeList.ItemsSource = null;
+        StoryRelationshipList.ItemsSource = null;
+        StoryRelationshipSourceBox.ItemsSource = null;
+        StoryRelationshipTargetBox.ItemsSource = null;
         TitleBox.Text = "";
         EditorBox.Text = "";
         EditorBox.IsReadOnly = false;
         PreviewText.Text = "";
+        ClearStoryStructureInputs();
         ClearSceneInspector();
         ShowEditorSurface();
         ProjectPathText.Text = _projectRoot;
+    }
+
+    private async Task RefreshStoryStructureAsync()
+    {
+        try
+        {
+            var structure = await _storyStructureStore.LoadOrCreateAsync(CancellationToken.None);
+            var nodeItems = structure.Nodes
+                .Select(node => new StoryNodeListItem(node))
+                .ToList();
+            StoryNodeList.ItemsSource = nodeItems;
+            StoryRelationshipSourceBox.ItemsSource = nodeItems;
+            StoryRelationshipTargetBox.ItemsSource = nodeItems;
+            StoryRelationshipList.ItemsSource = structure.Relationships
+                .Select(relationship => new RelationshipListItem(relationship))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StoryNodeList.ItemsSource = null;
+            StoryRelationshipList.ItemsSource = null;
+            StatusText.Text = $"스토리 구조 로드 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task AddStoryNodeAsync()
+    {
+        var name = StoryNodeNameBox.Text.Trim();
+        if (name.Length == 0)
+        {
+            StatusText.Text = "구조 노드 이름을 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var linkedScenes = string.IsNullOrWhiteSpace(_activeDocumentId)
+                ? Array.Empty<string>()
+                : [_activeDocumentId];
+            var node = await _storyStructureStore.AddNodeAsync(
+                name,
+                ReadStoryNodeKind(),
+                StoryNodeSummaryBox.Text,
+                [],
+                linkedScenes,
+                CancellationToken.None);
+            StoryNodeNameBox.Text = "";
+            StoryNodeSummaryBox.Text = "";
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"구조 노드 추가됨 {node.Id} - {node.Name}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"구조 노드 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task AddStoryRelationshipAsync()
+    {
+        var sourceNodeId = ReadRelationshipEndpoint(StoryRelationshipSourceBox);
+        var targetNodeId = ReadRelationshipEndpoint(StoryRelationshipTargetBox);
+        if (sourceNodeId.Length == 0 || targetNodeId.Length == 0)
+        {
+            StatusText.Text = "관계의 시작/도착 노드를 선택하세요.";
+            return;
+        }
+
+        try
+        {
+            var relationship = await _storyStructureStore.AddRelationshipAsync(
+                sourceNodeId,
+                targetNodeId,
+                ReadRelationshipKind(),
+                StoryRelationshipSummaryBox.Text,
+                1,
+                [],
+                CancellationToken.None);
+            StoryRelationshipSummaryBox.Text = "";
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계 추가됨 {relationship.Id} - {relationship.SourceNodeId} -> {relationship.TargetNodeId}";
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = $"관계 추가 실패 - {ex.Message}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"관계 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private void StoryNodeList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (StoryNodeList.SelectedItem is not StoryNodeListItem item)
+        {
+            return;
+        }
+
+        StoryRelationshipSourceBox.SelectedItem ??= item;
+    }
+
+    private void ClearStoryStructureInputs()
+    {
+        StoryNodeNameBox.Text = "";
+        StoryNodeSummaryBox.Text = "";
+        StoryNodeKindBox.Text = "PlotPoint";
+        StoryRelationshipKindBox.Text = "related";
+        StoryRelationshipSummaryBox.Text = "";
+    }
+
+    private string ReadStoryNodeKind()
+    {
+        var kind = StoryNodeKindBox.Text.Trim();
+        return kind.Length == 0 ? "PlotPoint" : kind;
+    }
+
+    private string ReadRelationshipKind()
+    {
+        var kind = StoryRelationshipKindBox.Text.Trim();
+        return kind.Length == 0 ? "related" : kind;
+    }
+
+    private static string ReadRelationshipEndpoint(System.Windows.Controls.ComboBox comboBox)
+    {
+        return comboBox.SelectedItem is StoryNodeListItem item
+            ? item.Id
+            : comboBox.Text.Trim();
     }
 
     private async Task CreateNewSceneAsync()
@@ -1717,7 +1860,16 @@ public partial class MainWindow : Window
             InspectorTagsBox.IsKeyboardFocusWithin ||
             InspectorTargetCountBox.IsKeyboardFocusWithin ||
             InspectorSceneTypeBox.IsKeyboardFocusWithin ||
-            InspectorManualLineBreakBox.IsKeyboardFocusWithin)
+            InspectorManualLineBreakBox.IsKeyboardFocusWithin ||
+            StoryNodeNameBox.IsKeyboardFocusWithin ||
+            StoryNodeKindBox.IsKeyboardFocusWithin ||
+            StoryNodeSummaryBox.IsKeyboardFocusWithin ||
+            StoryNodeList.IsKeyboardFocusWithin ||
+            StoryRelationshipSourceBox.IsKeyboardFocusWithin ||
+            StoryRelationshipTargetBox.IsKeyboardFocusWithin ||
+            StoryRelationshipKindBox.IsKeyboardFocusWithin ||
+            StoryRelationshipSummaryBox.IsKeyboardFocusWithin ||
+            StoryRelationshipList.IsKeyboardFocusWithin)
         {
             return CommandScope.Preview;
         }
@@ -1831,6 +1983,48 @@ public partial class MainWindow : Window
     {
         public string Display =>
             $"{Snapshot.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} | {Snapshot.Reason} | {Snapshot.Title}";
+    }
+
+    private sealed record StoryNodeListItem(StoryStructureNode Node)
+    {
+        public string Id => Node.Id;
+        public string Display => $"{Node.Id} | {Node.Name} | {Node.Kind}";
+    }
+
+    private sealed record RelationshipListItem(RelationshipLink Relationship)
+    {
+        public string Display =>
+            $"{Relationship.SourceNodeId} -> {Relationship.TargetNodeId} | {Relationship.Kind} | {Relationship.Summary}";
+    }
+
+    private sealed record StoryNodeKindOption(string Value)
+    {
+        public static IReadOnlyList<StoryNodeKindOption> All { get; } =
+        [
+            new StoryNodeKindOption("PlotPoint"),
+            new StoryNodeKindOption("Arc"),
+            new StoryNodeKindOption("Character"),
+            new StoryNodeKindOption("Theme"),
+            new StoryNodeKindOption("Place"),
+            new StoryNodeKindOption("Conflict")
+        ];
+
+        public override string ToString() => Value;
+    }
+
+    private sealed record RelationshipKindOption(string Value)
+    {
+        public static IReadOnlyList<RelationshipKindOption> All { get; } =
+        [
+            new RelationshipKindOption("related"),
+            new RelationshipKindOption("drives"),
+            new RelationshipKindOption("blocks"),
+            new RelationshipKindOption("mirrors"),
+            new RelationshipKindOption("reveals"),
+            new RelationshipKindOption("conflicts")
+        ];
+
+        public override string ToString() => Value;
     }
 
     private sealed record SceneStatusOption(SceneStatus Status, string Label)

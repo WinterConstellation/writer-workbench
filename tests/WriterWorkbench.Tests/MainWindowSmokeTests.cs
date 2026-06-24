@@ -70,6 +70,8 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.SnapshotCreateCurrent, commandTags);
                 Assert.Contains(AppCommandIds.SnapshotRestoreSelected, commandTags);
                 Assert.Contains(AppCommandIds.SnapshotDeleteSelected, commandTags);
+                Assert.Contains(AppCommandIds.StoryAddNode, commandTags);
+                Assert.Contains(AppCommandIds.StoryAddRelationship, commandTags);
                 Assert.Contains(AppCommandIds.DocumentRenameScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDuplicateScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
@@ -114,6 +116,44 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("OperationProgressPanel"));
                 Assert.NotNull(window.FindName("OperationProgressBar"));
                 Assert.NotNull(window.FindName("OperationRemainingGraph"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowContainsStoryStructureSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+
+                Assert.NotNull(window.FindName("StoryStructurePanel"));
+                Assert.NotNull(window.FindName("StoryNodeNameBox"));
+                Assert.NotNull(window.FindName("StoryNodeKindBox"));
+                Assert.NotNull(window.FindName("StoryNodeSummaryBox"));
+                Assert.NotNull(window.FindName("StoryNodeList"));
+                Assert.NotNull(window.FindName("StoryRelationshipSourceBox"));
+                Assert.NotNull(window.FindName("StoryRelationshipTargetBox"));
+                Assert.NotNull(window.FindName("StoryRelationshipKindBox"));
+                Assert.NotNull(window.FindName("StoryRelationshipSummaryBox"));
+                Assert.NotNull(window.FindName("StoryRelationshipList"));
                 window.Close();
             }
             catch (Exception ex)

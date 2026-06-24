@@ -1160,3 +1160,59 @@ Remaining problems:
 
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
+
+## 2026-06-24 KST feature implementation update: Story Structure Foundation + Relationship Map MVP 1
+
+Feature(s) implemented:
+- Added a project-level `story/story.structure.json` store for story structure nodes and relationship links.
+- Added `StoryStructureDocument`, `StoryStructureNode`, `RelationshipLink`, and `StoryStructureStore`.
+- Added story path helpers to `ProjectPaths`.
+- Added command ids and catalog entries for `story.structure.addNode` and `story.relationship.add`.
+- Added a Korean main-workbench panel for story structure / relationship entry and lists.
+- Story node creation is explicit button/command only and can link the current active scene id without reading or rewriting the scene body.
+- Relationship creation validates that both endpoints exist in the story structure before saving.
+- Story structure save remains separate from scene body save, metadata save, export, snapshot, and typing loops.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureDocument.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureStore.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/StoryStructureStoreTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added:
+- Empty story structure file creation.
+- Story node and relationship roundtrip.
+- Broken relationship endpoint cleanup.
+- Story structure save does not rewrite document JSON/TXT bodies.
+- Korean UTF-8 preservation in story structure JSON.
+- Command catalog coverage for story structure commands.
+- MainWindow smoke coverage for the story structure / relationship panel.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "StoryStructureStoreTests|AppCommandCatalogTests|MainWindowContainsStoryStructureSurface|MainWindowContainsWorkspacePresetCommands"` in the public repo -> failed before production `Core.Story` types existed.
+- Same focused test command in the public repo after implementation -> 9 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 116 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release --no-restore` in the public repo -> completed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the local workspace -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the local workspace -> 116 passed.
+
+Large manuscript regression check, if touched:
+- MainWindow was touched for a new panel and command handlers, but `EditorBox_TextChanged`, export, snapshot, preview render, and save loops were not connected to story structure writes.
+- Perf guardrail completed: MainWindow stress command total 201.966 ms; MainWindow EditorBox segment set 0.478 ms; MainWindow segment layout/render 18.041 ms; MainWindow preview switch/render 1.310 ms; ProjectStore.SaveDocumentAsync total 155.254 ms; Detached append sync 4.807 ms.
+
+Remaining problems:
+- Relationship Map MVP 1 is currently a structured list foundation, not a visual graph canvas.
+- Story nodes and relationships can be added, but edit/delete/reorder/preset assignment is still future work.
+- Story structure data is not yet surfaced in binder, outline, review panel, export, or snapshot.
+- No LLL file format compatibility, UI clone, original app data extraction, WebView/cache access, or AI/API integration was added.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests create only temporary project data.

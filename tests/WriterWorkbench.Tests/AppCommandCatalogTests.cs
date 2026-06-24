@@ -19,6 +19,8 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.SnapshotCreateCurrent,
             AppCommandIds.SnapshotRestoreSelected,
             AppCommandIds.SnapshotDeleteSelected,
+            AppCommandIds.StoryAddNode,
+            AppCommandIds.StoryAddRelationship,
             AppCommandIds.DocumentCreateScene,
             AppCommandIds.DocumentCreateStressLarge,
             AppCommandIds.DocumentDetachCurrent,
@@ -57,6 +59,8 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("현재 장면 스냅샷", registry.Get(AppCommandIds.SnapshotCreateCurrent).Name);
         Assert.Equal("스냅샷 복원", registry.Get(AppCommandIds.SnapshotRestoreSelected).Name);
         Assert.Equal("스냅샷 삭제", registry.Get(AppCommandIds.SnapshotDeleteSelected).Name);
+        Assert.Equal("구조 노드 추가", registry.Get(AppCommandIds.StoryAddNode).Name);
+        Assert.Equal("관계 추가", registry.Get(AppCommandIds.StoryAddRelationship).Name);
     }
 
     [Fact]

@@ -12,6 +12,8 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.SnapshotCreateCurrent, "현재 장면 스냅샷", "스냅샷", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.SnapshotRestoreSelected, "스냅샷 복원", "스냅샷", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.SnapshotDeleteSelected, "스냅샷 삭제", "스냅샷", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryAddNode, "구조 노드 추가", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.StoryAddRelationship, "관계 추가", "구조", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));

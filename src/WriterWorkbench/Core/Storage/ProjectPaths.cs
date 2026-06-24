@@ -7,6 +7,8 @@ public sealed record ProjectPaths(string RootPath)
     public string DocumentsPath => Path.Combine(RootPath, "documents");
     public string ExportsPath => Path.Combine(RootPath, "exports");
     public string SnapshotsPath => Path.Combine(RootPath, "snapshots");
+    public string StoryPath => Path.Combine(RootPath, "story");
+    public string StoryStructurePath => Path.Combine(StoryPath, "story.structure.json");
     public string ProjectDatabasePath => Path.Combine(RootPath, "project.sqlite");
     public string ManifestPath => Path.Combine(RootPath, "project.manifest.json");
     public string WorkspacePresetsPath => Path.Combine(RootPath, "workspace.presets.json");
