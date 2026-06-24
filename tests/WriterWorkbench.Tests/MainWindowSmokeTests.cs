@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using WriterWorkbench.Core.Commands;
 using Xunit.Abstractions;
 
@@ -193,6 +195,63 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void RelationshipMapCommandAddsEntitiesRelationshipAndRendersMap()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+
+                InvokeCommand(window, AppCommandIds.StoryRelationshipMapOpen);
+                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("RelationshipMapSurface")).Visibility);
+
+                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "윤서";
+                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "주연";
+                InvokeCommand(window, AppCommandIds.StoryAddNode);
+                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "도현";
+                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "조력자";
+                InvokeCommand(window, AppCommandIds.StoryAddNode);
+
+                var entityList = (ListBox)window.FindName("RelationshipEntityList");
+                var canvas = (Canvas)window.FindName("RelationshipMapCanvas");
+                var sourceBox = (ComboBox)window.FindName("RelationshipSourceBox");
+                var targetBox = (ComboBox)window.FindName("RelationshipTargetBox");
+
+                Assert.Equal(2, entityList.Items.Count);
+                Assert.Contains(canvas.Children.OfType<Border>(), node => Equals(node.Tag, "entity-0001"));
+                Assert.Contains(canvas.Children.OfType<Border>(), node => Equals(node.Tag, "entity-0002"));
+
+                sourceBox.SelectedIndex = 0;
+                targetBox.SelectedIndex = 1;
+                ((TextBox)window.FindName("RelationshipLabelBox")).Text = "동맹";
+                InvokeCommand(window, AppCommandIds.StoryAddRelationship);
+
+                Assert.Contains(canvas.Children.OfType<System.Windows.Shapes.Line>(), line => line.X2 > line.X1);
+                Assert.Contains(canvas.Children.OfType<TextBlock>(), label => label.Text == "동맹");
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
     public void MainWindowContainsSceneInspectorSurface()
     {
         Exception? failure = null;
@@ -367,5 +426,29 @@ public sealed class MainWindowSmokeTests
                 }
             }
         }
+    }
+
+    private static void InvokePrivate(MainWindow window, string methodName, params object[] args)
+    {
+        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        method.Invoke(window, args);
+    }
+
+    private static void InvokeCommand(MainWindow window, string commandId)
+    {
+        var method = typeof(MainWindow).GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, "ExecuteCommandAsync");
+        var task = (Task)method.Invoke(window, [commandId])!;
+        while (!task.IsCompleted)
+        {
+            var frame = new DispatcherFrame();
+            Dispatcher.CurrentDispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(() => frame.Continue = false));
+            Dispatcher.PushFrame(frame);
+        }
+
+        task.GetAwaiter().GetResult();
     }
 }
