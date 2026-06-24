@@ -1474,3 +1474,41 @@ Remaining problems:
 
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
+
+## 2026-06-25 KST feature implementation update: V2 customization profile bootstrap
+
+Feature(s) implemented:
+- Added a customization profile service that loads the active workbench profile for a project.
+- Missing `settings/workbench-profiles.json` now creates a default profile instead of leaving customization as an in-memory idea.
+- Existing user profiles are loaded without being replaced by the default profile.
+- A requested profile id can be selected when multiple profiles exist.
+- MainWindow now wires the customization profile service into project configuration and startup initialization.
+
+Files changed:
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileService.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchCustomizationProfileServiceTests.cs`
+- `docs/pingpong.txt`
+
+Tests added:
+- Missing profile file creates a default profile under project settings.
+- Existing user profile is loaded without being replaced by default data.
+- Requested profile id wins when multiple profiles exist.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WorkbenchCustomizationProfileServiceTests` -> failed before the service existed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WorkbenchCustomizationProfileServiceTests` -> 3 passed after implementation.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WorkbenchCustomizationProfileServiceTests|WorkbenchCustomizationProfileTests|MainWindowConstructsOnStaThread"` -> 10 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not touched.
+- This stage only adds profile bootstrap during project startup/configuration and does not connect to `EditorBox_TextChanged`.
+
+Remaining problems:
+- Toolbar/panel rendering still needs to consume the active profile instead of using static XAML buttons.
+- Shortcut settings still use the old shortcut profile service; it needs to merge into the V2 workbench profile.
+- Macro definitions are still data only; execution is not wired yet.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.

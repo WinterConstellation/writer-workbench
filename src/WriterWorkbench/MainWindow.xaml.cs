@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Appearance;
 using WriterWorkbench.Core.Commands;
+using WriterWorkbench.Core.Customization;
 using WriterWorkbench.Core.Documents;
 using WriterWorkbench.Core.Export;
 using WriterWorkbench.Core.Focus;
@@ -35,6 +36,8 @@ public partial class MainWindow : Window
     private ShortcutManager _shortcutManager = ShortcutProfileService.CreateDefaultManager();
     private WorkspacePresetService _workspacePresets;
     private ShortcutProfileService _shortcuts;
+    private WorkbenchCustomizationProfileService _customizationProfiles;
+    private WorkbenchCustomizationProfile? _activeCustomizationProfile;
     private AppSessionState _sessionState = AppSessionState.Empty;
     private GraphicPreset _graphicPreset = GraphicPresetCatalog.GetOrDefault(null);
     private ProjectStore _store;
@@ -78,6 +81,7 @@ public partial class MainWindow : Window
         _sceneEntityLinkStore = new SceneEntityLinkStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
+        _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
         ProjectPathText.Text = _projectRoot;
         StatusText.Text = "프로젝트 불러오는 중...";
         GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
@@ -125,6 +129,7 @@ public partial class MainWindow : Window
             var manifest = await _store.CreateProjectAsync(title, CancellationToken.None);
             await _workspacePresets.LoadAsync(CancellationToken.None);
             _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
+            _activeCustomizationProfile = await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -494,6 +499,8 @@ public partial class MainWindow : Window
         _storyStructureStore = new StoryStructureStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
+        _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
+        _activeCustomizationProfile = null;
         _activeDocumentId = "scene-0001";
         _activeDocument = null;
         _activeSceneMetadata = null;
