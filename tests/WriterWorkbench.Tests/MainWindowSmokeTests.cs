@@ -2,8 +2,10 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using WriterWorkbench.Core.Commands;
+using WriterWorkbench.Core.Customization;
 using Xunit.Abstractions;
 
 namespace WriterWorkbench.Tests;
@@ -125,6 +127,60 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("OperationProgressPanel"));
                 Assert.NotNull(window.FindName("OperationProgressBar"));
                 Assert.NotNull(window.FindName("OperationRemainingGraph"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowRendersMainCommandGridFromCustomizationProfile()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
+                var profile = new WorkbenchCustomizationProfile(
+                    "profile-ui-test",
+                    "테스트 작업대",
+                    [
+                        new CommandPlacement("toolbar", "main", "second", AppCommandIds.ViewMainOpen, "메인", 20, new Dictionary<string, string>()),
+                        new CommandPlacement("toolbar", "main", "first", AppCommandIds.ProjectSave, "저장", 10, new Dictionary<string, string>()),
+                        new CommandPlacement("panel", "right", "ignored", AppCommandIds.HelpOpen, "도움말", 30, new Dictionary<string, string>())
+                    ],
+                    [],
+                    [],
+                    now,
+                    now);
+                var method = typeof(MainWindow).GetMethod(
+                    "RenderMainCommandGrid",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(method);
+                method!.Invoke(window, [profile]);
+
+                var grid = Assert.IsType<UniformGrid>(window.FindName("MainCommandGrid"));
+                var buttons = grid.Children.OfType<Button>().ToList();
+
+                Assert.Equal(2, grid.Columns);
+                Assert.Equal(1, grid.Rows);
+                Assert.Equal(["project.save", "view.main.open"], buttons.Select(button => button.Tag as string));
+                Assert.Equal(["저장", "메인"], buttons.Select(button => button.Content as string));
                 window.Close();
             }
             catch (Exception ex)

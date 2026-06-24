@@ -130,6 +130,7 @@ public partial class MainWindow : Window
             await _workspacePresets.LoadAsync(CancellationToken.None);
             _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
             _activeCustomizationProfile = await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
+            RenderMainCommandGrid(_activeCustomizationProfile);
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -226,6 +227,31 @@ public partial class MainWindow : Window
             .ThenBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
             .Take(30)
             .ToList();
+    }
+
+    private void RenderMainCommandGrid(WorkbenchCustomizationProfile profile)
+    {
+        var placements = new WorkbenchCustomizationResolver(profile)
+            .GetPlacements("toolbar", "main");
+
+        MainCommandGrid.Children.Clear();
+        MainCommandGrid.Columns = 2;
+        MainCommandGrid.Rows = Math.Max(1, (placements.Count + 1) / 2);
+
+        foreach (var placement in placements)
+        {
+            var command = _commandRegistry.Get(placement.CommandId);
+            var button = new System.Windows.Controls.Button
+            {
+                Content = string.IsNullOrWhiteSpace(placement.Label) ? command.Name : placement.Label,
+                Tag = placement.CommandId,
+                Margin = new Thickness(0, 0, 10, 10),
+                MinHeight = 42,
+                Padding = new Thickness(12, 6, 12, 6)
+            };
+            button.Click += CommandButton_Click;
+            MainCommandGrid.Children.Add(button);
+        }
     }
 
     private void SelectBinderItem(string documentId)

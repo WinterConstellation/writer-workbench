@@ -461,7 +461,8 @@
                                            TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
 
-                            <UniformGrid Grid.Row="1"
+                            <UniformGrid x:Name="MainCommandGrid"
+                                         Grid.Row="1"
                                          Grid.Column="0"
                                          Columns="2"
                                          Rows="7"
