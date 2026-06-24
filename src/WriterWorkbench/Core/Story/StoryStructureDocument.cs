@@ -41,3 +41,11 @@ public sealed record StoryMapNodeLayout(
     string EntityId,
     double X,
     double Y);
+
+public sealed record SceneEntityLink(
+    string SceneId,
+    string EntityId,
+    string Role,
+    string Notes,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

@@ -17,6 +17,8 @@ public static class AppCommandIds
     public const string StoryAddRelationship = "story.relationship.add";
     public const string StoryUpdateRelationship = "story.relationship.update";
     public const string StoryDeleteRelationship = "story.relationship.delete";
+    public const string SceneEntityLinkAdd = "sceneEntity.link.add";
+    public const string SceneEntityLinkDelete = "sceneEntity.link.delete";
     public const string DocumentCreateScene = "document.createScene";
     public const string DocumentCreateStressLarge = "document.createStressLarge";
     public const string DocumentDetachCurrent = "document.detachCurrent";

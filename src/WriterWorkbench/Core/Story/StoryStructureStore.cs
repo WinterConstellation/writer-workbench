@@ -136,6 +136,8 @@ public sealed class StoryStructureStore(ProjectPaths paths)
             .Where(node => !string.Equals(node.EntityId, entityId, StringComparison.OrdinalIgnoreCase))
             .ToList();
         await SaveRelationLayoutAsync(layout, token);
+
+        await new SceneEntityLinkStore(paths).DeleteForEntityAsync(entityId, token);
     }
 
     public async Task<StoryRelationship> AddRelationshipAsync(

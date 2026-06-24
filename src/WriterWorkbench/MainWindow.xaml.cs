@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private ManuscriptExportService _exportService;
     private SceneSnapshotService _snapshotService;
     private StoryStructureStore _storyStructureStore;
+    private SceneEntityLinkStore _sceneEntityLinkStore;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
     private SceneMetadata? _activeSceneMetadata;
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _snapshotService = new SceneSnapshotService(projectPaths, _store);
         _storyStructureStore = new StoryStructureStore(projectPaths);
+        _sceneEntityLinkStore = new SceneEntityLinkStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         ProjectPathText.Text = _projectRoot;
@@ -321,6 +323,7 @@ public partial class MainWindow : Window
             UpdateMetrics(document);
             await LoadSceneMetadataAsync(document.Id);
             await RefreshSnapshotsAsync(document.Id);
+            await RefreshSceneEntityLinksAsync(document.Id);
             ShowRequestedSurface(startupSurface);
             _dirty = false;
             StatusText.Text = editorView.IsSegmentMode
@@ -409,6 +412,8 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.StoryAddRelationship] = AddStoryRelationshipAsync;
         _commandHandlers[AppCommandIds.StoryUpdateRelationship] = UpdateStoryRelationshipAsync;
         _commandHandlers[AppCommandIds.StoryDeleteRelationship] = DeleteStoryRelationshipAsync;
+        _commandHandlers[AppCommandIds.SceneEntityLinkAdd] = AddSceneEntityLinkAsync;
+        _commandHandlers[AppCommandIds.SceneEntityLinkDelete] = DeleteSceneEntityLinkAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
         _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
@@ -507,6 +512,8 @@ public partial class MainWindow : Window
         RelationshipList.ItemsSource = null;
         RelationshipSourceBox.ItemsSource = null;
         RelationshipTargetBox.ItemsSource = null;
+        SceneEntityLinkList.ItemsSource = null;
+        SceneEntityLinkEntityBox.ItemsSource = null;
         RelationshipMapCanvas.Children.Clear();
         TitleBox.Text = "";
         EditorBox.Text = "";
@@ -540,6 +547,7 @@ public partial class MainWindow : Window
             RelationshipSourceBox.ItemsSource = entityItems;
             RelationshipTargetBox.ItemsSource = entityItems;
             RelationshipList.ItemsSource = relationshipItems;
+            SceneEntityLinkEntityBox.ItemsSource = entityItems;
             RenderRelationshipMap(entities, relationships, layout);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -548,6 +556,7 @@ public partial class MainWindow : Window
             StoryRelationshipList.ItemsSource = null;
             RelationshipEntityList.ItemsSource = null;
             RelationshipList.ItemsSource = null;
+            SceneEntityLinkEntityBox.ItemsSource = null;
             RelationshipMapCanvas.Children.Clear();
             StatusText.Text = $"스토리 구조 로드 실패 - {ex.Message}";
         }
@@ -577,6 +586,7 @@ public partial class MainWindow : Window
             RelationshipEntityNameBox.Text = "";
             RelationshipEntitySummaryBox.Text = "";
             await RefreshStoryStructureAsync();
+            await RefreshSceneEntityLinksAsync(_activeDocumentId);
             SelectEntityInLists(entity.Id);
             StatusText.Text = $"캐릭터 추가됨 {entity.Id} - {entity.Name}";
         }
@@ -609,6 +619,7 @@ public partial class MainWindow : Window
                 },
                 CancellationToken.None);
             await RefreshStoryStructureAsync();
+            await RefreshSceneEntityLinksAsync(_activeDocumentId);
             SelectEntityInLists(updated.Id);
             StatusText.Text = $"캐릭터 수정됨 {updated.Id} - {updated.Name}";
         }
@@ -638,6 +649,7 @@ public partial class MainWindow : Window
             await _storyStructureStore.DeleteEntityAsync(selected.Id, CancellationToken.None);
             ClearStoryStructureInputs();
             await RefreshStoryStructureAsync();
+            await RefreshSceneEntityLinksAsync(_activeDocumentId);
             StatusText.Text = $"캐릭터 삭제됨 {selected.Id} - {selected.Entity.Name}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
@@ -1550,6 +1562,128 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task AddSceneEntityLinkAsync()
+    {
+        if (_activeDocument is null)
+        {
+            StatusText.Text = "연결할 활성 장면이 없습니다.";
+            return;
+        }
+
+        var entityId = ReadSceneEntityLinkEntityId();
+        if (entityId.Length == 0)
+        {
+            StatusText.Text = "장면에 연결할 인물/설정 항목을 선택하세요.";
+            return;
+        }
+
+        try
+        {
+            var link = await _sceneEntityLinkStore.AddOrUpdateAsync(
+                _activeDocument.Id,
+                entityId,
+                SceneEntityLinkRoleBox.Text,
+                SceneEntityLinkNotesBox.Text,
+                CancellationToken.None);
+            await RefreshSceneEntityLinksAsync(_activeDocument.Id);
+            SelectSceneEntityLink(link.SceneId, link.EntityId);
+            StatusText.Text = $"장면 연결 저장됨 {link.SceneId} - {link.EntityId} ({link.Role})";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            StatusText.Text = $"장면 연결 저장 실패 {_activeDocument.Id} - {ex.Message}";
+        }
+    }
+
+    private async Task DeleteSceneEntityLinkAsync()
+    {
+        var selected = GetSelectedSceneEntityLink();
+        if (selected is null)
+        {
+            StatusText.Text = "해제할 장면 연결을 선택하세요.";
+            return;
+        }
+
+        try
+        {
+            await _sceneEntityLinkStore.DeleteAsync(selected.Link.SceneId, selected.Link.EntityId, CancellationToken.None);
+            await RefreshSceneEntityLinksAsync(selected.Link.SceneId);
+            SceneEntityLinkNotesBox.Text = "";
+            StatusText.Text = $"장면 연결 해제됨 {selected.Link.SceneId} - {selected.Link.EntityId}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"장면 연결 해제 실패 {selected.Link.SceneId} - {ex.Message}";
+        }
+    }
+
+    private async Task RefreshSceneEntityLinksAsync(string documentId)
+    {
+        try
+        {
+            var entities = await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None);
+            var links = await _sceneEntityLinkStore.LoadForSceneAsync(documentId, CancellationToken.None);
+            SceneEntityLinkList.ItemsSource = links
+                .Select(link => SceneEntityLinkListItem.From(link, entities))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            SceneEntityLinkList.ItemsSource = null;
+            StatusText.Text = $"장면 연결 목록 불러오기 실패 {documentId} - {ex.Message}";
+        }
+    }
+
+    private void SceneEntityLinkList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (SceneEntityLinkList.SelectedItem is not SceneEntityLinkListItem item)
+        {
+            return;
+        }
+
+        foreach (var entityItem in SceneEntityLinkEntityBox.ItemsSource?.OfType<StoryEntityListItem>() ?? [])
+        {
+            if (string.Equals(entityItem.Id, item.Link.EntityId, StringComparison.OrdinalIgnoreCase))
+            {
+                SceneEntityLinkEntityBox.SelectedItem = entityItem;
+                break;
+            }
+        }
+
+        SceneEntityLinkRoleBox.Text = item.Link.Role;
+        SceneEntityLinkNotesBox.Text = item.Link.Notes;
+    }
+
+    private string ReadSceneEntityLinkEntityId()
+    {
+        if (SceneEntityLinkEntityBox.SelectedItem is StoryEntityListItem selected)
+        {
+            return selected.Id;
+        }
+
+        return SceneEntityLinkEntityBox.Text.Trim();
+    }
+
+    private SceneEntityLinkListItem? GetSelectedSceneEntityLink()
+    {
+        return SceneEntityLinkList.SelectedItem is SceneEntityLinkListItem item
+            ? item
+            : null;
+    }
+
+    private void SelectSceneEntityLink(string sceneId, string entityId)
+    {
+        foreach (var item in SceneEntityLinkList.ItemsSource?.OfType<SceneEntityLinkListItem>() ?? [])
+        {
+            if (string.Equals(item.Link.SceneId, sceneId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(item.Link.EntityId, entityId, StringComparison.OrdinalIgnoreCase))
+            {
+                SceneEntityLinkList.SelectedItem = item;
+                break;
+            }
+        }
+    }
+
     private void UpdateActiveDocumentTitleIfNeeded(WriterDocument renamed)
     {
         if (!string.Equals(renamed.Id, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
@@ -1815,6 +1949,10 @@ public partial class MainWindow : Window
         InspectorSceneTypeBox.Text = "Scene";
         InspectorManualLineBreakBox.IsChecked = false;
         InspectorUpdatedAtText.Text = "-";
+        SceneEntityLinkList.ItemsSource = null;
+        SceneEntityLinkEntityBox.SelectedItem = null;
+        SceneEntityLinkRoleBox.Text = "등장";
+        SceneEntityLinkNotesBox.Text = "";
     }
 
     private bool TryReadTargetCharacterCount(out int? targetCharacterCount)
@@ -2562,6 +2700,22 @@ public partial class MainWindow : Window
                 relationship,
                 source?.Name ?? relationship.SourceEntityId,
                 target?.Name ?? relationship.TargetEntityId);
+        }
+    }
+
+    private sealed record SceneEntityLinkListItem(
+        SceneEntityLink Link,
+        string EntityName)
+    {
+        public string Display => $"{EntityName} | {Link.Role}";
+
+        public static SceneEntityLinkListItem From(
+            SceneEntityLink link,
+            IReadOnlyList<StoryEntity> entities)
+        {
+            var entity = entities.FirstOrDefault(item =>
+                string.Equals(item.Id, link.EntityId, StringComparison.OrdinalIgnoreCase));
+            return new SceneEntityLinkListItem(link, entity?.Name ?? link.EntityId);
         }
     }
 

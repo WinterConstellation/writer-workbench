@@ -26,6 +26,8 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.StoryAddRelationship,
             AppCommandIds.StoryUpdateRelationship,
             AppCommandIds.StoryDeleteRelationship,
+            AppCommandIds.SceneEntityLinkAdd,
+            AppCommandIds.SceneEntityLinkDelete,
             AppCommandIds.DocumentCreateScene,
             AppCommandIds.DocumentCreateStressLarge,
             AppCommandIds.DocumentDetachCurrent,

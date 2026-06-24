@@ -19,6 +19,8 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.StoryAddRelationship, "관계 추가", "구조", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.StoryUpdateRelationship, "관계 수정", "구조", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.StoryDeleteRelationship, "관계 삭제", "구조", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.SceneEntityLinkAdd, "장면 연결 추가", "장면", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.SceneEntityLinkDelete, "장면 연결 삭제", "장면", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateScene, "새 장면", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentCreateStressLarge, "스트레스 15k", "문서", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.DocumentDetachCurrent, "창 분리", "문서", CommandScope.Workbench));

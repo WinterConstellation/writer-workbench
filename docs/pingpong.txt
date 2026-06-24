@@ -1217,6 +1217,70 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary project data.
 
+## 2026-06-25 KST feature implementation update: Scene Entity Link MVP
+
+Feature(s) implemented:
+- Added `story/scene-entity-links.json` as a separate story-side link file.
+- Added `SceneEntityLink` and `SceneEntityLinkStore`.
+- Scene/entity links store scene id, entity id, role, notes, created timestamp, and updated timestamp.
+- Missing scene/entity link file loads as an empty list without creating a file.
+- Link add/update validates that the target story entity exists.
+- Link add/update upserts by scene id + entity id, preserving created timestamp.
+- Entity deletion now removes related scene/entity links.
+- Added explicit commands:
+  - `sceneEntity.link.add`
+  - `sceneEntity.link.delete`
+- Added a Scene Inspector "장면 연결" section with entity selector, role field, notes field, link list, connect button, and unlink button.
+- Link refresh uses story metadata/entity files only; it does not open or rewrite scene body files.
+- No AI extraction, manuscript parsing, automatic tagging, LLL compatibility, or export/snapshot integration was added.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureDocument.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureStore.cs`
+- `src/WriterWorkbench/Core/Story/SceneEntityLinkStore.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/SceneEntityLinkStoreTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Missing scene/entity link file returns an empty list.
+- Add/update rejects missing entity id.
+- Korean link role/notes roundtrip through UTF-8 JSON.
+- Add/update upserts the same scene/entity pair.
+- Deleting a story entity removes related scene/entity links.
+- Saving scene/entity links does not rewrite document JSON/TXT bodies.
+- Command catalog covers scene/entity link add/delete commands.
+- MainWindow smoke covers Scene Inspector link controls and command buttons.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneEntityLinkStoreTests|AppCommandCatalogTests|MainWindowContainsSceneInspectorSurface|MainWindowContainsWorkspacePresetCommands"` in the public repo -> failed before `SceneEntityLinkStore`, `SceneEntityLinksPath`, and command IDs existed.
+- Same focused test command after implementation -> 10 passed.
+- Same focused test command after inspector scroll polish -> 10 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 123 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release --no-restore` in the public repo -> completed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the local workspace -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the local workspace -> 123 passed.
+
+Large manuscript regression check, if touched:
+- MainWindow was touched for a Scene Inspector subpanel and command handlers, but `EditorBox_TextChanged`, document input, export, snapshot, preview render, and manuscript parsing paths were not connected to scene/entity link writes.
+- Perf guardrail completed: MainWindow stress command total 305.393 ms; MainWindow EditorBox segment set 0.574 ms; MainWindow segment layout/render 34.924 ms; MainWindow preview switch/render 1.811 ms; ProjectStore.SaveDocumentAsync total 179.783 ms; Detached append sync 4.841 ms.
+
+Remaining problems:
+- Scene/entity links are not yet shown in binder, outline, export, snapshot detail, timeline, or settings book.
+- Link role is a free text field for MVP; preset role options and validation can be polished later.
+- Unlink currently removes the selected link directly; richer confirmation/undo can be added when link editing becomes heavier.
+- Relationship map lines still rerender after drag-end only; live line-following remains future polish.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests and perf probe create only temporary project data.
+
 ## 2026-06-24 KST feature implementation update: Relationship Map MVP split story store + canvas
 
 Feature(s) implemented:

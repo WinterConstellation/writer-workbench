@@ -871,6 +871,7 @@
                                            VerticalAlignment="Center"/>
                             </DockPanel>
 
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -885,7 +886,9 @@
                                      <RowDefinition Height="Auto"/>
                                      <RowDefinition Height="Auto"/>
                                      <RowDefinition Height="Auto"/>
-                                     <RowDefinition Height="82"/>
+                                      <RowDefinition Height="82"/>
+                                      <RowDefinition Height="Auto"/>
+                                      <RowDefinition Height="130"/>
                                  </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="82"/>
@@ -1039,12 +1042,76 @@
                                                 FontWeight="SemiBold"
                                                 VerticalAlignment="Center"/>
                                  </DockPanel>
-                                 <ListBox x:Name="SnapshotList"
-                                          Grid.Row="12"
-                                          Grid.ColumnSpan="2"
-                                          BorderBrush="#D1D5DB"
-                                          DisplayMemberPath="Display"/>
-                             </Grid>
+                                  <ListBox x:Name="SnapshotList"
+                                           Grid.Row="12"
+                                           Grid.ColumnSpan="2"
+                                           BorderBrush="#D1D5DB"
+                                           DisplayMemberPath="Display"/>
+                                  <DockPanel Grid.Row="13"
+                                             Grid.ColumnSpan="2"
+                                             Margin="0,10,0,6">
+                                      <StackPanel DockPanel.Dock="Right"
+                                                  Orientation="Horizontal">
+                                          <Button x:Name="SceneEntityLinkAddButton"
+                                                  Content="연결"
+                                                  Tag="sceneEntity.link.add"
+                                                  MinWidth="52"
+                                                  Height="26"
+                                                  Margin="0,0,6,0"
+                                                  Padding="8,0"
+                                                  Click="CommandButton_Click"/>
+                                          <Button x:Name="SceneEntityLinkDeleteButton"
+                                                  Content="해제"
+                                                  Tag="sceneEntity.link.delete"
+                                                  MinWidth="52"
+                                                  Height="26"
+                                                  Padding="8,0"
+                                                  Click="CommandButton_Click"/>
+                                      </StackPanel>
+                                      <TextBlock Text="장면 연결"
+                                                 FontWeight="SemiBold"
+                                                 VerticalAlignment="Center"/>
+                                  </DockPanel>
+                                  <Grid Grid.Row="14"
+                                        Grid.ColumnSpan="2">
+                                      <Grid.RowDefinitions>
+                                          <RowDefinition Height="Auto"/>
+                                          <RowDefinition Height="Auto"/>
+                                          <RowDefinition Height="*"/>
+                                      </Grid.RowDefinitions>
+                                      <Grid.ColumnDefinitions>
+                                          <ColumnDefinition Width="*"/>
+                                          <ColumnDefinition Width="74"/>
+                                      </Grid.ColumnDefinitions>
+                                      <ComboBox x:Name="SceneEntityLinkEntityBox"
+                                                Grid.Row="0"
+                                                Grid.Column="0"
+                                                Height="26"
+                                                Margin="0,0,6,6"
+                                                DisplayMemberPath="Display"/>
+                                      <TextBox x:Name="SceneEntityLinkRoleBox"
+                                               Grid.Row="0"
+                                               Grid.Column="1"
+                                               Height="26"
+                                               Text="등장"
+                                               VerticalContentAlignment="Center"
+                                               Margin="0,0,0,6"/>
+                                      <TextBox x:Name="SceneEntityLinkNotesBox"
+                                               Grid.Row="1"
+                                               Grid.Column="0"
+                                               Grid.ColumnSpan="2"
+                                               Height="28"
+                                               VerticalContentAlignment="Center"
+                                               Margin="0,0,0,6"/>
+                                      <ListBox x:Name="SceneEntityLinkList"
+                                               Grid.Row="2"
+                                               Grid.ColumnSpan="2"
+                                               BorderBrush="#D1D5DB"
+                                               DisplayMemberPath="Display"
+                                               SelectionChanged="SceneEntityLinkList_SelectionChanged"/>
+                                  </Grid>
+                              </Grid>
+                              </ScrollViewer>
                         </DockPanel>
                     </Border>
                     <ListBox x:Name="SearchResultsList"

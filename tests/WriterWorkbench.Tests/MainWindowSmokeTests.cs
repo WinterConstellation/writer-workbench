@@ -77,6 +77,8 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.StoryAddRelationship, commandTags);
                 Assert.Contains(AppCommandIds.StoryUpdateRelationship, commandTags);
                 Assert.Contains(AppCommandIds.StoryDeleteRelationship, commandTags);
+                Assert.Contains(AppCommandIds.SceneEntityLinkAdd, commandTags);
+                Assert.Contains(AppCommandIds.SceneEntityLinkDelete, commandTags);
                 Assert.Contains(AppCommandIds.DocumentRenameScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDuplicateScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
@@ -216,6 +218,12 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("SnapshotCreateButton"));
                 Assert.NotNull(window.FindName("SnapshotRestoreButton"));
                 Assert.NotNull(window.FindName("SnapshotDeleteButton"));
+                Assert.NotNull(window.FindName("SceneEntityLinkList"));
+                Assert.NotNull(window.FindName("SceneEntityLinkEntityBox"));
+                Assert.NotNull(window.FindName("SceneEntityLinkRoleBox"));
+                Assert.NotNull(window.FindName("SceneEntityLinkNotesBox"));
+                Assert.NotNull(window.FindName("SceneEntityLinkAddButton"));
+                Assert.NotNull(window.FindName("SceneEntityLinkDeleteButton"));
                 window.Close();
             }
             catch (Exception ex)
