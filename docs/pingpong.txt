@@ -1103,3 +1103,60 @@ Verification:
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 107 passed.
 - `dotnet build WriterWorkbench.sln --no-restore` in the local workspace -> 0 warnings, 0 errors.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the local workspace -> 107 passed.
+
+## 2026-06-24 KST feature implementation update: SceneMetadata strengthening from LLL research
+
+Feature(s) implemented:
+- Strengthened `SceneMetadata` to schema version 2 with derived counts, scene type, manual line break flag, created timestamp, and summary.
+- Kept existing `SceneStatus` behavior and normalized older schema-1 metadata files with defaults.
+- Preserved the legacy `Synopsis` field as a compatibility mirror of `Summary`.
+- Added derived metadata refresh during `ProjectStore.SaveDocumentAsync`, so body saves update content counts and `UpdatedAt`.
+- Kept metadata saving separate from body saving; `SceneMetadataStore.SaveAsync` writes only `scene.meta.json`.
+- Added inspector fields for content length without spaces, content length with spaces, scene type, and manual line break.
+- Updated binder/recent list item construction to use manifest plus scene metadata instead of reading document bodies.
+- `EditorBox_TextChanged` was not connected to count calculation, export, snapshot, or index rebuild work.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/SceneMetadata.cs`
+- `src/WriterWorkbench/Core/Storage/SceneMetadataStore.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/SceneMetadataStoreTests.cs`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added:
+- Existing metadata without new fields loads with schema-2 defaults.
+- Default metadata includes new field defaults.
+- Content length and content length with spaces save/load.
+- Tags, summary, scene type, and manual line break roundtrip.
+- Metadata save does not rewrite document JSON/TXT body files.
+- Body save refreshes derived counts.
+- Korean body count preserves Hangul character counts with and without spaces.
+- Scene Inspector smoke test covers the new metadata display controls.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneMetadataStoreTests|SaveDocumentUpdatesDerivedSceneMetadataCountsForKoreanBody|SaveDocumentPreservesManualSceneMetadataAndRefreshesDerivedCounts"` -> failed before production fields existed, then 8 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowContainsSceneInspectorSurface"` -> failed before new inspector controls existed, then included in the passing focused run.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneMetadataStoreTests|SaveDocumentUpdatesDerivedSceneMetadataCountsForKoreanBody|SaveDocumentPreservesManualSceneMetadataAndRefreshesDerivedCounts|MainWindowContainsSceneInspectorSurface"` -> 9 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 110 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the local workspace -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the local workspace -> 110 passed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release` in the public repo -> completed.
+- `dotnet run --project tools\WriterWorkbench.PerfProbe\WriterWorkbench.PerfProbe.csproj -c Release --no-build` in the public repo -> completed.
+
+Large manuscript regression check, if touched:
+- First perf run: ProjectStore.SaveDocumentAsync total 366.079 ms; MainWindow stress command total 1,074.765 ms; MainWindow EditorBox segment set 1.276 ms; MainWindow preview switch/render 2.373 ms; Detached append sync 6.508 ms.
+- Second perf run: ProjectStore.SaveDocumentAsync total 264.965 ms; MainWindow stress command total 799.149 ms; MainWindow EditorBox segment set 0.527 ms; MainWindow preview switch/render 54.879 ms; Detached append sync 9.482 ms.
+- Typing path remains unchanged: `EditorBox_TextChanged` only marks dirty and edit time.
+
+Remaining problems:
+- There is no separate outline surface yet; binder/recent list and inspector are now metadata-backed, but a full outline panel remains future work.
+- Binder display is metadata-rich but visually dense; later UI polish should decide which fields are always visible versus tooltip/detail-only.
+- Derived counts are refreshed on body save, not on every keystroke by design.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.

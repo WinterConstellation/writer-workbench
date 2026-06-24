@@ -77,7 +77,7 @@ public sealed class ProjectStore(ProjectPaths paths)
 
         var manifest = await LoadManifestOrDefaultAsync(token);
         var documentInfo = await WriteDocumentAsync(document, token);
-        await EnsureMetadataAsync(document.Id, token);
+        await UpdateMetadataForDocumentAsync(document, documentInfo.UpdatedAt, token);
         var existingIndex = FindDocumentIndex(manifest, document.Id);
         var documents = manifest.Documents.ToList();
         if (existingIndex >= 0)
@@ -115,6 +115,7 @@ public sealed class ProjectStore(ProjectPaths paths)
         };
         var duplicateInfo = await WriteDocumentAsync(duplicate, token);
         await CopyMetadataAsync(source.Id, duplicate.Id, token);
+        await UpdateMetadataForDocumentAsync(duplicate, duplicateInfo.UpdatedAt, token);
         var documents = manifest.Documents.ToList();
         documents.Insert(sourceIndex + 1, duplicateInfo);
 
@@ -297,10 +298,10 @@ public sealed class ProjectStore(ProjectPaths paths)
         }
     }
 
-    private async Task EnsureMetadataAsync(string documentId, CancellationToken token)
+    private async Task UpdateMetadataForDocumentAsync(WriterDocument document, DateTimeOffset updatedAt, CancellationToken token)
     {
         var metadataStore = new SceneMetadataStore(paths);
-        await metadataStore.LoadAsync(documentId, token);
+        await metadataStore.UpdateDerivedAsync(document, updatedAt, token);
     }
 
     private async Task CopyMetadataAsync(string sourceDocumentId, string targetDocumentId, CancellationToken token)

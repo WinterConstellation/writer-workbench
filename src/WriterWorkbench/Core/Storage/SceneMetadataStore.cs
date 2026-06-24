@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using WriterWorkbench.Core.Documents;
 
 namespace WriterWorkbench.Core.Storage;
 
@@ -47,10 +48,25 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
         Directory.CreateDirectory(paths.DocumentsPath);
         var normalized = Normalize(metadata, metadata.DocumentId) with
         {
-            UpdatedAt = metadata.UpdatedAt == default ? DateTimeOffset.UtcNow : metadata.UpdatedAt
+            UpdatedAt = metadata.UpdatedAt == default ? DateTimeOffset.UtcNow : metadata.UpdatedAt,
+            CreatedAt = metadata.CreatedAt == default ? DateTimeOffset.UtcNow : metadata.CreatedAt
         };
         var json = JsonSerializer.Serialize(normalized, JsonOptions);
         await WriteUtf8AtomicAsync(paths.SceneMetadataPath(normalized.DocumentId), json, token);
+    }
+
+    public async Task<SceneMetadata> UpdateDerivedAsync(WriterDocument document, DateTimeOffset updatedAt, CancellationToken token)
+    {
+        var metadata = await LoadExistingOrDefaultAsync(document.Id, token);
+        var derived = metadata with
+        {
+            ContentLength = CountCharacters(document, includeWhitespace: false),
+            ContentLengthWithSpaces = CountCharacters(document, includeWhitespace: true),
+            UpdatedAt = updatedAt == default ? DateTimeOffset.UtcNow : updatedAt
+        };
+
+        await SaveAsync(derived, token);
+        return derived;
     }
 
     public void Delete(string documentId)
@@ -64,17 +80,45 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
 
     private static SceneMetadata Normalize(SceneMetadata metadata, string documentId)
     {
+        var summary = string.IsNullOrWhiteSpace(metadata.Summary)
+            ? metadata.Synopsis ?? ""
+            : metadata.Summary.Trim();
+        var now = DateTimeOffset.UtcNow;
+
         return metadata with
         {
-            SchemaVersion = metadata.SchemaVersion <= 0 ? 1 : metadata.SchemaVersion,
+            SchemaVersion = Math.Max(metadata.SchemaVersion, SceneMetadata.CurrentSchemaVersion),
             DocumentId = string.IsNullOrWhiteSpace(metadata.DocumentId) ? documentId : metadata.DocumentId,
-            Synopsis = metadata.Synopsis ?? "",
-            Tags = metadata.Tags
+            Synopsis = summary,
+            Summary = summary,
+            Tags = (metadata.Tags ?? [])
                 .Where(tag => !string.IsNullOrWhiteSpace(tag))
                 .Select(tag => tag.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList()
+                .ToList(),
+            ContentLength = Math.Max(0, metadata.ContentLength),
+            ContentLengthWithSpaces = Math.Max(0, metadata.ContentLengthWithSpaces),
+            SceneType = string.IsNullOrWhiteSpace(metadata.SceneType) ? "Scene" : metadata.SceneType.Trim(),
+            CreatedAt = metadata.CreatedAt == default ? now : metadata.CreatedAt,
+            UpdatedAt = metadata.UpdatedAt == default ? now : metadata.UpdatedAt
         };
+    }
+
+    private static int CountCharacters(WriterDocument document, bool includeWhitespace)
+    {
+        var count = 0;
+        foreach (var paragraph in document.Paragraphs)
+        {
+            foreach (var character in paragraph.Text)
+            {
+                if (includeWhitespace || !char.IsWhiteSpace(character))
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 
     private static async Task WriteUtf8AtomicAsync(string targetPath, string content, CancellationToken token)

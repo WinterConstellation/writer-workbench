@@ -23,6 +23,73 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
+    public async Task SaveDocumentUpdatesDerivedSceneMetadataCountsForKoreanBody()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var document = new WriterDocument(
+            "scene-korean",
+            "Korean",
+            [
+                new WriterParagraph("p-1", "가 나", "body", [], []),
+                new WriterParagraph("p-2", "라마바사", "body", [], [])
+            ]);
+
+        await store.SaveDocumentAsync(document, CancellationToken.None);
+        var metadata = await new SceneMetadataStore(paths).LoadAsync(document.Id, CancellationToken.None);
+
+        Assert.Equal(6, metadata.ContentLength);
+        Assert.Equal(7, metadata.ContentLengthWithSpaces);
+        Assert.Equal("Scene", metadata.SceneType);
+        Assert.False(metadata.ManualLineBreak);
+        Assert.True(metadata.UpdatedAt > DateTimeOffset.MinValue);
+    }
+
+    [Fact]
+    public async Task SaveDocumentPreservesManualSceneMetadataAndRefreshesDerivedCounts()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var metadataStore = new SceneMetadataStore(paths);
+        await metadataStore.SaveAsync(
+            new SceneMetadata(
+                2,
+                "scene-keep",
+                "",
+                SceneStatus.Final,
+                ["태그"],
+                1500,
+                DateTimeOffset.Parse("2026-01-01T00:00:00+00:00"),
+                ContentLength: 1,
+                ContentLengthWithSpaces: 1,
+                SceneType: "Cover",
+                ManualLineBreak: true,
+                CreatedAt: DateTimeOffset.Parse("2025-12-31T00:00:00+00:00"),
+                Summary: "수동 요약"),
+            CancellationToken.None);
+        var document = new WriterDocument(
+            "scene-keep",
+            "Keep",
+            [new WriterParagraph("p-1", "새 본문", "body", [], [])]);
+
+        await store.SaveDocumentAsync(document, CancellationToken.None);
+        var metadata = await metadataStore.LoadAsync(document.Id, CancellationToken.None);
+
+        Assert.Equal("수동 요약", metadata.Summary);
+        Assert.Equal(SceneStatus.Final, metadata.Status);
+        Assert.Equal(["태그"], metadata.Tags);
+        Assert.Equal(1500, metadata.TargetCharacterCount);
+        Assert.Equal("Cover", metadata.SceneType);
+        Assert.True(metadata.ManualLineBreak);
+        Assert.Equal(DateTimeOffset.Parse("2025-12-31T00:00:00+00:00"), metadata.CreatedAt);
+        Assert.Equal(3, metadata.ContentLength);
+        Assert.Equal(4, metadata.ContentLengthWithSpaces);
+        Assert.True(metadata.UpdatedAt > DateTimeOffset.Parse("2026-01-01T00:00:00+00:00"));
+    }
+
+    [Fact]
     public async Task CreateProjectCreatesManifestAndInitialDocument()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));

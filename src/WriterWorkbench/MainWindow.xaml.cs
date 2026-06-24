@@ -132,7 +132,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                UpdateMainSurface(manifest);
+                UpdateMainSurface(manifest, []);
             }
 
             StatusText.Text = presetToApply is null
@@ -180,21 +180,31 @@ public partial class MainWindow : Window
     private async Task RefreshBinderAsync(ProjectManifest? manifest = null)
     {
         manifest ??= await _store.LoadManifestAsync(CancellationToken.None);
-        BinderList.ItemsSource = manifest.Documents
-            .Select(document => new DocumentListItem(document.Id, document.Title))
-            .ToList();
-        UpdateMainSurface(manifest);
+        var items = await CreateDocumentListItemsAsync(manifest.Documents);
+        BinderList.ItemsSource = items;
+        UpdateMainSurface(manifest, items);
     }
 
-    private void UpdateMainSurface(ProjectManifest manifest)
+    private async Task<IReadOnlyList<DocumentListItem>> CreateDocumentListItemsAsync(IEnumerable<ProjectDocumentInfo> documents)
+    {
+        var items = new List<DocumentListItem>();
+        foreach (var document in documents)
+        {
+            var metadata = await _metadataStore.LoadExistingOrDefaultAsync(document.Id, CancellationToken.None);
+            items.Add(DocumentListItem.From(document, metadata));
+        }
+
+        return items;
+    }
+
+    private void UpdateMainSurface(ProjectManifest manifest, IReadOnlyList<DocumentListItem> items)
     {
         MainProjectTitleText.Text = manifest.Title;
         MainProjectPathText.Text = _projectRoot;
-        MainRecentList.ItemsSource = manifest.Documents
+        MainRecentList.ItemsSource = items
             .OrderByDescending(document => document.UpdatedAt)
             .ThenBy(document => document.Id, StringComparer.OrdinalIgnoreCase)
             .Take(30)
-            .Select(document => new DocumentListItem(document.Id, document.Title))
             .ToList();
     }
 
@@ -1082,7 +1092,13 @@ public partial class MainWindow : Window
                 InspectorStatusBox.SelectedValue is SceneStatus status ? status : SceneStatus.Draft,
                 ParseInspectorTags(),
                 targetCharacterCount,
-                DateTimeOffset.UtcNow);
+                DateTimeOffset.UtcNow,
+                ContentLength: _activeSceneMetadata?.ContentLength ?? 0,
+                ContentLengthWithSpaces: _activeSceneMetadata?.ContentLengthWithSpaces ?? 0,
+                SceneType: ReadInspectorSceneType(),
+                ManualLineBreak: InspectorManualLineBreakBox.IsChecked == true,
+                CreatedAt: _activeSceneMetadata?.CreatedAt ?? DateTimeOffset.UtcNow,
+                Summary: InspectorSynopsisBox.Text.Trim());
 
             await _metadataStore.SaveAsync(metadata, CancellationToken.None);
             _activeSceneMetadata = metadata;
@@ -1112,10 +1128,14 @@ public partial class MainWindow : Window
 
     private void PopulateSceneInspector(SceneMetadata metadata)
     {
-        InspectorSynopsisBox.Text = metadata.Synopsis;
+        InspectorSynopsisBox.Text = metadata.Summary;
         InspectorStatusBox.SelectedValue = metadata.Status;
         InspectorTagsBox.Text = string.Join(", ", metadata.Tags);
         InspectorTargetCountBox.Text = metadata.TargetCharacterCount?.ToString() ?? "";
+        InspectorContentLengthText.Text = metadata.ContentLength.ToString("N0");
+        InspectorContentLengthWithSpacesText.Text = metadata.ContentLengthWithSpaces.ToString("N0");
+        InspectorSceneTypeBox.Text = metadata.SceneType;
+        InspectorManualLineBreakBox.IsChecked = metadata.ManualLineBreak;
         InspectorUpdatedAtText.Text = metadata.UpdatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss");
     }
 
@@ -1126,6 +1146,10 @@ public partial class MainWindow : Window
         InspectorTagsBox.Text = "";
         InspectorTargetCountBox.Text = "";
         InspectorCurrentCountText.Text = "0";
+        InspectorContentLengthText.Text = "0";
+        InspectorContentLengthWithSpacesText.Text = "0";
+        InspectorSceneTypeBox.Text = "Scene";
+        InspectorManualLineBreakBox.IsChecked = false;
         InspectorUpdatedAtText.Text = "-";
     }
 
@@ -1155,6 +1179,12 @@ public partial class MainWindow : Window
             .Where(tag => tag.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+    }
+
+    private string ReadInspectorSceneType()
+    {
+        var sceneType = InspectorSceneTypeBox.Text.Trim();
+        return sceneType.Length == 0 ? "Scene" : sceneType;
     }
 
     private static string FormatSceneStatus(SceneStatus status)
@@ -1285,6 +1315,7 @@ public partial class MainWindow : Window
             await RefreshBinderAsync();
             SelectBinderItem(document.Id);
             UpdateMetrics(document);
+            await LoadSceneMetadataAsync(document.Id);
             _dirty = false;
             StatusText.Text = $"{verb} {DateTime.Now:HH:mm:ss} - {document.Id} - {stopwatch.ElapsedMilliseconds} ms";
             if (tracker is not null)
@@ -1684,7 +1715,9 @@ public partial class MainWindow : Window
             InspectorSynopsisBox.IsKeyboardFocusWithin ||
             InspectorStatusBox.IsKeyboardFocusWithin ||
             InspectorTagsBox.IsKeyboardFocusWithin ||
-            InspectorTargetCountBox.IsKeyboardFocusWithin)
+            InspectorTargetCountBox.IsKeyboardFocusWithin ||
+            InspectorSceneTypeBox.IsKeyboardFocusWithin ||
+            InspectorManualLineBreakBox.IsKeyboardFocusWithin)
         {
             return CommandScope.Preview;
         }
@@ -1760,9 +1793,33 @@ public partial class MainWindow : Window
         }
     }
 
-    private sealed record DocumentListItem(string Id, string Title)
+    private sealed record DocumentListItem(
+        string Id,
+        string Title,
+        string Status,
+        string Summary,
+        string Tags,
+        int ContentLength,
+        int ContentLengthWithSpaces,
+        string SceneType,
+        DateTimeOffset UpdatedAt)
     {
-        public string Display => $"{Id}  {Title}";
+        public string Display =>
+            $"{Id}  {Title} | {Status} | {SceneType} | {ContentLength:N0}/{ContentLengthWithSpaces:N0} | {Tags} | {Summary}";
+
+        public static DocumentListItem From(ProjectDocumentInfo document, SceneMetadata metadata)
+        {
+            return new DocumentListItem(
+                document.Id,
+                document.Title,
+                FormatSceneStatus(metadata.Status),
+                metadata.Summary,
+                string.Join(", ", metadata.Tags),
+                metadata.ContentLength,
+                metadata.ContentLengthWithSpaces,
+                metadata.SceneType,
+                metadata.UpdatedAt == default ? document.UpdatedAt : metadata.UpdatedAt);
+        }
     }
 
     private sealed record SearchResultListItem(string DocumentId, string Title, string Snippet)

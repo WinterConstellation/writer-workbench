@@ -148,6 +148,10 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("InspectorTagsBox"));
                 Assert.NotNull(window.FindName("InspectorTargetCountBox"));
                 Assert.NotNull(window.FindName("InspectorCurrentCountText"));
+                Assert.NotNull(window.FindName("InspectorContentLengthText"));
+                Assert.NotNull(window.FindName("InspectorContentLengthWithSpacesText"));
+                Assert.NotNull(window.FindName("InspectorSceneTypeBox"));
+                Assert.NotNull(window.FindName("InspectorManualLineBreakBox"));
                 Assert.NotNull(window.FindName("InspectorUpdatedAtText"));
                 Assert.NotNull(window.FindName("InspectorSaveButton"));
                 Assert.NotNull(window.FindName("SnapshotList"));

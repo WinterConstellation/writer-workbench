@@ -7,27 +7,39 @@ public sealed record SceneMetadata(
     SceneStatus Status,
     IReadOnlyList<string> Tags,
     int? TargetCharacterCount,
-    DateTimeOffset UpdatedAt)
+    DateTimeOffset UpdatedAt,
+    int ContentLength = 0,
+    int ContentLengthWithSpaces = 0,
+    string SceneType = "Scene",
+    bool ManualLineBreak = false,
+    DateTimeOffset CreatedAt = default,
+    string Summary = "")
 {
+    public const int CurrentSchemaVersion = 2;
+
     public static SceneMetadata CreateDefault(string documentId)
     {
+        var now = DateTimeOffset.UtcNow;
         return new SceneMetadata(
-            1,
+            CurrentSchemaVersion,
             documentId,
             "",
             SceneStatus.Draft,
             [],
             null,
-            DateTimeOffset.UtcNow);
+            now,
+            CreatedAt: now);
     }
 
     public SceneMetadata CopyForDocument(string documentId)
     {
+        var now = DateTimeOffset.UtcNow;
         return this with
         {
             DocumentId = documentId,
             Tags = Tags.ToList(),
-            UpdatedAt = DateTimeOffset.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 }
