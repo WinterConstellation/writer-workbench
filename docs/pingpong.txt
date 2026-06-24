@@ -1390,3 +1390,44 @@ Remaining problems:
 
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary project data.
+
+## 2026-06-25 KST audit update: NULL evidence and relationship-map reference gap
+
+Audit report:
+- `docs/null-evidence-and-reference-audit-2026-06-25.md`
+
+What was checked:
+- Public repo head: `332dbbd Add relationship map workflow coverage`.
+- Local workspace: `C:\Users\Masters\Documents\글`.
+- Local executable: `C:\Users\Masters\Documents\글\dist\WriterWorkbench\WriterWorkbench.exe`.
+- HTML reference: `C:\Users\Masters\Downloads\writing-studio_14.html`.
+- LLL research docs under `docs/research/`.
+- Current WPF relationship-map implementation and tests.
+
+Main audit finding:
+- A relationship-map MVP skeleton exists in production code from `4a73ec8`.
+- The latest post-complaint commit `332dbbd` changed only `docs/pingpong.txt` and `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`; it changed no production code.
+- Therefore that pass did not change user-visible product behavior.
+- The reference files existed, but no reference-to-implementation acceptance matrix existed before product-level claims were made.
+- This is a NULL-evidence failure: missing operands were treated as if they proved the result.
+
+Reference gap summary:
+- Present/partial: relationship surface, character list, relationship list, Canvas nodes, relationship labels, drag-end position persistence, deleting entity removes relationships/layout.
+- Missing or not proven: live line redraw during drag, arrowheads, curved/reverse-link handling, self-relationship rejection, duplicate same-direction rejection, direct double-click node/label editing, local executable UI proof after the latest claim.
+
+Commands/evidence used:
+- `git log --oneline --decorate --max-count=8`
+- `git show --numstat --oneline 4a73ec8`
+- `git show --numstat --oneline 332dbbd`
+- `rg` checks against `writing-studio_14.html`, `MainWindow.xaml`, `MainWindow.xaml.cs`, `StoryStructureStore.cs`, and relationship-map tests.
+- Local executable metadata check.
+
+Large manuscript regression check:
+- Not touched in this audit; this was documentation/evidence work only.
+
+Remaining problems:
+- Do not call Relationship Map "working" at user/reference level until the reference gap matrix is converted into acceptance criteria and verified.
+- Next implementation should address validation and interaction gaps before additional visual polish.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. This audit added a report document only.
