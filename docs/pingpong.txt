@@ -1003,20 +1003,20 @@ Remaining problems:
 - Large overwrite snapshot prompt is skipped for autosave by design to avoid blocking the writing loop.
 - No separate data artifact was produced; the tests create only temporary project data and no reusable fixture/sample project was added to the repo.
 
-## 2026-06-24 KST research planning update: Muvel reverse-engineering safety plan
+## 2026-06-24 KST research planning update: LLL reverse-engineering safety plan
 
 Scope:
-- Added a written Muvel structure reference and reverse-engineering plan for Writer Workbench.
-- This is a planning document only; no new Muvel filesystem scan was performed for this update.
+- Added a written LLL structure reference and reverse-engineering plan for Writer Workbench.
+- This is a planning document only; no new LLL filesystem scan was performed for this update.
 - The plan uses previously observed high-level structure and explicitly avoids executable reverse engineering, WebView/cache/DB folders, browser storage, lock files, and manuscript text extraction.
 
 Files changed:
-- `docs/research/muvel-reverse-engineering-plan.md`
+- `docs/research/lll-reverse-engineering-plan.md`
 - `docs/pingpong.txt`
 
 Safety guardrail:
-- Muvel `EBWebView`, `Cache`, `Code Cache`, `GPUCache`, `Crashpad`, `Network`, `IndexedDB`, `Local Storage`, `Session Storage`, and `Service Worker` remain excluded.
-- Any future Muvel inspection must be shallow, bounded, and schema-oriented.
+- LLL `EBWebView`, `Cache`, `Code Cache`, `GPUCache`, `Crashpad`, `Network`, `IndexedDB`, `Local Storage`, `Session Storage`, and `Service Worker` remain excluded.
+- Any future LLL inspection must be shallow, bounded, and schema-oriented.
 - Large recursive scans remain forbidden.
 
 Commands run:
@@ -1029,26 +1029,26 @@ Data artifact:
 - 별도 데이터 산출물 없음.
 
 Remaining problems:
-- The actual Muvel structure report has not been written yet.
-- The Writer Workbench implementation plan derived from Muvel has not been written yet.
+- The actual LLL structure report has not been written yet.
+- The Writer Workbench implementation plan derived from LLL has not been written yet.
 - Future investigation must stop at schema/metadata and must not read user manuscript body text.
 
-## 2026-06-24 KST research update: Muvel schema observation and Writer Workbench plan
+## 2026-06-24 KST research update: LLL schema observation and Writer Workbench plan
 
 Scope:
-- Completed a bounded Muvel schema observation after the safety plan.
+- Completed a bounded LLL schema observation after the safety plan.
 - Observed only top-level app data, `kv` JSON setting schemas, app index JSON schemas, window-state schema, one project manifest schema, and one episode schema.
 - Did not inspect executables, network traffic, WebView internals, cache folders, browser DB/storage folders, or lock files.
 - Did not output manuscript body text.
 
 Files changed:
-- `docs/research/muvel-structure-report.md`
-- `docs/research/muvel-to-writer-workbench-plan.md`
-- `docs/research/muvel-reverse-engineering-plan.md`
+- `docs/research/lll-structure-report.md`
+- `docs/research/lll-to-writer-workbench-plan.md`
+- `docs/research/lll-reverse-engineering-plan.md`
 - `docs/pingpong.txt`
 
 Key findings:
-- Muvel separates app data, global app indexes, roaming window state, and user project folders.
+- LLL separates app data, global app indexes, roaming window state, and user project folders.
 - Project folders use a project manifest file plus `episodes`, `resources`, and `wiki` folders.
 - Episode schema includes id, novelId, title, description, content length fields, episode type, status, order, manualLineBreak, timestamps, blocks, and comments.
 - App settings separate editor style/options, wiki editor style/options, workspace options, export settings, view options, widget settings, and legacy editor style.
@@ -1067,7 +1067,7 @@ Writer Workbench plan:
 - Strengthen Window Placement Preset with screen-slot fallback.
 
 Commands run:
-- Bounded Node schema extraction over known Muvel paths only.
+- Bounded Node schema extraction over known LLL paths only.
 - No large recursive scan.
 - `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 107 passed.
@@ -1080,4 +1080,26 @@ Data artifact:
 Remaining problems:
 - No Writer Workbench code was changed in this update.
 - Follow-up implementation should start with `SceneMetadata` strengthening or settings-file separation.
-- Any future Muvel observation must keep the same exclusion list and schema-only output rule.
+- Any future LLL observation must keep the same exclusion list and schema-only output rule.
+
+## 2026-06-24 KST docs cleanup: LLL anonymization
+
+Scope:
+- Replaced the external reference app name with `LLL` in research docs and pingpong.
+- Renamed research document filenames from the original app-name prefix to `lll-*`.
+- Anonymized app-specific project/episode extension examples in research docs.
+- Did not access the external app folders for this cleanup.
+
+Files changed:
+- `docs/research/lll-reverse-engineering-plan.md`
+- `docs/research/lll-structure-report.md`
+- `docs/research/lll-to-writer-workbench-plan.md`
+- `docs/pingpong.txt`
+
+Verification:
+- Search for the previous app name in repo docs/files returned no matches.
+- Search for app-specific project/episode extension examples in repo docs/files returned no matches.
+- `dotnet build WriterWorkbench.sln --no-restore` in the public repo -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the public repo -> 107 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` in the local workspace -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` in the local workspace -> 107 passed.

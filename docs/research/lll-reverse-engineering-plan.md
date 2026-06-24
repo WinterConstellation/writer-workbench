@@ -1,10 +1,10 @@
-# Muvel 구조 참고 리버스 엔지니어링 계획서
+# LLL 구조 참고 리버스 엔지니어링 계획서
 
 작성일: 2026-06-24
 
 ## 목적
 
-Muvel을 복제하거나 실행 파일을 뜯는 것이 목적이 아니다. Writer Workbench가 부족한 "작가용 작업대"의 기본 구조를 보강하기 위해, Muvel의 로컬 저장 구조와 작업 흐름을 안전하게 관찰한다.
+LLL을 복제하거나 실행 파일을 뜯는 것이 목적이 아니다. Writer Workbench가 부족한 "작가용 작업대"의 기본 구조를 보강하기 위해, LLL의 로컬 저장 구조와 작업 흐름을 안전하게 관찰한다.
 
 이 계획의 산출물은 구현 코드가 아니라 설계 판단 자료다. 특히 다음 항목을 Writer Workbench 설계에 반영할 수 있는지 확인한다.
 
@@ -46,7 +46,7 @@ Muvel을 복제하거나 실행 파일을 뜯는 것이 목적이 아니다. Wri
 - 최대 탐색 깊이: 2
 - 파일 내용 읽기 전 후보 목록을 먼저 제한
 - JSON은 작은 설정/manifest만 읽기
-- `.mvle`는 본문 `blocks`의 실제 텍스트를 읽지 않고 key, type, count, length만 확인
+- `.lllscene`는 본문 `blocks`의 실제 텍스트를 읽지 않고 key, type, count, length만 확인
 - 한 번에 처리할 파일 수에 상한을 둔다
 - 각 단계 후 결과를 문서화하고 다음 단계로 넘어간다
 - 이상 징후가 있으면 즉시 중단한다
@@ -56,32 +56,32 @@ Muvel을 복제하거나 실행 파일을 뜯는 것이 목적이 아니다. Wri
 다음 정보는 이전 안전하지 못한 탐색에서 이미 확보된 것으로, 추가 스캔 없이 계획 수립에만 사용한다.
 
 ```txt
-C:\Users\Masters\AppData\Local\Muvel
-C:\Users\Masters\AppData\Local\com.muvel
-C:\Users\Masters\AppData\Roaming\com.muvel
-C:\Users\Masters\Documents\MuvelProjects
+C:\Users\Masters\AppData\Local\LLL
+C:\Users\Masters\AppData\Local\com.lll
+C:\Users\Masters\AppData\Roaming\com.lll
+C:\Users\Masters\Documents\LLLProjects
 ```
 
 관찰된 앱 데이터 구조:
 
 ```txt
-AppData\Local\com.muvel
+AppData\Local\com.lll
   EBWebView\
   kv\
   novel_index.json
   novel_index.json.bak
   novel_item_index.json
 
-AppData\Roaming\com.muvel
+AppData\Roaming\com.lll
   .window-state.json
 ```
 
 관찰된 프로젝트 구조:
 
 ```txt
-MuvelProjects\{project-title}\
-  {project-title}.muvl
-  episodes\{episode-id}.mvle
+LLLProjects\{project-title}\
+  {project-title}.lllproj
+  episodes\{episode-id}.lllscene
   resources\images\
   wiki\
 ```
@@ -89,7 +89,7 @@ MuvelProjects\{project-title}\
 관찰된 설정 후보:
 
 ```txt
-kv\muvelAppSettings.json
+kv\lllAppSettings.json
 kv\settings.ai-episode-review-settings.json
 kv\settings.episode-io.json
 kv\settings.novel-browser.json
@@ -103,10 +103,10 @@ kv\settings.widget-registry.json
 관찰된 schema key:
 
 ```txt
-.muvl:
+.lllproj:
   id, title, tags, share, createdAt, updatedAt, episodeCount, order, localPath, thumbnailPath
 
-.mvle:
+.lllscene:
   id, novelId, title, description, contentLength, contentLengthWithSpaces,
   episodeType, status, order, manualLineBreak, createdAt, updatedAt, blocks, comments
 
@@ -166,13 +166,13 @@ Writer Workbench 반영 후보:
 
 목표:
 
-- `.muvl`과 `.mvle`의 역할 분리를 확인한다.
+- `.lllproj`과 `.lllscene`의 역할 분리를 확인한다.
 - Writer Workbench의 scene/document/metadata/manifest 구조와 비교한다.
 
 허용 작업:
 
-- `.muvl` key/type/size 확인
-- `.mvle` key/type/size 확인
+- `.lllproj` key/type/size 확인
+- `.lllscene` key/type/size 확인
 - `blocks`는 개수와 타입만 확인
 
 금지 작업:
@@ -192,7 +192,7 @@ Writer Workbench 반영 후보:
 
 목표:
 
-- Muvel이 창 상태와 위젯 배치를 어떻게 저장하는지 확인한다.
+- LLL이 창 상태와 위젯 배치를 어떻게 저장하는지 확인한다.
 - Writer Workbench의 Command Registry, Workspace Preset, UI Slot 구조에 필요한 저장 모델을 정한다.
 
 허용 작업:
@@ -219,7 +219,7 @@ Writer Workbench 반영 후보:
 목표:
 
 - 바로 구현할 항목과 보류할 항목을 분리한다.
-- Muvel 구조 참고 결과를 Writer Workbench의 기존 MVP 흐름과 충돌 없이 연결한다.
+- LLL 구조 참고 결과를 Writer Workbench의 기존 MVP 흐름과 충돌 없이 연결한다.
 
 즉시 반영 후보:
 
@@ -281,7 +281,7 @@ AppData\Local\WriterWorkbench\
 
 계획 실행 후에는 다음 질문에 답할 수 있어야 한다.
 
-- Muvel은 작품과 회차를 어떤 파일 단위로 나누는가?
+- LLL은 작품과 회차를 어떤 파일 단위로 나누는가?
 - 앱 설정은 어떤 기능 단위로 분리되는가?
 - 작업공간/위젯/창 상태는 어떤 key 구조를 가지는가?
 - Writer Workbench의 현재 scene/document/metadata 모델과 충돌하는 지점은 무엇인가?
@@ -292,8 +292,8 @@ AppData\Local\WriterWorkbench\
 
 조사 실행 후 다음 문서를 추가 또는 갱신한다.
 
-- `docs/research/muvel-structure-report.md`
-- `docs/research/muvel-to-writer-workbench-plan.md`
+- `docs/research/lll-structure-report.md`
+- `docs/research/lll-to-writer-workbench-plan.md`
 - `docs/pingpong.txt`
 
 이번 문서는 조사 전 안전 계획서이며, 별도 데이터 산출물은 없다.

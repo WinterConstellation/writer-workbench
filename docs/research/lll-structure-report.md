@@ -1,17 +1,17 @@
-# Muvel 구조 관찰 보고서
+# LLL 구조 관찰 보고서
 
 작성일: 2026-06-24
 
 ## 범위
 
-이 보고서는 Writer Workbench 설계 참고용으로 Muvel의 로컬 저장 구조를 관찰한 결과다. 실행 파일 분석, 네트워크 분석, 인증 우회, WebView 내부 탐색, 캐시/DB/락 파일 접근은 하지 않았다.
+이 보고서는 Writer Workbench 설계 참고용으로 LLL의 로컬 저장 구조를 관찰한 결과다. 실행 파일 분석, 네트워크 분석, 인증 우회, WebView 내부 탐색, 캐시/DB/락 파일 접근은 하지 않았다.
 
 사용한 관찰 방식:
 
 - 알려진 최상위 폴더만 확인
 - `kv` 아래 작은 JSON 설정 파일의 key/type 확인
-- 작품 폴더 1개에서 `.muvl` schema 확인
-- 회차 파일 1개에서 `.mvle` schema 확인
+- 작품 폴더 1개에서 `.lllproj` schema 확인
+- 회차 파일 1개에서 `.lllscene` schema 확인
 - 회차 본문 값은 출력하지 않음
 - 프로젝트명/사용자 본문은 보고서에 기록하지 않음
 
@@ -30,26 +30,26 @@
 
 ## 최상위 구조
 
-Muvel은 설치 파일, 앱 상태, 사용자 프로젝트를 분리한다.
+LLL은 설치 파일, 앱 상태, 사용자 프로젝트를 분리한다.
 
 ```txt
-AppData\Local\Muvel
-AppData\Local\com.muvel
-AppData\Roaming\com.muvel
-Documents\MuvelProjects
+AppData\Local\LLL
+AppData\Local\com.lll
+AppData\Roaming\com.lll
+Documents\LLLProjects
 ```
 
 관찰된 앱 데이터:
 
 ```txt
-AppData\Local\com.muvel
+AppData\Local\com.lll
   EBWebView\                 # 제외
   kv\
   novel_index.json
   novel_index.json.bak
   novel_item_index.json
 
-AppData\Roaming\com.muvel
+AppData\Roaming\com.lll
   .window-state.json
 ```
 
@@ -68,17 +68,17 @@ AppData\Roaming\com.muvel
   episodes\
   resources\
   wiki\
-  {project}.muvl
+  {project}.lllproj
 ```
 
 의미:
 
-- 작품 metadata는 `.muvl` 하나가 담당한다.
-- 회차 본문/metadata는 `episodes\*.mvle`로 분리된다.
+- 작품 metadata는 `.lllproj` 하나가 담당한다.
+- 회차 본문/metadata는 `episodes\*.lllscene`로 분리된다.
 - 자료와 위키는 본문 저장 단위와 분리되어 있다.
 - Writer Workbench도 `documents`, `resources`, `wiki`, `exports`, `snapshots`, `indexes`를 분리하는 방향이 맞다.
 
-## 작품 파일 `.muvl`
+## 작품 파일 `.lllproj`
 
 관찰된 key:
 
@@ -106,7 +106,7 @@ Writer Workbench 대응:
 - `manifest.json` 또는 `.writerproj` manifest에 작품 metadata를 집중시킨다.
 - 장면 목록, 순서, 상태, 글자 수 요약은 본문 파일이 아니라 manifest/metadata에서 먼저 읽는다.
 
-## 회차 파일 `.mvle`
+## 회차 파일 `.lllscene`
 
 관찰된 key:
 
@@ -136,7 +136,7 @@ comments
 Writer Workbench 대응:
 
 - 현재처럼 `document.wwdoc.json`, `document.txt`, `scene.meta.json`을 분리하는 방향은 유지한다.
-- 대신 `scene.meta.json`에는 Muvel식 요약 metadata를 더 적극적으로 넣는다.
+- 대신 `scene.meta.json`에는 LLL식 요약 metadata를 더 적극적으로 넣는다.
 - 바인더/아웃라인/상태 표시가 본문 로드 없이 가능해야 한다.
 
 권장 metadata:
@@ -158,7 +158,7 @@ summary
 
 ## 앱 설정 구조
 
-`muvelAppSettings.json`의 큰 축:
+`lllAppSettings.json`의 큰 축:
 
 ```txt
 episodeEditorStyle
@@ -244,7 +244,7 @@ spellcheckAiValidation
 
 의미:
 
-- Muvel은 "글 쓰는 표면" 자체를 매우 세밀하게 설정한다.
+- LLL은 "글 쓰는 표면" 자체를 매우 세밀하게 설정한다.
 - 단순 테마보다 editor profile 개념이 강하다.
 
 Writer Workbench 대응:
@@ -341,7 +341,7 @@ frame
 
 의미:
 
-- Muvel은 위젯을 고정 UI가 아니라 instance로 관리한다.
+- LLL은 위젯을 고정 UI가 아니라 instance로 관리한다.
 - `context`, `surface`, `area`, `order`, `frame`은 Writer Workbench의 패널/툴바/분리창 배정 모델과 바로 대응된다.
 
 Writer Workbench 대응:
@@ -381,7 +381,7 @@ Writer Workbench 대응:
 
 ## 결론
 
-Muvel에서 Writer Workbench가 참고할 핵심은 화려한 기능 목록이 아니라 저장 단위와 설정 분리다.
+LLL에서 Writer Workbench가 참고할 핵심은 화려한 기능 목록이 아니라 저장 단위와 설정 분리다.
 
 가장 중요한 구조적 시사점:
 

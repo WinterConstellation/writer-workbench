@@ -1,10 +1,10 @@
-# Muvel 관찰 기반 Writer Workbench 반영 계획
+# LLL 관찰 기반 Writer Workbench 반영 계획
 
 작성일: 2026-06-24
 
 ## 목표
 
-Muvel의 구조를 Writer Workbench에 그대로 옮기지 않는다. Writer Workbench의 핵심인 Windows 전용 작가 작업대, command 기반 커스터마이징, 대형 원고 안정성을 유지하면서 Muvel에서 확인된 좋은 저장 단위를 흡수한다.
+LLL의 구조를 Writer Workbench에 그대로 옮기지 않는다. Writer Workbench의 핵심인 Windows 전용 작가 작업대, command 기반 커스터마이징, 대형 원고 안정성을 유지하면서 LLL에서 확인된 좋은 저장 단위를 흡수한다.
 
 ## 우선순위
 
@@ -20,7 +20,7 @@ Muvel의 구조를 Writer Workbench에 그대로 옮기지 않는다. Writer Wor
 
 ### P1: Scene metadata 강화
 
-Muvel의 `.mvle`에서 확인한 회차 metadata를 Writer Workbench의 `SceneMetadata`에 단계적으로 반영한다.
+LLL의 `.lllscene`에서 확인한 회차 metadata를 Writer Workbench의 `SceneMetadata`에 단계적으로 반영한다.
 
 추가 후보:
 
@@ -49,7 +49,7 @@ Summary
 
 ### P1: 설정 파일 기능별 분리
 
-Muvel은 설정을 기능별 JSON으로 나누고 있다. Writer Workbench도 app-wide 설정을 한 파일에 몰지 않는다.
+LLL은 설정을 기능별 JSON으로 나누고 있다. Writer Workbench도 app-wide 설정을 한 파일에 몰지 않는다.
 
 권장 구조:
 
@@ -113,7 +113,7 @@ hardBreakIndent
 
 ### P1: Widget Registry MVP
 
-Muvel의 widget instance 구조는 Writer Workbench의 command 기반 작업대와 잘 맞는다.
+LLL의 widget instance 구조는 Writer Workbench의 command 기반 작업대와 잘 맞는다.
 
 Writer Workbench 모델 초안:
 
@@ -159,7 +159,7 @@ Floating
 
 ### P1: Text Replacement MVP
 
-Muvel의 text replacement 구조는 작고 바로 쓸 수 있다.
+LLL의 text replacement 구조는 작고 바로 쓸 수 있다.
 
 모델 초안:
 
@@ -219,7 +219,7 @@ ExportProfile
 
 ### P2: Window Placement Preset 강화
 
-Muvel의 창 상태 구조는 단순하지만 Writer Workbench 요구는 더 크다. 다중 모니터와 탭 분리창 프리셋을 지원해야 한다.
+LLL의 창 상태 구조는 단순하지만 Writer Workbench 요구는 더 크다. 다중 모니터와 탭 분리창 프리셋을 지원해야 한다.
 
 모델 초안:
 
@@ -251,7 +251,7 @@ WindowPlacement
 
 ### P3: Wiki/Resources
 
-Muvel은 `wiki`와 `resources`를 프로젝트 안에 둔다. Writer Workbench도 구조는 준비하되 기능은 늦춘다.
+LLL은 `wiki`와 `resources`를 프로젝트 안에 둔다. Writer Workbench도 구조는 준비하되 기능은 늦춘다.
 
 초기 구조:
 
@@ -334,6 +334,6 @@ wiki\
 
 ## 다음 작업 추천
 
-바로 구현한다면 `SceneMetadata 강화 + 설정 파일 분리`를 먼저 한다. 이 두 가지는 Muvel 구조를 참고하면서도 현재 Writer Workbench의 대형 원고 성능 원칙과 충돌하지 않는다.
+바로 구현한다면 `SceneMetadata 강화 + 설정 파일 분리`를 먼저 한다. 이 두 가지는 LLL 구조를 참고하면서도 현재 Writer Workbench의 대형 원고 성능 원칙과 충돌하지 않는다.
 
 그 다음 작은 사용자 가치가 큰 `Text Replacement MVP`를 붙인다. 자동 치환은 나중이고, 첫 단계는 명시 명령으로만 실행한다.
