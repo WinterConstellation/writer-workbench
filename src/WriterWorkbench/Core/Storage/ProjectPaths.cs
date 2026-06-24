@@ -15,6 +15,8 @@ public sealed record ProjectPaths(string RootPath)
     public string SceneEntityLinksPath => Path.Combine(StoryPath, "scene-entity-links.json");
     public string ProjectDatabasePath => Path.Combine(RootPath, "project.sqlite");
     public string ManifestPath => Path.Combine(RootPath, "project.manifest.json");
+    public string SettingsPath => Path.Combine(RootPath, "settings");
+    public string WorkbenchProfilesPath => Path.Combine(SettingsPath, "workbench-profiles.json");
     public string WorkspacePresetsPath => Path.Combine(RootPath, "workspace.presets.json");
     public string ShortcutsPath => Path.Combine(RootPath, "shortcuts.json");
 

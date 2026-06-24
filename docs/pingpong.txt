@@ -1431,3 +1431,46 @@ Remaining problems:
 
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. This audit added a report document only.
+
+## 2026-06-25 KST feature implementation update: V2 customization profile core
+
+Feature(s) implemented:
+- Added a Workbench customization profile model for editable command placements, shortcuts, and macros.
+- Added JSON profile storage at `settings/workbench-profiles.json`.
+- Added validation for unknown command ids, duplicate UI slots, duplicate shortcut bindings, and duplicate macro ids.
+- Added a resolver for ordered command placements and macro execution steps.
+- Added a default profile factory that converts the existing command catalog slots into editable profile data instead of keeping the toolbar as hardcoded-only UI furniture.
+
+Files changed:
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfile.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileStore.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationResolver.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchCustomizationProfileTests.cs`
+- `docs/pingpong.txt`
+
+Tests added:
+- Profile roundtrips arbitrary command placements, shortcuts, macros, parameters, and Korean text.
+- Profile supports many custom slots without the old MVP slot limit.
+- Store rejects unknown commands, duplicate slots, and shortcut conflicts.
+- Resolver returns ordered placements for a surface/area and macro steps.
+- ProjectPaths exposes the V2 customization profile path under `settings/`.
+- Default profile factory converts command catalog slots into editable profile data.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WorkbenchCustomizationProfileTests` -> 6 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 130 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not touched.
+- `EditorBox_TextChanged`, document body save, preview render, export, snapshot, and relationship-map drawing paths were not connected to this profile store.
+
+Remaining problems:
+- The runtime UI still needs to load this profile and render toolbar/panel/shortcut assignments from it.
+- Macro execution is represented as data and resolver output; actual macro runner is still next-stage work.
+- Window preset/profile composition still needs to be joined so monitor layout, tool slots, shortcuts, and graphics presets can be applied as one workspace profile.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
