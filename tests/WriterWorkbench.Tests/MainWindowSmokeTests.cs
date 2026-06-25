@@ -134,6 +134,8 @@ public sealed class MainWindowSmokeTests
                 Assert.All(menuItems, item => Assert.NotNull(item.Icon));
 
                 Assert.Null(window.FindName("RemoteControlBar"));
+                Assert.NotNull(window.FindName("RemoteControlFloatingPanel"));
+                Assert.NotNull(window.FindName("RemoteFloatingButtonPanel"));
                 Assert.Contains(AppCommandIds.RemoteControlOpenSettings, FindCommandTags(window).Where(tag => tag is not null));
                 window.Close();
             }
@@ -154,7 +156,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowRendersFloatingRemoteControlPaletteFromCustomizationProfile()
+    public void MainWindowRendersFloatingRemoteControlPanelFromCustomizationProfile()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -178,25 +180,17 @@ public sealed class MainWindowSmokeTests
                 var method = typeof(MainWindow).GetMethod(
                     "RenderRemoteControlPalette",
                     BindingFlags.Instance | BindingFlags.NonPublic);
-                var paletteField = typeof(MainWindow).GetField(
-                    "_remoteControlPalette",
-                    BindingFlags.Instance | BindingFlags.NonPublic);
 
                 Assert.NotNull(method);
-                Assert.NotNull(paletteField);
                 method!.Invoke(window, [profile]);
 
-                var palette = Assert.IsType<RemoteControlPaletteWindow>(paletteField!.GetValue(window));
-                var panel = Assert.IsType<StackPanel>(palette.FindName("RemoteButtonPanel"));
+                var panel = Assert.IsType<StackPanel>(window.FindName("RemoteFloatingButtonPanel"));
                 var buttons = panel.Children.OfType<Button>().ToList();
 
                 Assert.Equal(["document.detachCurrent", "project.save"], buttons.Select(button => button.Tag as string));
                 Assert.Equal(
                     ["분리 고정", "저장 고정"],
                     buttons.Select(button => ((StackPanel)button.Content).Children.OfType<TextBlock>().Last().Text));
-                Assert.True(palette.Owner is null || ReferenceEquals(window, palette.Owner));
-                Assert.False(palette.ShowInTaskbar);
-                palette.Close();
                 window.Close();
             }
             catch (Exception ex)

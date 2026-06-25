@@ -1528,6 +1528,48 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-25 KST bugfix update: Remote control visible in-app floating panel
+
+Problem:
+- The detached OS-window remote control could be hidden or not obvious in real use.
+- Screenshot verification showed no visible remote control in the main app surface.
+
+Fix:
+- Removed the separate OS-window remote control approach from the runtime path.
+- Added an always-visible in-app floating panel named `RemoteControlFloatingPanel` on the right side of MainWindow.
+- The panel is separate from the top menu/option row, matching a website-style side floating widget.
+- Remote buttons still render from customization profile placements at `remote/main`.
+- The panel includes a visible `편집` button for remote shortcut customization.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/RemoteControlPaletteWindow.xaml` removed
+- `src/WriterWorkbench/RemoteControlPaletteWindow.xaml.cs` removed
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/RemoteControlPaletteWindowTests.cs` removed
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- MainWindow now requires `RemoteControlFloatingPanel` and `RemoteFloatingButtonPanel` to exist.
+- Remote control rendering test now checks the in-app floating panel, not a separate OS window.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowRendersFloatingRemoteControlPanelFromCustomizationProfile|MainWindowContainsIconMenuAndRemoteControlEntryPoint"` -> failed before panel existed, then passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 146 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor input/save paths were not touched.
+- Full smoke suite still includes the 80k append guard test.
+
+Remaining problems:
+- Floating panel position is fixed to the right side inside MainWindow; drag/pin/opacity settings are not implemented yet.
+- It may cover a small part of the right inspector until dock/side preference is added.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-25 KST feature implementation update: Detached floating remote control palette
 
 Feature(s) implemented:
