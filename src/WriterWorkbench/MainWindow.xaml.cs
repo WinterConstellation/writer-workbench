@@ -1749,7 +1749,7 @@ public partial class MainWindow : Window
 
     private Task DetachWorkbenchAsync()
     {
-        var window = new WorkbenchDetachedWindow(_surfaceClaims)
+        var window = new WorkbenchDetachedWindow(_surfaceClaims, $"detached-{Guid.NewGuid():N}", _storyStructureStore)
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
             Left = Left + 48,

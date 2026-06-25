@@ -1,4 +1,6 @@
 using System.Windows;
+using WriterWorkbench.Core.Application;
+using WriterWorkbench.Core.Story;
 using WriterWorkbench.Core.Workspace;
 
 namespace WriterWorkbench;
@@ -7,16 +9,27 @@ public partial class WorkbenchDetachedWindow : Window
 {
     private readonly WorkbenchSurfaceClaimRegistry _surfaceClaims;
     private readonly string _ownerId;
+    private readonly StoryStructureStore? _storyStructureStore;
+    private WorkbenchRelationshipMapView? _relationshipMapView;
 
     public WorkbenchDetachedWindow(WorkbenchSurfaceClaimRegistry surfaceClaims)
-        : this(surfaceClaims, $"detached-{Guid.NewGuid():N}")
+        : this(surfaceClaims, $"detached-{Guid.NewGuid():N}", null)
     {
     }
 
     public WorkbenchDetachedWindow(WorkbenchSurfaceClaimRegistry surfaceClaims, string ownerId)
+        : this(surfaceClaims, ownerId, null)
+    {
+    }
+
+    public WorkbenchDetachedWindow(
+        WorkbenchSurfaceClaimRegistry surfaceClaims,
+        string ownerId,
+        StoryStructureStore? storyStructureStore)
     {
         _surfaceClaims = surfaceClaims;
         _ownerId = ownerId;
+        _storyStructureStore = storyStructureStore;
         InitializeComponent();
         RefreshAvailability();
         DetachedWorkbenchStatusText.Text = "작업대를 선택하세요.";
@@ -28,7 +41,22 @@ public partial class WorkbenchDetachedWindow : Window
 
     public string AssignedSurfaceDisplay => DetachedAssignedSurfaceText.Text;
 
+    public int RelationshipMapEntityCount => _relationshipMapView?.EntityCount ?? 0;
+
+    public int RelationshipMapRelationshipCount => _relationshipMapView?.RelationshipCount ?? 0;
+
+    public int RelationshipMapCanvasElementCount => _relationshipMapView?.CanvasElementCount ?? 0;
+
+    public bool RelationshipMapVisible => DetachedRelationshipMapHost.Visibility == Visibility.Visible;
+
+    public string RelationshipMapSummary => _relationshipMapView?.SummaryText ?? "";
+
     public bool TrySelectSurface(string surfaceId)
+    {
+        return SelectSurfaceAsync(surfaceId).GetAwaiter().GetResult();
+    }
+
+    public async Task<bool> SelectSurfaceAsync(string surfaceId)
     {
         if (!_surfaceClaims.TryClaim(_ownerId, surfaceId, out var occupiedBy))
         {
@@ -44,16 +72,63 @@ public partial class WorkbenchDetachedWindow : Window
         DetachedAssignedSurfaceText.Text = surfaceName;
         DetachedAssignedSurfaceHintText.Text = $"{surfaceName} 화면으로 지정되었습니다. 같은 화면은 다른 창에서 동시에 열 수 없습니다.";
         DetachedWorkbenchStatusText.Text = $"{surfaceName} 작업대 선택됨";
-        RefreshAvailability();
+        await ShowSelectedSurfaceAsync(surfaceId);
+        await RefreshAvailabilityAsync();
         return true;
     }
 
-    private void SurfaceButton_Click(object sender, RoutedEventArgs e)
+    private async void SurfaceButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string surfaceId })
         {
-            TrySelectSurface(surfaceId);
+            await SelectSurfaceAsync(surfaceId);
         }
+    }
+
+    private async Task ShowSelectedSurfaceAsync(string surfaceId)
+    {
+        DetachedBlankSurface.Visibility = Visibility.Visible;
+        DetachedRelationshipMapHost.Visibility = Visibility.Collapsed;
+
+        if (!string.Equals(surfaceId, AppSessionState.RelationshipMapSurface, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (_storyStructureStore is null)
+        {
+            DetachedAssignedSurfaceHintText.Text = "관계도 저장소가 연결되지 않았습니다.";
+            return;
+        }
+
+        _relationshipMapView ??= new WorkbenchRelationshipMapView();
+        DetachedRelationshipMapHost.Content = _relationshipMapView;
+        DetachedBlankSurface.Visibility = Visibility.Collapsed;
+        DetachedRelationshipMapHost.Visibility = Visibility.Visible;
+        await _relationshipMapView.LoadAsync(_storyStructureStore, CancellationToken.None);
+        await SetStatusAsync("관계도 로드됨");
+    }
+
+    private Task RefreshAvailabilityAsync()
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            RefreshAvailability();
+            return Task.CompletedTask;
+        }
+
+        return Dispatcher.InvokeAsync(RefreshAvailability).Task;
+    }
+
+    private Task SetStatusAsync(string status)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            DetachedWorkbenchStatusText.Text = status;
+            return Task.CompletedTask;
+        }
+
+        return Dispatcher.InvokeAsync(() => DetachedWorkbenchStatusText.Text = status).Task;
     }
 
     private void RefreshAvailability()
@@ -66,7 +141,9 @@ public partial class WorkbenchDetachedWindow : Window
         ApplyAvailability(DetachedRelationshipMapSurfaceButton, availability);
     }
 
-    private static void ApplyAvailability(System.Windows.Controls.Button button, IReadOnlyDictionary<string, WorkbenchSurfaceAvailability> availability)
+    private static void ApplyAvailability(
+        System.Windows.Controls.Button button,
+        IReadOnlyDictionary<string, WorkbenchSurfaceAvailability> availability)
     {
         if (button.Tag is not string surfaceId ||
             !availability.TryGetValue(surfaceId, out var item))

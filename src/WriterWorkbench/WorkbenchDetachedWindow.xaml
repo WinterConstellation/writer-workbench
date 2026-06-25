@@ -58,8 +58,9 @@
             </DockPanel>
         </Border>
 
-        <Grid>
-            <StackPanel VerticalAlignment="Center"
+        <Grid x:Name="DetachedSurfaceHost">
+            <StackPanel x:Name="DetachedBlankSurface"
+                        VerticalAlignment="Center"
                         HorizontalAlignment="Center"
                         MaxWidth="460"
                         Margin="24">
@@ -76,6 +77,8 @@
                            TextAlignment="Center"
                            TextWrapping="Wrap"/>
             </StackPanel>
+            <ContentControl x:Name="DetachedRelationshipMapHost"
+                            Visibility="Collapsed"/>
         </Grid>
     </DockPanel>
 </Window>
