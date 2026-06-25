@@ -108,7 +108,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowContainsIconMenuAndRemoteControlBar()
+    public void MainWindowContainsIconMenuAndRemoteControlEntryPoint()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -133,13 +133,7 @@ public sealed class MainWindowSmokeTests
                     menuItems.Select(item => item.Tag as string));
                 Assert.All(menuItems, item => Assert.NotNull(item.Icon));
 
-                var remote = Assert.IsType<StackPanel>(window.FindName("RemoteControlBar"));
-                var remoteButtons = remote.Children.OfType<Button>().ToList();
-                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.ProjectSave));
-                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.DocumentCreateScene));
-                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.StoryRelationshipMapOpen));
-                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.DocumentDetachCurrent));
-                Assert.All(remoteButtons, button => Assert.IsType<StackPanel>(button.Content));
+                Assert.Null(window.FindName("RemoteControlBar"));
                 Assert.Contains(AppCommandIds.RemoteControlOpenSettings, FindCommandTags(window).Where(tag => tag is not null));
                 window.Close();
             }
@@ -160,7 +154,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowRendersRemoteControlBarFromCustomizationProfile()
+    public void MainWindowRendersFloatingRemoteControlPaletteFromCustomizationProfile()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -182,19 +176,27 @@ public sealed class MainWindowSmokeTests
                     now,
                     now);
                 var method = typeof(MainWindow).GetMethod(
-                    "RenderRemoteControlBar",
+                    "RenderRemoteControlPalette",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var paletteField = typeof(MainWindow).GetField(
+                    "_remoteControlPalette",
                     BindingFlags.Instance | BindingFlags.NonPublic);
 
                 Assert.NotNull(method);
+                Assert.NotNull(paletteField);
                 method!.Invoke(window, [profile]);
 
-                var remote = Assert.IsType<StackPanel>(window.FindName("RemoteControlBar"));
-                var buttons = remote.Children.OfType<Button>().ToList();
+                var palette = Assert.IsType<RemoteControlPaletteWindow>(paletteField!.GetValue(window));
+                var panel = Assert.IsType<StackPanel>(palette.FindName("RemoteButtonPanel"));
+                var buttons = panel.Children.OfType<Button>().ToList();
 
                 Assert.Equal(["document.detachCurrent", "project.save"], buttons.Select(button => button.Tag as string));
                 Assert.Equal(
                     ["분리 고정", "저장 고정"],
                     buttons.Select(button => ((StackPanel)button.Content).Children.OfType<TextBlock>().Last().Text));
+                Assert.True(palette.Owner is null || ReferenceEquals(window, palette.Owner));
+                Assert.False(palette.ShowInTaskbar);
+                palette.Close();
                 window.Close();
             }
             catch (Exception ex)

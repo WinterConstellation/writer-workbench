@@ -66,6 +66,7 @@ public partial class MainWindow : Window
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
+    private RemoteControlPaletteWindow? _remoteControlPalette;
     private string? _draggedRelationshipMapEntityId;
     private System.Windows.Point _relationshipMapDragOffset;
 
@@ -95,13 +96,17 @@ public partial class MainWindow : Window
         StoryRelationshipKindBox.ItemsSource = RelationshipKindOption.All;
         StoryRelationshipKindBox.Text = "관계";
         RegisterCommandHandlers();
-        RenderRemoteControlBar(WorkbenchCustomizationProfileFactory.CreateDefault(
+        RenderRemoteControlPalette(WorkbenchCustomizationProfileFactory.CreateDefault(
             "profile-shell-default",
             "기본 리모콘",
             _commandRegistry));
 
         Loaded += async (_, _) => await InitializeProjectAsync();
         Closing += async (_, _) => await PersistSessionStateAsync();
+        Closing += (_, _) => _remoteControlPalette?.Close();
+        LocationChanged += (_, _) => UpdateRemoteControlPalettePosition();
+        SizeChanged += (_, _) => UpdateRemoteControlPalettePosition();
+        StateChanged += (_, _) => UpdateRemoteControlPaletteVisibility();
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _autosaveTimer.Tick += async (_, _) =>
@@ -136,7 +141,8 @@ public partial class MainWindow : Window
             _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
             _activeCustomizationProfile = await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
-            RenderRemoteControlBar(_activeCustomizationProfile);
+            RenderRemoteControlPalette(_activeCustomizationProfile);
+            ShowRemoteControlPalette();
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -260,99 +266,101 @@ public partial class MainWindow : Window
         }
     }
 
-    private void RenderRemoteControlBar(WorkbenchCustomizationProfile profile)
+    private void RenderRemoteControlPalette(WorkbenchCustomizationProfile profile)
     {
-        var placements = new WorkbenchCustomizationResolver(profile)
-            .GetPlacements("remote", "main");
-
-        if (placements.Count == 0)
-        {
-            placements = WorkbenchCustomizationProfileFactory.CreateDefaultRemoteControlPlacements(_commandRegistry);
-        }
-
-        RemoteControlBar.Children.Clear();
-        foreach (var placement in placements)
-        {
-            var command = _commandRegistry.Get(placement.CommandId);
-            var label = string.IsNullOrWhiteSpace(placement.Label) ? command.Name : placement.Label;
-            var button = new System.Windows.Controls.Button
-            {
-                Content = CreateRemoteButtonContent(placement.CommandId, label),
-                Tag = placement.CommandId,
-                ToolTip = $"{command.Category} / {command.Name}",
-                Margin = new Thickness(6, 0, 0, 0),
-                MinWidth = 74,
-                Height = 28,
-                Padding = new Thickness(7, 0, 8, 0)
-            };
-            button.Click += CommandButton_Click;
-            RemoteControlBar.Children.Add(button);
-        }
+        var palette = EnsureRemoteControlPalette();
+        palette.Render(profile, _commandRegistry);
+        UpdateRemoteControlPalettePosition();
     }
 
-    private static StackPanel CreateRemoteButtonContent(string commandId, string label)
+    private RemoteControlPaletteWindow EnsureRemoteControlPalette()
     {
-        var panel = new StackPanel
+        if (_remoteControlPalette is not null)
         {
-            Orientation = System.Windows.Controls.Orientation.Horizontal,
-            VerticalAlignment = System.Windows.VerticalAlignment.Center
+            return _remoteControlPalette;
+        }
+
+        _remoteControlPalette = new RemoteControlPaletteWindow
+        {
         };
-        panel.Children.Add(new Border
+        if (IsVisible)
         {
-            Width = 16,
-            Height = 16,
-            CornerRadius = new CornerRadius(4),
-            Background = CreateRemoteIconBrush(commandId),
-            Child = new TextBlock
+            _remoteControlPalette.Owner = this;
+        }
+        _remoteControlPalette.CommandRequested += RemoteControlPalette_CommandRequested;
+        _remoteControlPalette.Closed += (_, _) => _remoteControlPalette = null;
+        return _remoteControlPalette;
+    }
+
+    private async void RemoteControlPalette_CommandRequested(object? sender, string commandId)
+    {
+        await ExecuteCommandAsync(commandId);
+    }
+
+    private void ShowRemoteControlPalette()
+    {
+        var palette = EnsureRemoteControlPalette();
+        UpdateRemoteControlPaletteVisibility();
+        if (WindowState != WindowState.Minimized && !palette.IsVisible)
+        {
+            if (palette.Owner is null && IsVisible)
             {
-                Text = GetRemoteIconText(commandId),
-                Foreground = System.Windows.Media.Brushes.White,
-                FontSize = 9,
-                FontWeight = FontWeights.Bold,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                TextAlignment = TextAlignment.Center
+                palette.Owner = this;
             }
-        });
-        panel.Children.Add(new TextBlock
-        {
-            Text = label,
-            Margin = new Thickness(5, 0, 0, 0),
-            VerticalAlignment = System.Windows.VerticalAlignment.Center,
-            FontSize = 12
-        });
 
-        return panel;
+            palette.Show();
+        }
+
+        UpdateRemoteControlPalettePosition();
     }
 
-    private static System.Windows.Media.Brush CreateRemoteIconBrush(string commandId)
+    private void UpdateRemoteControlPaletteVisibility()
     {
-        var color = commandId switch
+        if (_remoteControlPalette is null)
         {
-            AppCommandIds.ProjectSave => System.Windows.Media.Color.FromRgb(37, 99, 235),
-            AppCommandIds.DocumentCreateScene => System.Windows.Media.Color.FromRgb(5, 150, 105),
-            AppCommandIds.StoryRelationshipMapOpen => System.Windows.Media.Color.FromRgb(219, 39, 119),
-            AppCommandIds.ExportCurrentScene or AppCommandIds.ExportFullManuscript => System.Windows.Media.Color.FromRgb(8, 145, 178),
-            AppCommandIds.SnapshotCreateCurrent => System.Windows.Media.Color.FromRgb(124, 58, 237),
-            AppCommandIds.DocumentDetachCurrent => System.Windows.Media.Color.FromRgb(234, 88, 12),
-            _ => System.Windows.Media.Color.FromRgb(75, 85, 99)
-        };
+            return;
+        }
 
-        return new SolidColorBrush(color);
+        if (WindowState == WindowState.Minimized)
+        {
+            _remoteControlPalette.Hide();
+            return;
+        }
+
+        if (IsVisible && !_remoteControlPalette.IsVisible)
+        {
+            _remoteControlPalette.Show();
+        }
+
+        UpdateRemoteControlPalettePosition();
     }
 
-    private static string GetRemoteIconText(string commandId)
+    private void UpdateRemoteControlPalettePosition()
     {
-        return commandId switch
+        if (_remoteControlPalette is null || WindowState == WindowState.Minimized)
         {
-            AppCommandIds.ProjectSave => "S",
-            AppCommandIds.DocumentCreateScene => "+",
-            AppCommandIds.StoryRelationshipMapOpen => "R",
-            AppCommandIds.ExportCurrentScene or AppCommandIds.ExportFullManuscript => "T",
-            AppCommandIds.SnapshotCreateCurrent => "B",
-            AppCommandIds.DocumentDetachCurrent => "W",
-            _ => "*"
-        };
+            return;
+        }
+
+        var hostWidth = ActualWidth > 0 ? ActualWidth : Width;
+        var hostHeight = ActualHeight > 0 ? ActualHeight : Height;
+        var hostLeft = double.IsNaN(Left) ? 0 : Left;
+        var hostTop = double.IsNaN(Top) ? 0 : Top;
+        var paletteWidth = _remoteControlPalette.ActualWidth > 0 ? _remoteControlPalette.ActualWidth : _remoteControlPalette.Width;
+        var paletteHeight = _remoteControlPalette.ActualHeight > 0 ? _remoteControlPalette.ActualHeight : 260;
+        var targetLeft = hostLeft + hostWidth + 8;
+        var targetTop = hostTop + 96;
+        var hostCenter = new System.Drawing.Point(
+            (int)Math.Round(hostLeft + hostWidth / 2),
+            (int)Math.Round(hostTop + hostHeight / 2));
+        var workArea = Forms.Screen.FromPoint(hostCenter).WorkingArea;
+
+        _remoteControlPalette.Left = Math.Min(
+            Math.Max(targetLeft, workArea.Left + 4),
+            workArea.Right - paletteWidth - 4);
+        _remoteControlPalette.Top = Math.Min(
+            Math.Max(targetTop, workArea.Top + 4),
+            workArea.Bottom - paletteHeight - 4);
     }
 
     private void SelectBinderItem(string documentId)
@@ -2002,7 +2010,8 @@ public partial class MainWindow : Window
 
         _activeCustomizationProfile = window.UpdatedProfile;
         await _customizationProfiles.SaveProfileAsync(_activeCustomizationProfile, CancellationToken.None);
-        RenderRemoteControlBar(_activeCustomizationProfile);
+        RenderRemoteControlPalette(_activeCustomizationProfile);
+        ShowRemoteControlPalette();
         var remoteCount = new WorkbenchCustomizationResolver(_activeCustomizationProfile)
             .GetPlacements("remote", "main")
             .Count;
