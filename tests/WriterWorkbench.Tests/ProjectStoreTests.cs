@@ -23,6 +23,25 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
+    public async Task SaveAutosaveCopyWritesSeparateJsonAndTxtWithoutMutatingManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var document = new WriterDocument(
+            "scene-autosave",
+            "Autosave",
+            [new WriterParagraph("p-1", "자동저장 한글 본문", "body", [], [])]);
+
+        await store.SaveAutosaveCopyAsync(document, CancellationToken.None);
+
+        Assert.True(File.Exists(paths.AutosaveDocumentJsonPath(document.Id)));
+        Assert.True(File.Exists(paths.AutosaveDocumentTextPath(document.Id)));
+        Assert.Equal("자동저장 한글 본문", await File.ReadAllTextAsync(paths.AutosaveDocumentTextPath(document.Id)));
+        Assert.False(File.Exists(paths.ManifestPath));
+    }
+
+    [Fact]
     public async Task SaveDocumentUpdatesDerivedSceneMetadataCountsForKoreanBody()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));

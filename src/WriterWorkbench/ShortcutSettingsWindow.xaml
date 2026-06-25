@@ -64,7 +64,14 @@
                                     Width="120"/>
                 <DataGridTextColumn Header="단축키"
                                     Binding="{Binding Gesture, UpdateSourceTrigger=PropertyChanged}"
-                                    Width="*"/>
+                                    Width="*">
+                    <DataGridTextColumn.EditingElementStyle>
+                        <Style TargetType="{x:Type TextBox}">
+                            <Setter Property="IsReadOnly" Value="True"/>
+                            <EventSetter Event="PreviewKeyDown" Handler="ShortcutGestureBox_PreviewKeyDown"/>
+                        </Style>
+                    </DataGridTextColumn.EditingElementStyle>
+                </DataGridTextColumn>
                 <DataGridTextColumn Header="명령 ID"
                                     Binding="{Binding CommandId}"
                                     IsReadOnly="True"

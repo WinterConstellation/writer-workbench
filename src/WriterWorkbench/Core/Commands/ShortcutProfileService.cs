@@ -57,6 +57,7 @@ public sealed class ShortcutProfileService(string filePath)
         Bind(manager, new ShortcutBinding(AppCommandIds.WorkspaceStartupPresetCycle, "Ctrl+Alt+0", CommandScope.Workbench));
         Bind(manager, new ShortcutBinding(AppCommandIds.ShortcutsOpenSettings, "Ctrl+Alt+K", CommandScope.Workbench));
         Bind(manager, new ShortcutBinding(AppCommandIds.ViewPreviewToggle, "Ctrl+Alt+P", CommandScope.Workbench));
+        Bind(manager, new ShortcutBinding(AppCommandIds.RemoteControlToggle, "Ctrl+Alt+R", CommandScope.Workbench));
         Bind(manager, new ShortcutBinding(AppCommandIds.HelpOpen, "F1", CommandScope.Global));
         return manager;
     }

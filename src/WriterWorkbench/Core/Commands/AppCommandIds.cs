@@ -33,6 +33,7 @@ public static class AppCommandIds
     public const string WorkspacePresetThree = "workspace.preset.3";
     public const string WorkspaceStartupPresetCycle = "workspace.startupPreset.cycle";
     public const string RemoteControlShow = "remote.show";
+    public const string RemoteControlToggle = "remote.toggle";
     public const string RemoteControlOpenSettings = "remote.openSettings";
     public const string ShortcutsOpenSettings = "shortcuts.openSettings";
     public const string ViewMainOpen = "view.main.open";

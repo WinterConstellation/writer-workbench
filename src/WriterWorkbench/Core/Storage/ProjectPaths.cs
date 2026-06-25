@@ -5,6 +5,7 @@ namespace WriterWorkbench.Core.Storage;
 public sealed record ProjectPaths(string RootPath)
 {
     public string DocumentsPath => Path.Combine(RootPath, "documents");
+    public string AutosavesPath => Path.Combine(RootPath, "autosaves");
     public string ExportsPath => Path.Combine(RootPath, "exports");
     public string SnapshotsPath => Path.Combine(RootPath, "snapshots");
     public string StoryPath => Path.Combine(RootPath, "story");
@@ -33,6 +34,16 @@ public sealed record ProjectPaths(string RootPath)
     public string DocumentTextPath(string documentId)
     {
         return Path.Combine(DocumentsPath, $"{documentId}.txt");
+    }
+
+    public string AutosaveDocumentJsonPath(string documentId)
+    {
+        return Path.Combine(AutosavesPath, $"{documentId}.autosave.wwdoc.json");
+    }
+
+    public string AutosaveDocumentTextPath(string documentId)
+    {
+        return Path.Combine(AutosavesPath, $"{documentId}.autosave.txt");
     }
 
     public string SceneMetadataPath(string documentId)

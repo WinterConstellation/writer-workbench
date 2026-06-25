@@ -35,6 +35,7 @@ public static class WorkbenchCustomizationProfileFactory
             new("Workbench", "Ctrl+Alt+0", AppCommandIds.WorkspaceStartupPresetCycle),
             new("Workbench", "Ctrl+Alt+K", AppCommandIds.ShortcutsOpenSettings),
             new("Workbench", "Ctrl+Alt+P", AppCommandIds.ViewPreviewToggle),
+            new("Workbench", "Ctrl+Alt+R", AppCommandIds.RemoteControlToggle),
             new("Global", "F1", AppCommandIds.HelpOpen)
         };
 

@@ -293,6 +293,20 @@ public partial class MainWindow : Window
         return Task.CompletedTask;
     }
 
+    private Task ToggleRemoteControlLayerAsync()
+    {
+        if (_remoteControlLayer is { IsVisible: true } layer)
+        {
+            layer.Hide();
+            StatusText.Text = "리모콘 꺼짐";
+            return Task.CompletedTask;
+        }
+
+        ShowRemoteControlLayer(recenter: _remoteControlLayer is null);
+        StatusText.Text = "리모콘 켜짐";
+        return Task.CompletedTask;
+    }
+
     private void ShowRemoteControlLayer(bool recenter)
     {
         var layer = EnsureRemoteControlLayer();
@@ -529,6 +543,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.WorkspacePresetThree] = () => ApplyOrSavePresetAsync(3);
         _commandHandlers[AppCommandIds.WorkspaceStartupPresetCycle] = CycleStartupPresetAsync;
         _commandHandlers[AppCommandIds.RemoteControlShow] = ShowRemoteControlLayerAsync;
+        _commandHandlers[AppCommandIds.RemoteControlToggle] = ToggleRemoteControlLayerAsync;
         _commandHandlers[AppCommandIds.RemoteControlOpenSettings] = OpenRemoteControlSettingsAsync;
         _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
@@ -2244,7 +2259,16 @@ public partial class MainWindow : Window
                 ReportLongOperation(tracker.Report(1, "프로젝트 파일과 검색 색인 저장 중"));
             }
 
-            await Task.Run(() => _store.SaveDocumentAsync(document, CancellationToken.None));
+            var isAutosave = verb.Contains("자동저장", StringComparison.OrdinalIgnoreCase);
+            await Task.Run(async () =>
+            {
+                if (isAutosave)
+                {
+                    await _store.SaveAutosaveCopyAsync(document, CancellationToken.None);
+                }
+
+                await _store.SaveDocumentAsync(document, CancellationToken.None);
+            });
             stopwatch.Stop();
             if (tracker is not null)
             {

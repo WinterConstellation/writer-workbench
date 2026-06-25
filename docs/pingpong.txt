@@ -1780,6 +1780,59 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary in-memory/window state.
 
+## 2026-06-26 KST feature/bugfix update: Remote toggle, shortcut capture, autosave mirror
+
+Feature(s) implemented:
+- Added `remote.toggle` / `리모콘 켜기/끄기` so the floating remote layer can be hidden and shown again.
+- Kept existing `remote.show` / `리모콘 표시` for explicit recenter/show behavior.
+- Added default `Ctrl+Alt+R` binding for remote toggle in the legacy shortcut profile and V2 customization profile defaults.
+- Shortcut settings now captures real key gestures in the shortcut cell instead of accepting arbitrary typed text like `dsadsada`.
+- Shortcut settings rejects invalid shortcut text at save time.
+- Autosave now writes a separate JSON/TXT mirror under `autosaves/` before the canonical document save.
+
+Files changed:
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/Commands/ShortcutProfileService.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/ShortcutSettingsWindow.xaml`
+- `src/WriterWorkbench/ShortcutSettingsWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/ShortcutSettingsWindowTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Remote toggle shows and hides the floating layer.
+- Main menu exposes both remote show and remote toggle commands.
+- Shortcut settings captures `Ctrl+Alt+S` from a key event and ignores bare raw letters.
+- Shortcut settings rejects invalid typed shortcut text.
+- Autosave mirror writes separate UTF-8 JSON/TXT files without mutating the manifest.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ShortcutSettingsWindowTests|MainWindowRemoteControlToggleShowsAndHidesLayer|SaveAutosaveCopyWritesSeparateJsonAndTxtWithoutMutatingManifest"` -> failed before implementation with missing APIs, then passed 6 tests.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 153 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> published local executable.
+- Public repo fresh clone `dotnet restore WriterWorkbench.sln` -> restored assets for new checkout.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 153 passed.
+
+Large manuscript regression check, if touched:
+- Editor input loop was not touched.
+- Autosave adds one extra atomic JSON/TXT mirror write only when autosave runs, not on `EditorBox_TextChanged`.
+
+Remaining problems:
+- Autosave mirror restore UI is not implemented yet; files are recoverable from disk.
+- Existing projects with old invalid shortcut strings may still load them until the user opens shortcut settings and saves corrected rows.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-25 KST UI tuning update: Remote layer default size and icon-only alignment
 
 Feature(s) implemented:

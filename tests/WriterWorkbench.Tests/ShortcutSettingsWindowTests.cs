@@ -1,4 +1,5 @@
 using System.Windows.Controls;
+using System.Windows.Input;
 using WriterWorkbench.Core.Commands;
 
 namespace WriterWorkbench.Tests;
@@ -50,5 +51,39 @@ public sealed class ShortcutSettingsWindowTests
 
         Assert.Null(conflict);
         Assert.Equal(AppCommandIds.ProjectSave, updated.FindCommand("Ctrl+Shift+S", CommandScope.Editor));
+    }
+
+    [Fact]
+    public void ShortcutSettingsWindowCapturesKeyGesturesAndIgnoresRawText()
+    {
+        var captured = ShortcutSettingsWindow.CreateGestureTextForKey(
+            Key.System,
+            Key.S,
+            Key.None,
+            ModifierKeys.Control | ModifierKeys.Alt);
+        var rawLetter = ShortcutSettingsWindow.CreateGestureTextForKey(
+            Key.A,
+            Key.None,
+            Key.None,
+            ModifierKeys.None);
+
+        Assert.Equal("Ctrl+Alt+S", captured);
+        Assert.Null(rawLetter);
+    }
+
+    [Fact]
+    public void ShortcutSettingsWindowRejectsInvalidShortcutText()
+    {
+        var row = new ShortcutSettingsRow(
+            AppCommandIds.DocumentCreateScene,
+            "Scene",
+            "Document",
+            CommandScope.Workbench,
+            "dsadsada");
+
+        var updated = ShortcutSettingsWindow.CreateManagerFromRows([row], out var conflict);
+
+        Assert.NotNull(conflict);
+        Assert.Null(updated.FindCommand("dsadsada", CommandScope.Workbench));
     }
 }

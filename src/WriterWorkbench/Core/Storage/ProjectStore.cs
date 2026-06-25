@@ -92,6 +92,18 @@ public sealed class ProjectStore(ProjectPaths paths)
         await SaveManifestAsync(manifest with { Documents = documents }, token);
     }
 
+    public async Task SaveAutosaveCopyAsync(WriterDocument document, CancellationToken token)
+    {
+        Directory.CreateDirectory(paths.RootPath);
+        Directory.CreateDirectory(paths.AutosavesPath);
+
+        var json = JsonSerializer.Serialize(document, JsonOptions);
+        var plainText = TextExportService.ToPlainText(document);
+
+        await WriteUtf8AtomicAsync(paths.AutosaveDocumentJsonPath(document.Id), json, token);
+        await WriteUtf8AtomicAsync(paths.AutosaveDocumentTextPath(document.Id), plainText, token);
+    }
+
     public async Task<WriterDocument> DuplicateDocumentAsync(string documentId, CancellationToken token)
     {
         Directory.CreateDirectory(paths.RootPath);

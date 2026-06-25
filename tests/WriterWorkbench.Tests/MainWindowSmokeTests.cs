@@ -137,7 +137,49 @@ public sealed class MainWindowSmokeTests
                 Assert.Null(window.FindName("RemoteControlFloatingPanel"));
                 Assert.Null(window.FindName("RemoteFloatingButtonPanel"));
                 Assert.Contains(AppCommandIds.RemoteControlShow, FindCommandTags(window).Where(tag => tag is not null));
+                Assert.Contains(AppCommandIds.RemoteControlToggle, FindCommandTags(window).Where(tag => tag is not null));
                 Assert.Contains(AppCommandIds.RemoteControlOpenSettings, FindCommandTags(window).Where(tag => tag is not null));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowRemoteControlToggleShowsAndHidesLayer()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(layerField);
+
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.True(layer.IsVisible);
+
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+                Assert.False(layer.IsVisible);
+
+                layer.Close();
                 window.Close();
             }
             catch (Exception ex)
