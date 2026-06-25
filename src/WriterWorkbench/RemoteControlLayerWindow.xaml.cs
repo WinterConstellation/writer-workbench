@@ -48,6 +48,7 @@ public partial class RemoteControlLayerWindow : Window
                 MinWidth = 104,
                 Margin = new Thickness(0, 0, 0, 5),
                 Padding = new Thickness(7, 0, 8, 0),
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left
             };
             button.Click += RemoteButton_Click;
@@ -117,14 +118,18 @@ public partial class RemoteControlLayerWindow : Window
         if (DisplayMode == RemoteControlDisplayMode.IconOnly)
         {
             label.Visibility = Visibility.Collapsed;
-            button.MinWidth = 34;
-            button.Width = 34;
+            button.MinWidth = 40;
+            button.Width = 40;
+            button.Padding = new Thickness(0);
+            button.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
             button.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center;
         }
         else
         {
             label.Visibility = Visibility.Visible;
             button.MinWidth = 104;
+            button.Padding = new Thickness(7, 0, 8, 0);
+            button.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
             button.ClearValue(WidthProperty);
             button.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left;
         }

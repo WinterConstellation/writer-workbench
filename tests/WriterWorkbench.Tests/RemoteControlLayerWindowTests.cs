@@ -28,6 +28,8 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.False(layer.ShowInTaskbar);
                 Assert.Equal(WindowStyle.None, layer.WindowStyle);
                 Assert.Equal(ResizeMode.CanResizeWithGrip, layer.ResizeMode);
+                Assert.Equal(260d, layer.Width);
+                Assert.Equal(450d, layer.Height);
                 Assert.NotNull(layer.FindName("RemoteLayerResizeGrip"));
                 Assert.Equal(System.Windows.Input.Cursors.SizeAll, handle.Cursor);
                 Assert.Equal(["project.save", "document.detachCurrent"], buttons.Select(button => button.Tag as string));
@@ -72,13 +74,15 @@ public sealed class RemoteControlLayerWindowTests
 
                 Assert.Equal(RemoteControlDisplayMode.IconAndTitle, layer.DisplayMode);
                 Assert.Equal(Visibility.Visible, label.Visibility);
+                Assert.Equal(HorizontalAlignment.Stretch, button.HorizontalAlignment);
                 Assert.Equal("아이콘만", modeButton.Content);
 
                 layer.SetDisplayMode(RemoteControlDisplayMode.IconOnly);
 
                 Assert.Equal(RemoteControlDisplayMode.IconOnly, layer.DisplayMode);
                 Assert.Equal(Visibility.Collapsed, label.Visibility);
-                Assert.True(button.MinWidth <= 44);
+                Assert.Equal(40d, button.Width);
+                Assert.Equal(HorizontalAlignment.Left, button.HorizontalAlignment);
                 Assert.Equal("아이콘+제목", modeButton.Content);
                 layer.Close();
             }
