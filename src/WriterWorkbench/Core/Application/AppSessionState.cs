@@ -5,7 +5,8 @@ public sealed record AppSessionState(
     string? DocumentId,
     string Surface,
     int? PresetSlot,
-    string GraphicPresetId = "default")
+    string GraphicPresetId = "default",
+    int FocusDurationMinutes = 40)
 {
     public const string EditorSurface = "editor";
     public const string PreviewSurface = "preview";
@@ -13,5 +14,13 @@ public sealed record AppSessionState(
     public const string RelationshipMapSurface = "relationship-map";
     public const string DefaultGraphicPresetId = "default";
 
-    public static AppSessionState Empty { get; } = new(null, null, EditorSurface, null, DefaultGraphicPresetId);
+    public const int DefaultFocusDurationMinutes = 40;
+
+    public static AppSessionState Empty { get; } = new(
+        null,
+        null,
+        EditorSurface,
+        null,
+        DefaultGraphicPresetId,
+        DefaultFocusDurationMinutes);
 }

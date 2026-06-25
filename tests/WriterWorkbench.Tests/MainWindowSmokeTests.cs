@@ -357,6 +357,80 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowContainsCustomFocusDurationControl()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var focusDuration = Assert.IsType<TextBox>(window.FindName("FocusDurationMinutesBox"));
+                var focusButton = Assert.IsType<Button>(window.FindName("FocusButton"));
+
+                Assert.Equal("40", focusDuration.Text);
+                Assert.Equal("집중 40:00", focusButton.Content);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowStartsFocusWithCustomDurationMinutes()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var focusDuration = Assert.IsType<TextBox>(window.FindName("FocusDurationMinutesBox"));
+                var endsAtField = typeof(MainWindow).GetField(
+                    "_focusEndsAt",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(endsAtField);
+                focusDuration.Text = "25";
+
+                var before = DateTimeOffset.Now;
+                InvokeCommand(window, AppCommandIds.WritingFocusToggle);
+                var endsAt = Assert.IsType<DateTimeOffset>(endsAtField!.GetValue(window));
+                var remaining = endsAt - before;
+
+                Assert.InRange(remaining.TotalMinutes, 24.5, 25.5);
+                InvokePrivate(window, "ExitFocus");
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowRendersMainCommandGridFromCustomizationProfile()
     {
         Exception? failure = null;

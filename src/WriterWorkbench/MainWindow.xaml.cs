@@ -25,6 +25,9 @@ namespace WriterWorkbench;
 public partial class MainWindow : Window
 {
     private string _projectRoot = Path.Combine(@"C:\WriterWorkbench\Projects", "Sample.writerproj");
+    private const int DefaultFocusDurationMinutes = AppSessionState.DefaultFocusDurationMinutes;
+    private const int MinFocusDurationMinutes = 1;
+    private const int MaxFocusDurationMinutes = 240;
     private static readonly TimeSpan AutosaveIdleDelay = TimeSpan.FromSeconds(3);
     private readonly DispatcherTimer _autosaveTimer;
     private readonly DispatcherTimer _focusTimer;
@@ -60,6 +63,7 @@ public partial class MainWindow : Window
     private bool _suppressGraphicPresetChange;
     private bool _startupStateLoaded;
     private int? _lastAppliedPresetSlot;
+    private int _focusDurationMinutes = DefaultFocusDurationMinutes;
     private DateTimeOffset _lastEditAt = DateTimeOffset.MinValue;
     private DocumentEditorTextView _editorTextView = DocumentEditorTextView.Empty;
     private DateTimeOffset _focusEndsAt;
@@ -131,6 +135,7 @@ public partial class MainWindow : Window
         try
         {
             await LoadStartupStateAsync();
+            ApplyFocusDurationMinutes(_sessionState.FocusDurationMinutes);
             ApplyGraphicPreset(GraphicPresetCatalog.GetOrDefault(_sessionState.GraphicPresetId));
             var title = Path.GetFileNameWithoutExtension(_projectRoot);
             var manifest = await _store.CreateProjectAsync(title, CancellationToken.None);
@@ -2193,6 +2198,20 @@ public partial class MainWindow : Window
         StartFocus();
     }
 
+    private void FocusDurationMinutesBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    {
+        if (_focusMode)
+        {
+            return;
+        }
+
+        if (TryReadFocusDurationMinutes(out var minutes))
+        {
+            _focusDurationMinutes = minutes;
+            UpdateFocusButtonIdleContent();
+        }
+    }
+
     private void ToggleAutosave()
     {
         _autosaveEnabled = !_autosaveEnabled;
@@ -2625,11 +2644,56 @@ public partial class MainWindow : Window
             : $"{duration.Minutes:00}:{duration.Seconds:00}";
     }
 
+    private bool TryReadFocusDurationMinutes(out int minutes)
+    {
+        minutes = _focusDurationMinutes;
+        var raw = FocusDurationMinutesBox.Text.Trim();
+        if (!int.TryParse(raw, out var parsed))
+        {
+            return false;
+        }
+
+        if (parsed is < MinFocusDurationMinutes or > MaxFocusDurationMinutes)
+        {
+            return false;
+        }
+
+        minutes = parsed;
+        return true;
+    }
+
+    private void ApplyFocusDurationMinutes(int minutes)
+    {
+        _focusDurationMinutes = Math.Clamp(minutes, MinFocusDurationMinutes, MaxFocusDurationMinutes);
+        FocusDurationMinutesBox.Text = _focusDurationMinutes.ToString();
+        UpdateFocusButtonIdleContent();
+    }
+
+    private void UpdateFocusButtonIdleContent()
+    {
+        if (_focusMode)
+        {
+            return;
+        }
+
+        FocusButton.Content = $"집중 {_focusDurationMinutes:00}:00";
+    }
+
     private void StartFocus()
     {
+        if (!TryReadFocusDurationMinutes(out var focusMinutes))
+        {
+            StatusText.Text = $"집중 시간은 {MinFocusDurationMinutes}~{MaxFocusDurationMinutes}분 사이 숫자로 입력하세요.";
+            return;
+        }
+
+        _focusDurationMinutes = focusMinutes;
+        UpdateFocusButtonIdleContent();
+        RememberSessionState(_sessionState.Surface);
+
         ShowEditorSurface();
         _focusMode = true;
-        var state = _focusSession.Start(new FocusSessionOptions(TimeSpan.FromMinutes(40), 20, true));
+        var state = _focusSession.Start(new FocusSessionOptions(TimeSpan.FromMinutes(_focusDurationMinutes), 20, true));
         _focusEndsAt = state.EndsAt;
 
         _previousWindowStyle = WindowStyle;
@@ -2676,7 +2740,7 @@ public partial class MainWindow : Window
         WindowState = _previousWindowState;
         ResizeMode = _previousResizeMode;
         Topmost = false;
-        FocusButton.Content = "집중 40:00";
+        UpdateFocusButtonIdleContent();
         StatusText.Text = "집중 세션 종료됨";
     }
 
@@ -2818,7 +2882,8 @@ public partial class MainWindow : Window
             string.IsNullOrWhiteSpace(_activeDocumentId) ? null : _activeDocumentId,
             surface,
             _lastAppliedPresetSlot ?? _sessionState.PresetSlot,
-            _graphicPreset.Id);
+            _graphicPreset.Id,
+            _focusDurationMinutes);
     }
 
     private async Task PersistSessionStateAsync()

@@ -18,7 +18,8 @@ public sealed class AppSessionStateServiceTests
             "scene-0042",
             AppSessionState.PreviewSurface,
             2,
-            "lavender");
+            "lavender",
+            55);
 
         await service.SaveAsync(state, CancellationToken.None);
         var loaded = await service.LoadAsync(CancellationToken.None);
@@ -44,6 +45,25 @@ public sealed class AppSessionStateServiceTests
         Assert.Equal(AppSessionState.EditorSurface, loaded.Surface);
         Assert.Null(loaded.PresetSlot);
         Assert.Equal(AppSessionState.DefaultGraphicPresetId, loaded.GraphicPresetId);
+        Assert.Equal(AppSessionState.DefaultFocusDurationMinutes, loaded.FocusDurationMinutes);
+    }
+
+    [Fact]
+    public async Task NormalizesFocusDurationIntoSupportedRange()
+    {
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            "WriterWorkbenchSessionTests",
+            Guid.NewGuid().ToString("N"),
+            "app.session.json");
+        var service = new AppSessionStateService(path);
+
+        await service.SaveAsync(
+            new AppSessionState(null, null, AppSessionState.EditorSurface, null, "default", 999),
+            CancellationToken.None);
+        var loaded = await service.LoadAsync(CancellationToken.None);
+
+        Assert.Equal(240, loaded.FocusDurationMinutes);
     }
 
     [Fact]

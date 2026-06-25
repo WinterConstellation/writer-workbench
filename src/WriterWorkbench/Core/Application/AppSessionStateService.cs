@@ -60,11 +60,16 @@ public sealed class AppSessionStateService(string filePath)
 
         var presetSlot = state.PresetSlot is >= 1 and <= 3 ? state.PresetSlot : null;
         var graphicPreset = GraphicPresetCatalog.GetOrDefault(state.GraphicPresetId);
+        var focusDurationMinutes = Math.Clamp(
+            state.FocusDurationMinutes,
+            1,
+            240);
         return state with
         {
             Surface = surface,
             PresetSlot = presetSlot,
-            GraphicPresetId = graphicPreset.Id
+            GraphicPresetId = graphicPreset.Id,
+            FocusDurationMinutes = focusDurationMinutes
         };
     }
 }
