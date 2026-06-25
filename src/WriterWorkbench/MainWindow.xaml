@@ -19,7 +19,6 @@
         <KeyBinding Command="ApplicationCommands.Save" Key="S" Modifiers="Control"/>
     </Window.InputBindings>
 
-    <Grid>
     <DockPanel>
         <Border DockPanel.Dock="Top"
                 Height="78"
@@ -142,6 +141,7 @@
                             </MenuItem.Icon>
                             <MenuItem Header="집중 모드" Tag="writing.focus.toggle" Click="CommandButton_Click"/>
                             <MenuItem Header="자동저장" Tag="autosave.toggle" Click="CommandButton_Click"/>
+                            <MenuItem Header="리모콘 표시" Tag="remote.show" Click="CommandButton_Click"/>
                             <MenuItem Header="리모콘 편집" Tag="remote.openSettings" Click="CommandButton_Click"/>
                             <MenuItem Header="단축키 설정" Tag="shortcuts.openSettings" Click="CommandButton_Click"/>
                         </MenuItem>
@@ -1143,39 +1143,4 @@
             </Border>
         </Grid>
     </DockPanel>
-
-    <Border x:Name="RemoteControlFloatingPanel"
-            Panel.ZIndex="60"
-            Width="124"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="0,108,14,0"
-            Padding="6"
-            Background="#F8FAFC"
-            BorderBrush="#94A3B8"
-            BorderThickness="1"
-            CornerRadius="6">
-        <StackPanel>
-            <DockPanel Margin="0,0,0,6">
-                <Button x:Name="RemoteFloatingEditButton"
-                        DockPanel.Dock="Right"
-                        Content="편집"
-                        Tag="remote.openSettings"
-                        ToolTip="리모콘 바로가기를 고릅니다."
-                        Height="24"
-                        MinWidth="44"
-                        Padding="7,0"
-                        FontSize="11"
-                        Click="CommandButton_Click"/>
-                <TextBlock Text="리모콘"
-                           VerticalAlignment="Center"
-                           Foreground="#111827"
-                           FontSize="12"
-                           FontWeight="SemiBold"/>
-            </DockPanel>
-            <StackPanel x:Name="RemoteFloatingButtonPanel"
-                        Orientation="Vertical"/>
-        </StackPanel>
-    </Border>
-    </Grid>
 </Window>

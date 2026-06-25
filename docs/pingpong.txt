@@ -1528,6 +1528,51 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-25 KST feature update: Topmost movable remote control layer
+
+Feature(s) implemented:
+- Replaced the in-app fixed remote panel with a separate `RemoteControlLayerWindow`.
+- Remote control is now a true floating layer, not bounded by the main app window.
+- The layer uses `Topmost=True`, `ShowInTaskbar=False`, `WindowStyle=None`, and `ResizeMode=NoResize`.
+- The layer has a visible drag handle named `RemoteLayerDragHandle`; users can drag it away from the app window.
+- Tests verify that negative `Left`/`Top` coordinates are accepted, so the layer is not clamped to the main window.
+- Added `remote.show` / `리모콘 표시` so the layer can be shown/recentered again from the Tools menu.
+- Remote buttons still render from customization profile placements at `remote/main`.
+
+Files changed:
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- RemoteControlLayerWindow is topmost, not shown in taskbar, frameless, no-resize, and has a draggable handle.
+- RemoteControlLayerWindow renders `remote/main` placements in order.
+- RemoteControlLayerWindow raises command requests when buttons are clicked.
+- MainWindow renders a topmost movable remote-control layer from customization profile data.
+- MainWindow exposes both `리모콘 표시` and `리모콘 편집` commands.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "RemoteControlLayerWindowTests|MainWindowRendersTopmostMovableRemoteControlLayerFromCustomizationProfile|MainWindowContainsIconMenuAndRemoteControlEntryPoint"` -> failed before `RemoteControlLayerWindow` and `remote.show` existed, then passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 148 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor input/save paths were not touched.
+- Full smoke suite still includes the 80k append guard test.
+
+Remaining problems:
+- Remote layer position is not persisted yet.
+- Layer opacity, side snapping, and monitor-specific preset placement are not implemented yet.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-25 KST bugfix update: Remote control visible in-app floating panel
 
 Problem:

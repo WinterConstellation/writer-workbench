@@ -134,8 +134,9 @@ public sealed class MainWindowSmokeTests
                 Assert.All(menuItems, item => Assert.NotNull(item.Icon));
 
                 Assert.Null(window.FindName("RemoteControlBar"));
-                Assert.NotNull(window.FindName("RemoteControlFloatingPanel"));
-                Assert.NotNull(window.FindName("RemoteFloatingButtonPanel"));
+                Assert.Null(window.FindName("RemoteControlFloatingPanel"));
+                Assert.Null(window.FindName("RemoteFloatingButtonPanel"));
+                Assert.Contains(AppCommandIds.RemoteControlShow, FindCommandTags(window).Where(tag => tag is not null));
                 Assert.Contains(AppCommandIds.RemoteControlOpenSettings, FindCommandTags(window).Where(tag => tag is not null));
                 window.Close();
             }
@@ -156,7 +157,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowRendersFloatingRemoteControlPanelFromCustomizationProfile()
+    public void MainWindowRendersTopmostMovableRemoteControlLayerFromCustomizationProfile()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -178,19 +179,33 @@ public sealed class MainWindowSmokeTests
                     now,
                     now);
                 var method = typeof(MainWindow).GetMethod(
-                    "RenderRemoteControlPalette",
+                    "RenderRemoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
                     BindingFlags.Instance | BindingFlags.NonPublic);
 
                 Assert.NotNull(method);
+                Assert.NotNull(layerField);
                 method!.Invoke(window, [profile]);
 
-                var panel = Assert.IsType<StackPanel>(window.FindName("RemoteFloatingButtonPanel"));
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
                 var buttons = panel.Children.OfType<Button>().ToList();
 
+                Assert.True(layer.Topmost);
+                Assert.False(layer.ShowInTaskbar);
+                Assert.Equal(WindowStyle.None, layer.WindowStyle);
+                Assert.NotNull(layer.FindName("RemoteLayerDragHandle"));
                 Assert.Equal(["document.detachCurrent", "project.save"], buttons.Select(button => button.Tag as string));
                 Assert.Equal(
                     ["분리 고정", "저장 고정"],
                     buttons.Select(button => ((StackPanel)button.Content).Children.OfType<TextBlock>().Last().Text));
+                layer.Left = -500;
+                layer.Top = -300;
+                Assert.Equal(-500, layer.Left);
+                Assert.Equal(-300, layer.Top);
+                layer.Close();
                 window.Close();
             }
             catch (Exception ex)

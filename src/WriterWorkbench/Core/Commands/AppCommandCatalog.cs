@@ -35,6 +35,7 @@ public static class AppCommandCatalog
         registry.Register(new AppCommand(AppCommandIds.WorkspacePresetTwo, "프리셋 2", "작업공간", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.WorkspacePresetThree, "프리셋 3", "작업공간", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.WorkspaceStartupPresetCycle, "시작 프리셋", "작업공간", CommandScope.Workbench));
+        registry.Register(new AppCommand(AppCommandIds.RemoteControlShow, "리모콘 표시", "작업공간", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.RemoteControlOpenSettings, "리모콘 편집", "작업공간", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.ShortcutsOpenSettings, "단축키", "작업공간", CommandScope.Workbench));
         registry.Register(new AppCommand(AppCommandIds.ViewMainOpen, "메인", "보기", CommandScope.Workbench));
