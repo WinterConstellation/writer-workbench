@@ -4,8 +4,10 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
+using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
+using WriterWorkbench.Core.Workspace;
 using Xunit.Abstractions;
 
 namespace WriterWorkbench.Tests;
@@ -181,6 +183,51 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(1, grid.Rows);
                 Assert.Equal(["project.save", "view.main.open"], buttons.Select(button => button.Tag as string));
                 Assert.Equal(["저장", "메인"], buttons.Select(button => button.Content as string));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowClaimedEditorSurfaceDisablesEditorInDetachedWorkbench()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var showEditor = typeof(MainWindow).GetMethod(
+                    "ShowEditorSurface",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var registryField = typeof(MainWindow).GetField(
+                    "_surfaceClaims",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(showEditor);
+                Assert.NotNull(registryField);
+
+                showEditor!.Invoke(window, []);
+                var registry = Assert.IsType<WorkbenchSurfaceClaimRegistry>(registryField!.GetValue(window));
+                var detached = new WorkbenchDetachedWindow(registry, "detached-main-window-test");
+                var editorButton = Assert.IsType<Button>(detached.FindName("DetachedEditorSurfaceButton"));
+
+                Assert.True(registry.IsClaimedBy(WorkbenchSurfaceClaimRegistry.MainOwnerId, AppSessionState.EditorSurface));
+                Assert.False(editorButton.IsEnabled);
+                detached.Close();
                 window.Close();
             }
             catch (Exception ex)

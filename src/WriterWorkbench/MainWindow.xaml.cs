@@ -31,6 +31,7 @@ public partial class MainWindow : Window
     private readonly List<double> _remainingSecondsSamples = [];
     private readonly FocusSessionService _focusSession = new();
     private readonly CommandRegistry _commandRegistry = AppCommandCatalog.CreateDefaultRegistry();
+    private readonly WorkbenchSurfaceClaimRegistry _surfaceClaims = new();
     private readonly Dictionary<string, Func<Task>> _commandHandlers = [];
     private readonly AppSessionStateService _sessionStateService = new(AppSessionStateService.DefaultPath);
     private ShortcutManager _shortcutManager = ShortcutProfileService.CreateDefaultManager();
@@ -447,7 +448,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.SceneEntityLinkDelete] = DeleteSceneEntityLinkAsync;
         _commandHandlers[AppCommandIds.DocumentCreateScene] = CreateNewSceneAsync;
         _commandHandlers[AppCommandIds.DocumentCreateStressLarge] = CreateStressDocumentAsync;
-        _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachCurrentDocumentAsync;
+        _commandHandlers[AppCommandIds.DocumentDetachCurrent] = DetachWorkbenchAsync;
         _commandHandlers[AppCommandIds.DocumentRenameScene] = RenameSelectedSceneAsync;
         _commandHandlers[AppCommandIds.DocumentDuplicateScene] = DuplicateSelectedSceneAsync;
         _commandHandlers[AppCommandIds.DocumentDeleteScene] = DeleteSelectedSceneAsync;
@@ -1746,6 +1747,20 @@ public partial class MainWindow : Window
                 : _activeDocumentId;
     }
 
+    private Task DetachWorkbenchAsync()
+    {
+        var window = new WorkbenchDetachedWindow(_surfaceClaims)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual,
+            Left = Left + 48,
+            Top = Top + 48
+        };
+
+        window.Show();
+        StatusText.Text = "분리 작업대 열림 - 화면을 선택하세요";
+        return Task.CompletedTask;
+    }
+
     private async Task DetachCurrentDocumentAsync()
     {
         if (_dirty)
@@ -2210,6 +2225,11 @@ public partial class MainWindow : Window
 
     private void ShowPreviewSurface()
     {
+        if (!TryClaimMainSurface(AppSessionState.PreviewSurface))
+        {
+            return;
+        }
+
         var sourceText = _editorTextView.IsSegmentMode && _activeDocument is not null
             ? TextExportService.ToPlainText(_activeDocument)
             : EditorBox.Text;
@@ -2227,6 +2247,11 @@ public partial class MainWindow : Window
 
     private void ShowEditorSurface()
     {
+        if (!TryClaimMainSurface(AppSessionState.EditorSurface))
+        {
+            return;
+        }
+
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
@@ -2239,6 +2264,11 @@ public partial class MainWindow : Window
 
     private void ShowMainSurface()
     {
+        if (!TryClaimMainSurface(AppSessionState.MainSurface))
+        {
+            return;
+        }
+
         MainSurface.Visibility = Visibility.Visible;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
@@ -2251,6 +2281,11 @@ public partial class MainWindow : Window
 
     private void ShowRelationshipMapSurface()
     {
+        if (!TryClaimMainSurface(AppSessionState.RelationshipMapSurface))
+        {
+            return;
+        }
+
         MainSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
@@ -2259,6 +2294,18 @@ public partial class MainWindow : Window
         _previewMode = false;
         RememberSessionState(AppSessionState.RelationshipMapSurface);
         StatusText.Text = "관계도 화면";
+    }
+
+    private bool TryClaimMainSurface(string surfaceId)
+    {
+        if (_surfaceClaims.TryClaim(WorkbenchSurfaceClaimRegistry.MainOwnerId, surfaceId, out var occupiedBy))
+        {
+            return true;
+        }
+
+        var surfaceName = WorkbenchSurfaceCatalog.GetName(surfaceId);
+        StatusText.Text = $"{surfaceName} 화면은 이미 다른 분리 작업대에서 사용 중입니다. ({occupiedBy})";
+        return false;
     }
 
     private async void ReturnToEditorButton_Click(object sender, RoutedEventArgs e)
