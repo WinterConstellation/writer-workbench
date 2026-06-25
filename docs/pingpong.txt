@@ -1475,6 +1475,48 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-25 KST feature implementation update: Icon menu and customizable remote control bar
+
+Feature(s) implemented:
+- Replaced the top fixed command strip with a Photoshop-like top menu row.
+- Added icon badges to top-level menu categories: 파일, 편집, 원고, 구조, 보기, 창, 도구, 도움말.
+- Added a visible `리모콘` shortcut bar under the menu row.
+- The remote control bar renders from customization profile placements at `remote/main`.
+- Default profiles now include remote placements for 저장, 새 장면, 관계도, 전체 TXT, 창 분리, 스냅샷.
+- Existing stateful controls for 미리보기, 집중, 자동저장, 창 프리셋, 그래픽 프리셋 remain visible in the option row.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchCustomizationProfileTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Default customization profile includes editable `remote/main` placements.
+- MainWindow contains the icon menu bar and remote control bar.
+- MainWindow renders remote control buttons from profile order and custom labels.
+- Existing command-surface smoke test now recognizes menu items as command hosts, not only buttons.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~WorkbenchCustomizationProfileTests|FullyQualifiedName~MainWindowSmokeTests.MainWindowContainsIconMenuAndRemoteControlBar"` -> failed before remote/menu implementation.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~MainWindowSmokeTests.MainWindowRendersRemoteControlBarFromCustomizationProfile|FullyQualifiedName~MainWindowSmokeTests.MainWindowContainsIconMenuAndRemoteControlBar|FullyQualifiedName~WorkbenchCustomizationProfileTests.DefaultProfileFactoryIncludesCustomizableRemoteControlPlacements"` -> passed after implementation.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 144 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor input/save paths were not touched.
+- Full smoke suite still includes the 80k append guard test.
+
+Remaining problems:
+- 리모콘 구성 편집 UI는 아직 없고, 저장 모델과 렌더링만 연결됨.
+- 하위 메뉴 항목에는 아직 개별 아이콘을 다 붙이지 않았고, 이번 범위는 메뉴 카테고리 아이콘 중심.
+- 기존 메인 화면 command grid와 상단 리모콘이 일부 명령을 함께 노출할 수 있음.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-25 KST feature implementation update: Profile-driven main command grid
 
 Feature(s) implemented:

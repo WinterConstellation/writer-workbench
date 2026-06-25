@@ -27,116 +27,11 @@
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="39"/>
-                    <RowDefinition Height="38"/>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="47"/>
                 </Grid.RowDefinitions>
 
                 <DockPanel Grid.Row="0" LastChildFill="True">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="새 프로젝트"
-                                Tag="project.new"
-                                MinWidth="106"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="프로젝트 열기"
-                                Tag="project.open"
-                                MinWidth="112"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="새 장면"
-                                Tag="document.createScene"
-                                MinWidth="96"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="저장"
-                                Tag="project.save"
-                                MinWidth="88"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button x:Name="PreviewModeButton"
-                                Content="미리보기"
-                                Tag="view.preview.toggle"
-                                ToolTip="미리보기로 전환합니다. 기본 단축키: Ctrl+Alt+P."
-                                MinWidth="88"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="메인"
-                                Tag="view.main.open"
-                                ToolTip="프로젝트 메인 화면을 엽니다."
-                                MinWidth="82"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button x:Name="FocusButton"
-                                Content="집중 40:00"
-                                Tag="writing.focus.toggle"
-                                MinWidth="104"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button x:Name="AutosaveButton"
-                                Content="자동저장 켬"
-                                Tag="autosave.toggle"
-                                ToolTip="자동저장을 켜거나 끕니다. 단축키: Ctrl+Alt+S."
-                                MinWidth="108"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="스트레스 15k"
-                                Tag="document.createStressLarge"
-                                ToolTip="15,000문단 스트레스 테스트 문서를 만듭니다."
-                                MinWidth="96"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="창 분리"
-                                Tag="document.detachCurrent"
-                                ToolTip="현재 문서를 별도 창으로 엽니다."
-                                MinWidth="84"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="스냅샷"
-                                Tag="snapshot.createCurrent"
-                                ToolTip="현재 장면의 수동 스냅샷을 만듭니다."
-                                MinWidth="84"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="현재 TXT"
-                                Tag="export.currentScene"
-                                ToolTip="현재 장면을 exports 폴더에 TXT로 내보냅니다."
-                                MinWidth="86"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                        <Button Content="전체 TXT"
-                                Tag="export.fullManuscript"
-                                ToolTip="제외 상태가 아닌 장면을 바인더 순서대로 TXT로 내보냅니다."
-                                MinWidth="86"
-                                Height="30"
-                                Margin="8,0,0,0"
-                                Padding="10,0"
-                                Click="CommandButton_Click"/>
-                    </StackPanel>
-
                     <StackPanel DockPanel.Dock="Right"
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center"
@@ -155,17 +50,153 @@
                     </StackPanel>
 
                     <TextBlock x:Name="ProjectPathText"
+                               DockPanel.Dock="Right"
                                VerticalAlignment="Center"
                                Margin="18,0,12,0"
                                Foreground="#4B5563"
                                FontSize="12"
                                TextTrimming="CharacterEllipsis"/>
+
+                    <Menu x:Name="WorkbenchMenuBar"
+                          Background="#F5F6F8"
+                          BorderThickness="0"
+                          Padding="4,0">
+                        <MenuItem Header="파일" Tag="menu.file">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#2563EB">
+                                    <TextBlock Text="F" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="새 프로젝트" Tag="project.new" Click="CommandButton_Click"/>
+                            <MenuItem Header="프로젝트 열기" Tag="project.open" Click="CommandButton_Click"/>
+                            <MenuItem Header="저장" Tag="project.save" Click="CommandButton_Click"/>
+                            <Separator/>
+                            <MenuItem Header="현재 장면 TXT" Tag="export.currentScene" Click="CommandButton_Click"/>
+                            <MenuItem Header="전체 원고 TXT" Tag="export.fullManuscript" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="편집" Tag="menu.edit">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#7C3AED">
+                                    <TextBlock Text="E" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="검색" Tag="search.run" Click="CommandButton_Click"/>
+                            <MenuItem Header="스냅샷 만들기" Tag="snapshot.createCurrent" Click="CommandButton_Click"/>
+                            <MenuItem Header="스냅샷 복원" Tag="snapshot.restoreSelected" Click="CommandButton_Click"/>
+                            <MenuItem Header="스냅샷 삭제" Tag="snapshot.deleteSelected" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="원고" Tag="menu.manuscript">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#059669">
+                                    <TextBlock Text="M" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="새 장면" Tag="document.createScene" Click="CommandButton_Click"/>
+                            <MenuItem Header="장면 이름 변경" Tag="document.renameScene" Click="CommandButton_Click"/>
+                            <MenuItem Header="장면 복제" Tag="document.duplicateScene" Click="CommandButton_Click"/>
+                            <MenuItem Header="장면 삭제" Tag="document.deleteScene" Click="CommandButton_Click"/>
+                            <Separator/>
+                            <MenuItem Header="위로 이동" Tag="document.moveSceneUp" Click="CommandButton_Click"/>
+                            <MenuItem Header="아래로 이동" Tag="document.moveSceneDown" Click="CommandButton_Click"/>
+                            <MenuItem Header="스트레스 15k" Tag="document.createStressLarge" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="구조" Tag="menu.story">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#DB2777">
+                                    <TextBlock Text="S" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="관계도" Tag="story.relationshipMap.open" Click="CommandButton_Click"/>
+                            <MenuItem Header="노드 추가" Tag="story.structure.addNode" Click="CommandButton_Click"/>
+                            <MenuItem Header="관계 추가" Tag="story.relationship.add" Click="CommandButton_Click"/>
+                            <MenuItem Header="장면 연결 추가" Tag="sceneEntity.link.add" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="보기" Tag="menu.view">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#0891B2">
+                                    <TextBlock Text="V" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="메인" Tag="view.main.open" Click="CommandButton_Click"/>
+                            <MenuItem Header="미리보기" Tag="view.preview.toggle" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="창" Tag="menu.window">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#EA580C">
+                                    <TextBlock Text="W" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="창 분리" Tag="document.detachCurrent" Click="CommandButton_Click"/>
+                            <Separator/>
+                            <MenuItem Header="프리셋 1" Tag="workspace.preset.1" Click="CommandButton_Click"/>
+                            <MenuItem Header="프리셋 2" Tag="workspace.preset.2" Click="CommandButton_Click"/>
+                            <MenuItem Header="프리셋 3" Tag="workspace.preset.3" Click="CommandButton_Click"/>
+                            <MenuItem Header="시작 프리셋 전환" Tag="workspace.startupPreset.cycle" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="도구" Tag="menu.tools">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#4B5563">
+                                    <TextBlock Text="T" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="집중 모드" Tag="writing.focus.toggle" Click="CommandButton_Click"/>
+                            <MenuItem Header="자동저장" Tag="autosave.toggle" Click="CommandButton_Click"/>
+                            <MenuItem Header="단축키 설정" Tag="shortcuts.openSettings" Click="CommandButton_Click"/>
+                        </MenuItem>
+                        <MenuItem Header="도움말" Tag="menu.help">
+                            <MenuItem.Icon>
+                                <Border Width="14" Height="14" CornerRadius="3" Background="#111827">
+                                    <TextBlock Text="?" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </MenuItem.Icon>
+                            <MenuItem Header="도움말" Tag="help.open" Click="CommandButton_Click"/>
+                        </MenuItem>
+                    </Menu>
                 </DockPanel>
 
                 <StackPanel Grid.Row="1"
                             Orientation="Horizontal"
                             VerticalAlignment="Center"
                             Background="#ECEFF3">
+                    <TextBlock Text="리모콘"
+                               Margin="10,0,4,0"
+                               VerticalAlignment="Center"
+                               Foreground="#374151"
+                               FontSize="12"
+                               FontWeight="SemiBold"/>
+                    <StackPanel x:Name="RemoteControlBar"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"/>
+                    <Separator Width="1"
+                               Height="24"
+                               Margin="8,0,0,0"
+                               Background="#CBD5E1"/>
+                    <Button x:Name="PreviewModeButton"
+                            Content="미리보기"
+                            Tag="view.preview.toggle"
+                            ToolTip="미리보기로 전환합니다. 기본 단축키: Ctrl+Alt+P."
+                            MinWidth="88"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button x:Name="FocusButton"
+                            Content="집중 40:00"
+                            Tag="writing.focus.toggle"
+                            MinWidth="104"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button x:Name="AutosaveButton"
+                            Content="자동저장 켬"
+                            Tag="autosave.toggle"
+                            ToolTip="자동저장을 켜거나 끕니다. 단축키: Ctrl+Alt+S."
+                            MinWidth="108"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
                     <Button Content="프리셋 1"
                             Tag="workspace.preset.1"
                             ToolTip="프리셋 1을 적용합니다. Shift를 누른 채 클릭하면 현재 창 위치로 덮어씁니다."

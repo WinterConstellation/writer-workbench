@@ -24,6 +24,7 @@ public static class WorkbenchCustomizationProfileFactory
                     new Dictionary<string, string>());
             })
             .ToList();
+        placements.AddRange(CreateDefaultRemoteControlPlacements(commandRegistry));
 
         var shortcuts = new List<ShortcutAssignment>
         {
@@ -60,5 +61,33 @@ public static class WorkbenchCustomizationProfileFactory
             macros,
             now,
             now);
+    }
+
+    public static IReadOnlyList<CommandPlacement> CreateDefaultRemoteControlPlacements(CommandRegistry commandRegistry)
+    {
+        var slots = new[]
+        {
+            new CommandSlot(1, AppCommandIds.ProjectSave, "저장"),
+            new CommandSlot(2, AppCommandIds.DocumentCreateScene, "새 장면"),
+            new CommandSlot(3, AppCommandIds.StoryRelationshipMapOpen, "관계도"),
+            new CommandSlot(4, AppCommandIds.ExportFullManuscript, "전체 TXT"),
+            new CommandSlot(5, AppCommandIds.DocumentDetachCurrent, "창 분리"),
+            new CommandSlot(6, AppCommandIds.SnapshotCreateCurrent, "스냅샷")
+        };
+
+        return slots
+            .Select(slot =>
+            {
+                var command = commandRegistry.Get(slot.CommandId);
+                return new CommandPlacement(
+                    "remote",
+                    "main",
+                    $"remote-{slot.Slot:00}",
+                    command.Id,
+                    slot.Label,
+                    slot.Slot,
+                    new Dictionary<string, string>());
+            })
+            .ToList();
     }
 }

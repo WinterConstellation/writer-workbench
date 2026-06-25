@@ -186,6 +186,22 @@ public sealed class WorkbenchCustomizationProfileTests
         Assert.Contains(profile.Macros, macro => macro.Id == "macro.start-focus-writing");
     }
 
+    [Fact]
+    public void DefaultProfileFactoryIncludesCustomizableRemoteControlPlacements()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-default", "기본 작업대", registry);
+        var remote = new WorkbenchCustomizationResolver(profile).GetPlacements("remote", "main");
+
+        Assert.NotEmpty(remote);
+        Assert.Contains(remote, placement => placement.CommandId == AppCommandIds.ProjectSave);
+        Assert.Contains(remote, placement => placement.CommandId == AppCommandIds.DocumentCreateScene);
+        Assert.Contains(remote, placement => placement.CommandId == AppCommandIds.StoryRelationshipMapOpen);
+        Assert.Contains(remote, placement => placement.CommandId == AppCommandIds.DocumentDetachCurrent);
+        Assert.Equal(remote.Count, remote.Select(placement => placement.SlotKey).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
     private static CommandRegistry CreateRegistry()
     {
         var registry = new CommandRegistry();

@@ -58,8 +58,7 @@ public sealed class MainWindowSmokeTests
             try
             {
                 var window = new MainWindow();
-                var commandTags = FindLogicalChildren<Button>(window)
-                    .Select(button => button.Tag as string)
+                var commandTags = FindCommandTags(window)
                     .Where(tag => tag is not null)
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -90,6 +89,111 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentMoveSceneUp, commandTags);
                 Assert.Contains(AppCommandIds.DocumentMoveSceneDown, commandTags);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowContainsIconMenuAndRemoteControlBar()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+
+                var menu = Assert.IsType<Menu>(window.FindName("WorkbenchMenuBar"));
+                var menuItems = menu.Items.OfType<MenuItem>().ToList();
+                Assert.Equal(
+                    [
+                        "menu.file",
+                        "menu.edit",
+                        "menu.manuscript",
+                        "menu.story",
+                        "menu.view",
+                        "menu.window",
+                        "menu.tools",
+                        "menu.help"
+                    ],
+                    menuItems.Select(item => item.Tag as string));
+                Assert.All(menuItems, item => Assert.NotNull(item.Icon));
+
+                var remote = Assert.IsType<StackPanel>(window.FindName("RemoteControlBar"));
+                var remoteButtons = remote.Children.OfType<Button>().ToList();
+                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.ProjectSave));
+                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.DocumentCreateScene));
+                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.StoryRelationshipMapOpen));
+                Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.DocumentDetachCurrent));
+                Assert.All(remoteButtons, button => Assert.IsType<StackPanel>(button.Content));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowRendersRemoteControlBarFromCustomizationProfile()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
+                var profile = new WorkbenchCustomizationProfile(
+                    "profile-remote-test",
+                    "리모콘 테스트",
+                    [
+                        new CommandPlacement("remote", "main", "second", AppCommandIds.ProjectSave, "저장 고정", 20, new Dictionary<string, string>()),
+                        new CommandPlacement("remote", "main", "first", AppCommandIds.DocumentDetachCurrent, "분리 고정", 10, new Dictionary<string, string>()),
+                        new CommandPlacement("toolbar", "main", "ignored", AppCommandIds.HelpOpen, "무시", 30, new Dictionary<string, string>())
+                    ],
+                    [],
+                    [],
+                    now,
+                    now);
+                var method = typeof(MainWindow).GetMethod(
+                    "RenderRemoteControlBar",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(method);
+                method!.Invoke(window, [profile]);
+
+                var remote = Assert.IsType<StackPanel>(window.FindName("RemoteControlBar"));
+                var buttons = remote.Children.OfType<Button>().ToList();
+
+                Assert.Equal(["document.detachCurrent", "project.save"], buttons.Select(button => button.Tag as string));
+                Assert.Equal(
+                    ["분리 고정", "저장 고정"],
+                    buttons.Select(button => ((StackPanel)button.Content).Children.OfType<TextBlock>().Last().Text));
                 window.Close();
             }
             catch (Exception ex)
@@ -528,6 +632,19 @@ public sealed class MainWindowSmokeTests
                     yield return nested;
                 }
             }
+        }
+    }
+
+    private static IEnumerable<string?> FindCommandTags(DependencyObject parent)
+    {
+        foreach (var tag in FindLogicalChildren<Button>(parent).Select(button => button.Tag as string))
+        {
+            yield return tag;
+        }
+
+        foreach (var tag in FindLogicalChildren<MenuItem>(parent).Select(item => item.Tag as string))
+        {
+            yield return tag;
         }
     }
 

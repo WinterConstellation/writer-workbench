@@ -95,6 +95,10 @@ public partial class MainWindow : Window
         StoryRelationshipKindBox.ItemsSource = RelationshipKindOption.All;
         StoryRelationshipKindBox.Text = "관계";
         RegisterCommandHandlers();
+        RenderRemoteControlBar(WorkbenchCustomizationProfileFactory.CreateDefault(
+            "profile-shell-default",
+            "기본 리모콘",
+            _commandRegistry));
 
         Loaded += async (_, _) => await InitializeProjectAsync();
         Closing += async (_, _) => await PersistSessionStateAsync();
@@ -132,6 +136,7 @@ public partial class MainWindow : Window
             _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
             _activeCustomizationProfile = await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
+            RenderRemoteControlBar(_activeCustomizationProfile);
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -253,6 +258,101 @@ public partial class MainWindow : Window
             button.Click += CommandButton_Click;
             MainCommandGrid.Children.Add(button);
         }
+    }
+
+    private void RenderRemoteControlBar(WorkbenchCustomizationProfile profile)
+    {
+        var placements = new WorkbenchCustomizationResolver(profile)
+            .GetPlacements("remote", "main");
+
+        if (placements.Count == 0)
+        {
+            placements = WorkbenchCustomizationProfileFactory.CreateDefaultRemoteControlPlacements(_commandRegistry);
+        }
+
+        RemoteControlBar.Children.Clear();
+        foreach (var placement in placements)
+        {
+            var command = _commandRegistry.Get(placement.CommandId);
+            var label = string.IsNullOrWhiteSpace(placement.Label) ? command.Name : placement.Label;
+            var button = new System.Windows.Controls.Button
+            {
+                Content = CreateRemoteButtonContent(placement.CommandId, label),
+                Tag = placement.CommandId,
+                ToolTip = $"{command.Category} / {command.Name}",
+                Margin = new Thickness(6, 0, 0, 0),
+                MinWidth = 74,
+                Height = 28,
+                Padding = new Thickness(7, 0, 8, 0)
+            };
+            button.Click += CommandButton_Click;
+            RemoteControlBar.Children.Add(button);
+        }
+    }
+
+    private static StackPanel CreateRemoteButtonContent(string commandId, string label)
+    {
+        var panel = new StackPanel
+        {
+            Orientation = System.Windows.Controls.Orientation.Horizontal,
+            VerticalAlignment = System.Windows.VerticalAlignment.Center
+        };
+        panel.Children.Add(new Border
+        {
+            Width = 16,
+            Height = 16,
+            CornerRadius = new CornerRadius(4),
+            Background = CreateRemoteIconBrush(commandId),
+            Child = new TextBlock
+            {
+                Text = GetRemoteIconText(commandId),
+                Foreground = System.Windows.Media.Brushes.White,
+                FontSize = 9,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                TextAlignment = TextAlignment.Center
+            }
+        });
+        panel.Children.Add(new TextBlock
+        {
+            Text = label,
+            Margin = new Thickness(5, 0, 0, 0),
+            VerticalAlignment = System.Windows.VerticalAlignment.Center,
+            FontSize = 12
+        });
+
+        return panel;
+    }
+
+    private static System.Windows.Media.Brush CreateRemoteIconBrush(string commandId)
+    {
+        var color = commandId switch
+        {
+            AppCommandIds.ProjectSave => System.Windows.Media.Color.FromRgb(37, 99, 235),
+            AppCommandIds.DocumentCreateScene => System.Windows.Media.Color.FromRgb(5, 150, 105),
+            AppCommandIds.StoryRelationshipMapOpen => System.Windows.Media.Color.FromRgb(219, 39, 119),
+            AppCommandIds.ExportCurrentScene or AppCommandIds.ExportFullManuscript => System.Windows.Media.Color.FromRgb(8, 145, 178),
+            AppCommandIds.SnapshotCreateCurrent => System.Windows.Media.Color.FromRgb(124, 58, 237),
+            AppCommandIds.DocumentDetachCurrent => System.Windows.Media.Color.FromRgb(234, 88, 12),
+            _ => System.Windows.Media.Color.FromRgb(75, 85, 99)
+        };
+
+        return new SolidColorBrush(color);
+    }
+
+    private static string GetRemoteIconText(string commandId)
+    {
+        return commandId switch
+        {
+            AppCommandIds.ProjectSave => "S",
+            AppCommandIds.DocumentCreateScene => "+",
+            AppCommandIds.StoryRelationshipMapOpen => "R",
+            AppCommandIds.ExportCurrentScene or AppCommandIds.ExportFullManuscript => "T",
+            AppCommandIds.SnapshotCreateCurrent => "B",
+            AppCommandIds.DocumentDetachCurrent => "W",
+            _ => "*"
+        };
     }
 
     private void SelectBinderItem(string documentId)
