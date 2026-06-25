@@ -564,6 +564,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.WorkspacePresetTwo] = () => ApplyOrSavePresetAsync(2);
         _commandHandlers[AppCommandIds.WorkspacePresetThree] = () => ApplyOrSavePresetAsync(3);
         _commandHandlers[AppCommandIds.WorkspaceStartupPresetCycle] = CycleStartupPresetAsync;
+        _commandHandlers[AppCommandIds.RemoteControlOpenSettings] = OpenRemoteControlSettingsAsync;
         _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
@@ -1984,6 +1985,28 @@ public partial class MainWindow : Window
         StatusText.Text = nextSlot is null
             ? "실행 시 프리셋 적용 꺼짐"
             : $"실행 시 프리셋 {nextSlot} 적용";
+    }
+
+    private async Task OpenRemoteControlSettingsAsync()
+    {
+        _activeCustomizationProfile ??= await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
+        var window = new RemoteControlSettingsWindow(_commandRegistry, _activeCustomizationProfile)
+        {
+            Owner = this
+        };
+
+        if (window.ShowDialog() != true || window.UpdatedProfile is null)
+        {
+            return;
+        }
+
+        _activeCustomizationProfile = window.UpdatedProfile;
+        await _customizationProfiles.SaveProfileAsync(_activeCustomizationProfile, CancellationToken.None);
+        RenderRemoteControlBar(_activeCustomizationProfile);
+        var remoteCount = new WorkbenchCustomizationResolver(_activeCustomizationProfile)
+            .GetPlacements("remote", "main")
+            .Count;
+        StatusText.Text = $"리모콘 바로가기 {remoteCount:N0}개 저장됨";
     }
 
     private async Task OpenShortcutSettingsAsync()

@@ -141,6 +141,7 @@
                             </MenuItem.Icon>
                             <MenuItem Header="집중 모드" Tag="writing.focus.toggle" Click="CommandButton_Click"/>
                             <MenuItem Header="자동저장" Tag="autosave.toggle" Click="CommandButton_Click"/>
+                            <MenuItem Header="리모콘 편집" Tag="remote.openSettings" Click="CommandButton_Click"/>
                             <MenuItem Header="단축키 설정" Tag="shortcuts.openSettings" Click="CommandButton_Click"/>
                         </MenuItem>
                         <MenuItem Header="도움말" Tag="menu.help">
@@ -167,6 +168,14 @@
                     <StackPanel x:Name="RemoteControlBar"
                                 Orientation="Horizontal"
                                 VerticalAlignment="Center"/>
+                    <Button Content="편집"
+                            Tag="remote.openSettings"
+                            ToolTip="리모콘 바로가기를 고릅니다."
+                            MinWidth="62"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
                     <Separator Width="1"
                                Height="24"
                                Margin="8,0,0,0"

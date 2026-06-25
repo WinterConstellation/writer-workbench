@@ -140,6 +140,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.StoryRelationshipMapOpen));
                 Assert.Contains(remoteButtons, button => Equals(button.Tag, AppCommandIds.DocumentDetachCurrent));
                 Assert.All(remoteButtons, button => Assert.IsType<StackPanel>(button.Content));
+                Assert.Contains(AppCommandIds.RemoteControlOpenSettings, FindCommandTags(window).Where(tag => tag is not null));
                 window.Close();
             }
             catch (Exception ex)
