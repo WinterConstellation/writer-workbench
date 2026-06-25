@@ -27,13 +27,59 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.True(layer.Topmost);
                 Assert.False(layer.ShowInTaskbar);
                 Assert.Equal(WindowStyle.None, layer.WindowStyle);
-                Assert.Equal(ResizeMode.NoResize, layer.ResizeMode);
+                Assert.Equal(ResizeMode.CanResizeWithGrip, layer.ResizeMode);
+                Assert.NotNull(layer.FindName("RemoteLayerResizeGrip"));
                 Assert.Equal(System.Windows.Input.Cursors.SizeAll, handle.Cursor);
                 Assert.Equal(["project.save", "document.detachCurrent"], buttons.Select(button => button.Tag as string));
                 layer.Left = -900;
                 layer.Top = -400;
                 Assert.Equal(-900, layer.Left);
                 Assert.Equal(-400, layer.Top);
+                layer.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void LayerCanSwitchBetweenIconAndTitleAndIconOnlyModes()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var registry = AppCommandCatalog.CreateDefaultRegistry();
+                var layer = new RemoteControlLayerWindow();
+                layer.Render(CreateProfile(), registry);
+
+                var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
+                var button = panel.Children.OfType<Button>().First();
+                var label = ((StackPanel)button.Content).Children.OfType<TextBlock>().Last();
+                var modeButton = Assert.IsType<Button>(layer.FindName("RemoteLayerDisplayModeButton"));
+
+                Assert.Equal(RemoteControlDisplayMode.IconAndTitle, layer.DisplayMode);
+                Assert.Equal(Visibility.Visible, label.Visibility);
+                Assert.Equal("아이콘만", modeButton.Content);
+
+                layer.SetDisplayMode(RemoteControlDisplayMode.IconOnly);
+
+                Assert.Equal(RemoteControlDisplayMode.IconOnly, layer.DisplayMode);
+                Assert.Equal(Visibility.Collapsed, label.Visibility);
+                Assert.True(button.MinWidth <= 44);
+                Assert.Equal("아이콘+제목", modeButton.Content);
                 layer.Close();
             }
             catch (Exception ex)

@@ -1528,6 +1528,45 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-25 KST feature update: Resizable remote layer and display mode
+
+Feature(s) implemented:
+- Remote control layer is now resizable with `ResizeMode=CanResizeWithGrip`.
+- Added a visible resize grip named `RemoteLayerResizeGrip`.
+- Added display mode switching on the remote layer.
+- The layer can switch between `아이콘+제목` and `아이콘만`.
+- Icon-only mode hides command labels and narrows command buttons.
+- Icon+title mode restores labels and wider command buttons.
+
+Files changed:
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- RemoteControlLayerWindow requires `ResizeMode.CanResizeWithGrip`.
+- RemoteControlLayerWindow requires `RemoteLayerResizeGrip`.
+- RemoteControlLayerWindow can switch between `RemoteControlDisplayMode.IconAndTitle` and `RemoteControlDisplayMode.IconOnly`.
+- Icon-only mode collapses title labels and narrows command buttons.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter RemoteControlLayerWindowTests` -> failed before display mode APIs existed, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowRendersTopmostMovableRemoteControlLayerFromCustomizationProfile|MainWindowContainsIconMenuAndRemoteControlEntryPoint"` -> 2 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 149 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor input/save paths were not touched.
+- Full smoke suite still includes the 80k append guard test.
+
+Remaining problems:
+- Remote layer size and display mode are not persisted yet.
+- Remote layer position is not persisted yet.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-25 KST feature update: Topmost movable remote control layer
 
 Feature(s) implemented:

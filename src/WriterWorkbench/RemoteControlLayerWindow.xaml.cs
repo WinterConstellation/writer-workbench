@@ -7,6 +7,12 @@ using WriterWorkbench.Core.Customization;
 
 namespace WriterWorkbench;
 
+public enum RemoteControlDisplayMode
+{
+    IconAndTitle,
+    IconOnly
+}
+
 public partial class RemoteControlLayerWindow : Window
 {
     public RemoteControlLayerWindow()
@@ -15,6 +21,8 @@ public partial class RemoteControlLayerWindow : Window
     }
 
     public event EventHandler<string>? CommandRequested;
+
+    public RemoteControlDisplayMode DisplayMode { get; private set; } = RemoteControlDisplayMode.IconAndTitle;
 
     public void Render(WorkbenchCustomizationProfile profile, CommandRegistry registry)
     {
@@ -43,7 +51,21 @@ public partial class RemoteControlLayerWindow : Window
                 HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left
             };
             button.Click += RemoteButton_Click;
+            ApplyDisplayMode(button);
             RemoteLayerButtonPanel.Children.Add(button);
+        }
+    }
+
+    public void SetDisplayMode(RemoteControlDisplayMode mode)
+    {
+        DisplayMode = mode;
+        RemoteLayerDisplayModeButton.Content = mode == RemoteControlDisplayMode.IconAndTitle
+            ? "아이콘만"
+            : "아이콘+제목";
+
+        foreach (var button in RemoteLayerButtonPanel.Children.OfType<System.Windows.Controls.Button>())
+        {
+            ApplyDisplayMode(button);
         }
     }
 
@@ -69,6 +91,42 @@ public partial class RemoteControlLayerWindow : Window
         catch (InvalidOperationException)
         {
             // DragMove can throw if the mouse state changes between the event and the call.
+        }
+    }
+
+    private void RemoteLayerDisplayModeButton_Click(object sender, RoutedEventArgs e)
+    {
+        SetDisplayMode(DisplayMode == RemoteControlDisplayMode.IconAndTitle
+            ? RemoteControlDisplayMode.IconOnly
+            : RemoteControlDisplayMode.IconAndTitle);
+    }
+
+    private void ApplyDisplayMode(System.Windows.Controls.Button button)
+    {
+        if (button.Content is not StackPanel panel)
+        {
+            return;
+        }
+
+        var label = panel.Children.OfType<TextBlock>().LastOrDefault();
+        if (label is null)
+        {
+            return;
+        }
+
+        if (DisplayMode == RemoteControlDisplayMode.IconOnly)
+        {
+            label.Visibility = Visibility.Collapsed;
+            button.MinWidth = 34;
+            button.Width = 34;
+            button.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Center;
+        }
+        else
+        {
+            label.Visibility = Visibility.Visible;
+            button.MinWidth = 104;
+            button.ClearValue(WidthProperty);
+            button.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left;
         }
     }
 
