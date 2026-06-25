@@ -360,6 +360,17 @@ public partial class MainWindow : Window
         await LoadDocumentAsync(item.Id);
     }
 
+    private void BinderListItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not ListBoxItem item)
+        {
+            return;
+        }
+
+        item.IsSelected = true;
+        item.Focus();
+    }
+
     private async void SearchResultsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
         if (SearchResultsList.SelectedItem is not SearchResultListItem item)

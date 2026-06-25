@@ -373,7 +373,41 @@
                              BorderThickness="0"
                              FontSize="14"
                              DisplayMemberPath="Display"
-                             SelectionChanged="BinderList_SelectionChanged"/>
+                             SelectionChanged="BinderList_SelectionChanged">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="{x:Type ListBoxItem}">
+                                <EventSetter Event="PreviewMouseRightButtonDown" Handler="BinderListItem_PreviewMouseRightButtonDown"/>
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="장면 이름 변경"
+                                          Tag="document.renameScene"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="장면 복제"
+                                          Tag="document.duplicateScene"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="장면 삭제"
+                                          Tag="document.deleteScene"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="위로 이동"
+                                          Tag="document.moveSceneUp"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="아래로 이동"
+                                          Tag="document.moveSceneDown"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="현재 장면 스냅샷"
+                                          Tag="snapshot.createCurrent"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="현재 장면 TXT 내보내기"
+                                          Tag="export.currentScene"
+                                          Click="CommandButton_Click"/>
+                                <MenuItem Header="창 분리"
+                                          Tag="document.detachCurrent"
+                                          Click="CommandButton_Click"/>
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                    </ListBox>
                 </DockPanel>
             </Border>
 

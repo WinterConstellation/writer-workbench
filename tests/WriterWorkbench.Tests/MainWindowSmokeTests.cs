@@ -108,6 +108,57 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowBinderHasRightClickSceneActionMenu()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var binder = Assert.IsType<ListBox>(window.FindName("BinderList"));
+                Assert.NotNull(binder.ContextMenu);
+                var contextMenu = binder.ContextMenu;
+                var menuItems = contextMenu.Items.OfType<MenuItem>().ToList();
+                Assert.NotNull(binder.ItemContainerStyle);
+                var eventSetters = binder.ItemContainerStyle
+                    .Setters
+                    .OfType<EventSetter>()
+                    .ToList();
+
+                Assert.Equal(
+                    [
+                        AppCommandIds.DocumentRenameScene,
+                        AppCommandIds.DocumentDuplicateScene,
+                        AppCommandIds.DocumentDeleteScene,
+                        AppCommandIds.DocumentMoveSceneUp,
+                        AppCommandIds.DocumentMoveSceneDown,
+                        AppCommandIds.SnapshotCreateCurrent,
+                        AppCommandIds.ExportCurrentScene,
+                        AppCommandIds.DocumentDetachCurrent
+                    ],
+                    menuItems.Select(item => item.Tag as string));
+                Assert.All(menuItems, item => Assert.Same(contextMenu, item.Parent));
+                Assert.Contains(eventSetters, setter => setter.Event.Name == "PreviewMouseRightButtonDown");
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowContainsIconMenuAndRemoteControlEntryPoint()
     {
         Exception? failure = null;

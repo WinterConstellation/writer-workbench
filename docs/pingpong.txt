@@ -1780,6 +1780,43 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary in-memory/window state.
 
+## 2026-06-26 KST feature update: Binder right-click scene action menu
+
+Feature(s) implemented:
+- Added a right-click context menu to the binder scene list.
+- Binder right-click menu actions: rename scene, duplicate scene, delete scene, move up, move down, create current-scene snapshot, export current scene TXT, detach window.
+- Right-clicking a binder item now selects/focuses that scene first, so existing scene commands target the clicked row.
+- Menu actions reuse the existing command handler path instead of duplicating delete/rename/move logic.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Main window smoke test now verifies the binder right-click menu command tags.
+- Test also verifies binder items have a right-click selection event setter.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowBinderHasRightClickSceneActionMenu` -> failed before implementation because binder context menu was missing, then passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 154 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> published local executable.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 154 passed.
+
+Large manuscript regression check, if touched:
+- Editor input, document save, and large manuscript paths were not touched.
+- Binder menu uses existing metadata/manifest-centered scene command paths.
+
+Remaining problems:
+- Context menu item enable/disable state is not dynamic yet.
+- Context menu does not show keyboard shortcut hints yet.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-26 KST feature/bugfix update: Remote toggle, shortcut capture, autosave mirror
 
 Feature(s) implemented:
