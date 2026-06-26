@@ -44,4 +44,15 @@ public sealed class StartupSurfaceResolverTests
         Assert.Equal(AppSessionState.EditorSurface, resolved.Surface);
         Assert.Equal("scene-0003", resolved.DocumentId);
     }
+
+    [Fact]
+    public void PersistedStartupSurfaceMapsNativeEditorBackToHtmlWorkbench()
+    {
+        Assert.Equal(
+            AppSessionState.HtmlWorkbenchSurface,
+            StartupSurfaceResolver.ToPersistedStartupSurface(AppSessionState.EditorSurface));
+        Assert.Equal(
+            AppSessionState.RelationshipMapSurface,
+            StartupSurfaceResolver.ToPersistedStartupSurface(AppSessionState.RelationshipMapSurface));
+    }
 }

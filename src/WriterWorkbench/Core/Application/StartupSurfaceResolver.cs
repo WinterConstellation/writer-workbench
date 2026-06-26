@@ -31,6 +31,14 @@ public static class StartupSurfaceResolver
             : NormalizeFallback(fallback);
     }
 
+    public static string ToPersistedStartupSurface(string? surface)
+    {
+        var normalized = NormalizeSurface(surface);
+        return normalized == AppSessionState.EditorSurface
+            ? AppSessionState.HtmlWorkbenchSurface
+            : normalized;
+    }
+
     private static string NormalizeFallback(string? fallback)
     {
         var normalized = fallback?.Trim() ?? "";

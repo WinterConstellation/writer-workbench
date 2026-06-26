@@ -1786,6 +1786,12 @@ Commands run:
 - Re-ran `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
 - Re-ran `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 175 passed.
 - Re-ran `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> succeeded.
+- Found a second runtime issue: legacy/native `editor` could still be persisted as startup state. Added persisted startup-surface mapping so `editor` is saved as `html-workbench`.
+- Added `StartupSurfaceResolver.ToPersistedStartupSurface` test.
+- Re-ran `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "StartupSurfaceResolverTests|MainWindowInitializationCreatesSeparatedProjectSettingsFiles"` -> 4 passed.
+- Re-ran `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Re-ran `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 176 passed.
+- Re-ran publish, relaunched `dist\WriterWorkbench-menu-remote\WriterWorkbench.exe`, then confirmed both `settings/app.json` and `%LOCALAPPDATA%\WriterWorkbench\app.session.json` keep `Surface/LastSurface = html-workbench`.
 
 Large manuscript regression check, if touched:
 - Editor input loop was not touched.

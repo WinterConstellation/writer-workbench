@@ -3090,13 +3090,20 @@ public partial class MainWindow : Window
     {
         try
         {
-            RememberSessionState(_sessionState.Surface);
-            await _sessionStateService.SaveAsync(_sessionState, CancellationToken.None);
+            var persistedSurface = StartupSurfaceResolver.ToPersistedStartupSurface(_sessionState.Surface);
+            var stateToSave = new AppSessionState(
+                _projectRoot,
+                string.IsNullOrWhiteSpace(_activeDocumentId) ? null : _activeDocumentId,
+                persistedSurface,
+                _lastAppliedPresetSlot ?? _sessionState.PresetSlot,
+                _graphicPreset.Id,
+                _focusDurationMinutes);
+            await _sessionStateService.SaveAsync(stateToSave, CancellationToken.None);
             _projectAppSettings = _projectAppSettings with
             {
                 AutosaveEnabled = _autosaveEnabled,
-                LastSurface = _sessionState.Surface,
-                LastSceneId = _sessionState.DocumentId
+                LastSurface = stateToSave.Surface,
+                LastSceneId = stateToSave.DocumentId
             };
             await _projectSettingsStore.SaveAsync(_projectAppSettings, CancellationToken.None);
         }
