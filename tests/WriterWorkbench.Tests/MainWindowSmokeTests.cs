@@ -387,6 +387,10 @@ public sealed class MainWindowSmokeTests
                 Assert.True(File.Exists(paths.WidgetRegistryPath), paths.WidgetRegistryPath);
                 Assert.Contains("마지막 작업", File.ReadAllText(paths.AppSettingsPath));
                 Assert.Contains("widget-registry", File.ReadAllText(paths.WidgetRegistryPath));
+                Assert.Equal(
+                    Visibility.Visible,
+                    Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface")).Visibility);
+                Assert.Contains("html-workbench", File.ReadAllText(paths.AppSettingsPath));
                 window.Close();
             }
             catch (Exception ex)

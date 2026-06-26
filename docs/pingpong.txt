@@ -1772,6 +1772,7 @@ Tests added/updated:
 - Project `LastSurface = html-workbench` overrides legacy global `Surface = editor`.
 - Project `LastSurface = editor` is still preserved once the user explicitly saves that state.
 - Invalid session surface now falls back to HTML workbench.
+- MainWindow initialization now asserts `HtmlWorkbenchSurface` is visible and `settings/app.json` keeps `html-workbench`.
 
 Commands run:
 - Inspected `%LOCALAPPDATA%\WriterWorkbench\app.session.json` -> found `Surface = editor`.
@@ -1781,6 +1782,10 @@ Commands run:
 - `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 175 passed.
 - `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> succeeded.
+- Reset local runtime state for `C:\WriterWorkbench\Projects\Sample.writerproj\settings\app.json` and `%LOCALAPPDATA%\WriterWorkbench\app.session.json` to `html-workbench` after an earlier run had persisted `editor`.
+- Re-ran `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Re-ran `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 175 passed.
+- Re-ran `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> succeeded.
 
 Large manuscript regression check, if touched:
 - Editor input loop was not touched.
