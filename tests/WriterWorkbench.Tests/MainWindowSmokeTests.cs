@@ -328,6 +328,7 @@ public sealed class MainWindowSmokeTests
             {
                 var window = new MainWindow();
 
+                Assert.NotNull(window.FindName("NativeCommandChrome"));
                 Assert.NotNull(window.FindName("EditorSurface"));
                 Assert.NotNull(window.FindName("HtmlWorkbenchSurface"));
                 Assert.NotNull(window.FindName("HtmlWorkbenchBrowser"));
@@ -369,13 +370,27 @@ public sealed class MainWindowSmokeTests
             {
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
                 var window = new MainWindow();
-                var htmlSurface = Assert.IsType<DockPanel>(window.FindName("HtmlWorkbenchSurface"));
+                var htmlSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface"));
                 var editorSurface = Assert.IsType<DockPanel>(window.FindName("EditorSurface"));
+                var nativeChrome = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("NativeCommandChrome"));
+                var statusText = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("StatusText"));
+                var metricsText = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("MetricsText"));
 
                 InvokePrivate(window, "ShowHtmlWorkbenchSurface");
 
                 Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+                Assert.Equal(3, Grid.GetColumnSpan(htmlSurface));
                 Assert.Equal(Visibility.Collapsed, editorSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, nativeChrome.Visibility);
+                Assert.Equal(Visibility.Collapsed, statusText.Visibility);
+                Assert.Equal(Visibility.Collapsed, metricsText.Visibility);
+
+                InvokePrivate(window, "ShowMainSurface");
+
+                Assert.Equal(Visibility.Collapsed, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Visible, nativeChrome.Visibility);
+                Assert.Equal(Visibility.Visible, statusText.Visibility);
+                Assert.Equal(Visibility.Visible, metricsText.Visibility);
                 window.Close();
             }
             catch (Exception ex)

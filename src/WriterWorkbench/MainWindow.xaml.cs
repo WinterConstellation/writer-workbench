@@ -2495,6 +2495,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        ShowNativeWorkbenchChrome();
         var sourceText = _editorTextView.IsSegmentMode && _activeDocument is not null
             ? TextExportService.ToPlainText(_activeDocument)
             : EditorBox.Text;
@@ -2518,6 +2519,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        ShowNativeWorkbenchChrome();
         HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
@@ -2536,6 +2538,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        ShowNativeWorkbenchChrome();
         HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Visible;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
@@ -2554,6 +2557,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        HideNativeWorkbenchChrome();
         HtmlWorkbenchSurface.Visibility = Visibility.Visible;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
@@ -2572,6 +2576,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        ShowNativeWorkbenchChrome();
         HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
@@ -2581,6 +2586,20 @@ public partial class MainWindow : Window
         _previewMode = false;
         RememberSessionState(AppSessionState.RelationshipMapSurface);
         StatusText.Text = "관계도 화면";
+    }
+
+    private void ShowNativeWorkbenchChrome()
+    {
+        NativeCommandChrome.Visibility = Visibility.Visible;
+        StatusText.Visibility = Visibility.Visible;
+        MetricsText.Visibility = Visibility.Visible;
+    }
+
+    private void HideNativeWorkbenchChrome()
+    {
+        NativeCommandChrome.Visibility = Visibility.Collapsed;
+        StatusText.Visibility = Visibility.Collapsed;
+        MetricsText.Visibility = Visibility.Collapsed;
     }
 
     private bool TryClaimMainSurface(string surfaceId)
