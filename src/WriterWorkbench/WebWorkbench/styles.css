@@ -417,6 +417,116 @@ h2 {
   line-height: 1.5;
 }
 
+.settings-heading,
+.settings-toolbar,
+.settings-subtitle,
+.remote-settings-row,
+.shortcut-row {
+  display: flex;
+  align-items: center;
+}
+
+.settings-heading {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.settings-heading h3 {
+  margin: 0;
+}
+
+.settings-toolbar {
+  margin-bottom: 14px;
+}
+
+.settings-search {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 10px;
+  font: inherit;
+}
+
+.remote-settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.settings-subtitle {
+  justify-content: space-between;
+  min-height: 32px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.remote-settings-list,
+.shortcut-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.remote-settings-row,
+.shortcut-row {
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  padding: 8px;
+}
+
+.remote-settings-body,
+.shortcut-command,
+.shortcut-keys {
+  min-width: 0;
+}
+
+.remote-settings-body strong,
+.remote-settings-body span,
+.shortcut-command strong,
+.shortcut-command span,
+.shortcut-keys strong,
+.shortcut-keys span {
+  display: block;
+}
+
+.remote-settings-body span,
+.shortcut-command span,
+.shortcut-keys span {
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-settings-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 4px;
+}
+
+.remote-settings-actions button,
+.remote-settings-row-candidate > button {
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.shortcut-keys {
+  flex: 0 0 auto;
+  min-width: 120px;
+  text-align: right;
+}
+
 .title-editor {
   width: 100%;
   border: 0;

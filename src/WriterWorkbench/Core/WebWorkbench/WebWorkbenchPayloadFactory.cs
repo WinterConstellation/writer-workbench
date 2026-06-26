@@ -21,7 +21,8 @@ public static class WebWorkbenchPayloadFactory
         bool autosaveEnabled,
         WorkbenchWidgetRegistry? widgetRegistry = null,
         string activeView = "editor",
-        string previewText = "")
+        string previewText = "",
+        IReadOnlyList<ShortcutBinding>? shortcutBindings = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -74,6 +75,8 @@ public static class WebWorkbenchPayloadFactory
         {
             remoteCommands = CreateCommands(resolver.GetPlacements("remote", "floating"), commandRegistry);
         }
+        var availableCommands = CreateAvailableCommands(commandRegistry);
+        var htmlShortcutBindings = CreateShortcutBindings(shortcutBindings, profile, commandRegistry);
 
         return new WebWorkbenchPayload(
             new WebWorkbenchProject(manifest.Title, projectRoot, manifest.Documents.Count),
@@ -82,6 +85,8 @@ public static class WebWorkbenchPayloadFactory
             commands,
             menuCommands,
             remoteCommands,
+            availableCommands,
+            htmlShortcutBindings,
             statusText,
             graphicPresetName,
             autosaveEnabled,
@@ -180,6 +185,60 @@ public static class WebWorkbenchPayloadFactory
                     widget.Order);
             })
             .ToList();
+    }
+
+    private static IReadOnlyList<WebWorkbenchCommand> CreateAvailableCommands(CommandRegistry commandRegistry)
+    {
+        return commandRegistry.All
+            .Select((command, index) => new WebWorkbenchCommand(
+                command.Id,
+                command.Name,
+                command.Category,
+                "catalog",
+                "catalog",
+                command.Id,
+                index + 1))
+            .ToList();
+    }
+
+    private static IReadOnlyList<WebWorkbenchShortcut> CreateShortcutBindings(
+        IReadOnlyList<ShortcutBinding>? shortcutBindings,
+        WorkbenchCustomizationProfile profile,
+        CommandRegistry commandRegistry)
+    {
+        var commandById = commandRegistry.All
+            .ToDictionary(command => command.Id, StringComparer.OrdinalIgnoreCase);
+        var shortcuts = shortcutBindings is null
+            ? profile.Shortcuts.Select(shortcut => (CommandId: shortcut.CommandId, Scope: shortcut.Scope, shortcut.Gesture))
+            : shortcutBindings.Select(shortcut => (shortcut.CommandId, Scope: shortcut.Scope.ToString(), shortcut.Gesture));
+
+        return shortcuts
+            .Select(shortcut => CreateShortcut(shortcut.CommandId, shortcut.Scope, shortcut.Gesture, commandById))
+            .Where(shortcut => shortcut is not null)
+            .Select(shortcut => shortcut!)
+            .OrderBy(shortcut => shortcut.Category, StringComparer.CurrentCulture)
+            .ThenBy(shortcut => shortcut.CommandName, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
+    private static WebWorkbenchShortcut? CreateShortcut(
+        string commandId,
+        string scope,
+        string gesture,
+        IReadOnlyDictionary<string, AppCommand> commandById)
+    {
+        commandId = AppCommandIds.NormalizeLegacyId(commandId);
+        if (!commandById.TryGetValue(commandId, out var command))
+        {
+            return null;
+        }
+
+        return new WebWorkbenchShortcut(
+            command.Id,
+            command.Name,
+            command.Category,
+            scope,
+            gesture);
     }
 
     private static WebWorkbenchScene CreateScene(

@@ -63,7 +63,12 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "기본",
             autosaveEnabled: true,
             activeView: "editor",
-            previewText: "미리보기 본문");
+            previewText: "미리보기 본문",
+            shortcutBindings:
+            [
+                new ShortcutBinding(AppCommandIds.ProjectSave, "Ctrl+S", CommandScope.Global),
+                new ShortcutBinding(AppCommandIds.ViewPreviewToggle, "Ctrl+Alt+P", CommandScope.Workbench)
+            ]);
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -73,6 +78,11 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("scene-0001", payload.ActiveScene!.Id);
         Assert.Equal("editor", payload.ActiveView);
         Assert.Equal("미리보기 본문", payload.PreviewText);
+        Assert.Contains(payload.AvailableCommands, command => command.CommandId == AppCommandIds.ProjectSave && command.Area == "catalog");
+        Assert.Contains(payload.ShortcutBindings, shortcut =>
+            shortcut.CommandId == AppCommandIds.ProjectSave &&
+            shortcut.Gesture == "Ctrl+S" &&
+            shortcut.Scope == CommandScope.Global.ToString());
         Assert.Equal("도입부", payload.ActiveScene.Summary);
         Assert.Equal("본문은 메인에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
         Assert.False(payload.ActiveScene.IsSegmentMode);
@@ -175,5 +185,39 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Equal("registry-focus", Assert.Single(payload.RemoteCommands).SlotKey);
         Assert.Equal("legacy", Assert.Single(payload.Commands).SlotKey);
+    }
+
+    [Fact]
+    public void PayloadExposesCatalogCommandsForHtmlRemoteSettingsEvenWhenToolbarProfileIsSparse()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var now = DateTimeOffset.Parse("2026-06-27T01:00:00+09:00");
+        var profile = new WorkbenchCustomizationProfile(
+            "profile-sparse",
+            "희소 프로필",
+            [
+                new CommandPlacement("remote", "main", "remote-01", AppCommandIds.ProjectSave, "저장", 1, new Dictionary<string, string>())
+            ],
+            [],
+            [],
+            now,
+            now);
+        var manifest = new ProjectManifest(1, "카탈로그", []);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "대기",
+            "기본",
+            autosaveEnabled: true);
+
+        Assert.Contains(payload.AvailableCommands, command => command.CommandId == AppCommandIds.HelpOpen);
+        Assert.Contains(payload.AvailableCommands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
+        Assert.Equal(AppCommandIds.ProjectSave, Assert.Single(payload.RemoteCommands).CommandId);
     }
 }

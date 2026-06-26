@@ -668,6 +668,50 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+
+                InvokePrivateAsync(
+                    window,
+                    "ApplyHtmlRemoteSettingsUpdateAsync",
+                    (object)new[] { AppCommandIds.HelpOpen, AppCommandIds.ProjectSave });
+
+                var profile = GetPrivateField<WorkbenchCustomizationProfile>(window, "_activeCustomizationProfile");
+                var remote = new WorkbenchCustomizationResolver(profile)
+                    .GetPlacements("remote", "main")
+                    .ToList();
+
+                Assert.Equal([AppCommandIds.HelpOpen, AppCommandIds.ProjectSave], remote.Select(placement => placement.CommandId));
+                Assert.Equal(["remote-01", "remote-02"], remote.Select(placement => placement.SlotKey));
+                Assert.Equal("리모컨 바로가기 2개 저장됨", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowAppliesHtmlActiveSceneEditorUpdateToCurrentDocument()
     {
         Exception? failure = null;
@@ -1216,6 +1260,11 @@ public sealed class MainWindowSmokeTests
         var field = typeof(MainWindow).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(MainWindow).FullName, fieldName);
         return Assert.IsType<T>(field.GetValue(window));
+    }
+
+    private static string GetStatusText(MainWindow window)
+    {
+        return Assert.IsType<TextBlock>(window.FindName("StatusText")).Text;
     }
 
     private static void AssertHtmlOnlySurface(

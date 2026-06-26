@@ -7,6 +7,8 @@ public sealed record WebWorkbenchPayload(
     IReadOnlyList<WebWorkbenchCommand> Commands,
     IReadOnlyList<WebWorkbenchCommand> MenuCommands,
     IReadOnlyList<WebWorkbenchCommand> RemoteCommands,
+    IReadOnlyList<WebWorkbenchCommand> AvailableCommands,
+    IReadOnlyList<WebWorkbenchShortcut> ShortcutBindings,
     string StatusText,
     string GraphicPresetName,
     bool AutosaveEnabled,
@@ -41,3 +43,10 @@ public sealed record WebWorkbenchCommand(
     string Area,
     string SlotKey,
     int Order);
+
+public sealed record WebWorkbenchShortcut(
+    string CommandId,
+    string CommandName,
+    string Category,
+    string Scope,
+    string Gesture);

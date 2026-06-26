@@ -2347,6 +2347,20 @@ public partial class MainWindow : Window
                     ? editorTextElement.GetString() ?? ""
                     : "";
                 ApplyHtmlActiveSceneUpdate(title, editorText);
+                return;
+            }
+
+            if (string.Equals(messageType, "remoteSettings.update", StringComparison.OrdinalIgnoreCase))
+            {
+                var commandIds = root.TryGetProperty("commandIds", out var commandIdsElement) &&
+                                 commandIdsElement.ValueKind == JsonValueKind.Array
+                    ? commandIdsElement.EnumerateArray()
+                        .Select(item => item.GetString())
+                        .Where(item => !string.IsNullOrWhiteSpace(item))
+                        .Select(item => item!)
+                        .ToList()
+                    : [];
+                await ApplyHtmlRemoteSettingsUpdateAsync(commandIds);
             }
         }
         catch (JsonException ex)
@@ -2391,6 +2405,50 @@ public partial class MainWindow : Window
         StatusText.Text = $"HTML 편집 반영됨 {document.Id}";
     }
 
+    private async Task ApplyHtmlRemoteSettingsUpdateAsync(IReadOnlyList<string> commandIds)
+    {
+        _activeCustomizationProfile ??= await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
+        var rows = new List<RemoteControlSettingsRow>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var order = 1;
+        foreach (var requestedCommandId in commandIds)
+        {
+            var commandId = AppCommandIds.NormalizeLegacyId(requestedCommandId);
+            if (string.IsNullOrWhiteSpace(commandId) || !seen.Add(commandId))
+            {
+                continue;
+            }
+
+            AppCommand command;
+            try
+            {
+                command = _commandRegistry.Get(commandId);
+            }
+            catch (KeyNotFoundException)
+            {
+                continue;
+            }
+
+            rows.Add(new RemoteControlSettingsRow(
+                command.Id,
+                command.Name,
+                command.Category,
+                true,
+                order++,
+                command.Name));
+        }
+
+        _activeCustomizationProfile = RemoteControlSettingsWindow.ApplyRemoteRows(
+            _activeCustomizationProfile,
+            rows,
+            _commandRegistry,
+            DateTimeOffset.UtcNow);
+        await _customizationProfiles.SaveProfileAsync(_activeCustomizationProfile, CancellationToken.None);
+        RenderRemoteControlLayer(_activeCustomizationProfile);
+        StatusText.Text = $"리모컨 바로가기 {rows.Count:N0}개 저장됨";
+        await PushHtmlWorkbenchStateAsync();
+    }
+
     private async Task PushHtmlWorkbenchStateAsync()
     {
         if (!_htmlWorkbenchInitialized || HtmlWorkbenchBrowser.CoreWebView2 is null)
@@ -2419,7 +2477,8 @@ public partial class MainWindow : Window
             _autosaveEnabled,
             _widgetRegistry,
             _htmlActiveView,
-            CreateHtmlPreviewText());
+            CreateHtmlPreviewText(),
+            _shortcutManager.Bindings);
         var message = JsonSerializer.Serialize(new
         {
             type = "state",

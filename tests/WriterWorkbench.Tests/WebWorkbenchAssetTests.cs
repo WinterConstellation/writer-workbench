@@ -34,6 +34,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("html-view-shortcuts", html);
         Assert.Contains("html-view-remote-settings", html);
         Assert.Contains("html-view-help", html);
+        Assert.Contains("shortcut-search", html);
+        Assert.Contains("remote-settings-current-list", html);
+        Assert.Contains("remote-settings-available-list", html);
+        Assert.Contains("remote-settings-save", html);
         Assert.Contains("rail-panel-settings", html);
         Assert.Contains("rail-panel-reference", html);
         Assert.Contains("bottom-status", html);
@@ -52,5 +56,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("setRailMode", script);
         Assert.Contains("setActiveView", script);
         Assert.Contains("renderPreview", script);
+        Assert.Contains("renderRemoteSettings", script);
+        Assert.Contains("saveRemoteSettings", script);
+        Assert.Contains("remoteSettings.update", script);
+        Assert.Contains("renderShortcutSettings", script);
+        Assert.Contains("filterShortcutSettings", script);
     }
 }

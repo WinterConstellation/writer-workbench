@@ -7,6 +7,9 @@ const state = {
   isRendering: false,
   remoteDrag: null,
   activeView: "editor",
+  remoteDraftCommandIds: [],
+  availableCommands: [],
+  shortcutBindings: [],
 };
 
 const $ = (id) => document.getElementById(id);
@@ -52,11 +55,16 @@ function render(payload) {
   const toolbarCommands = readPayloadValue(payload, "commands", "Commands", []);
   const menuCommands = readPayloadValue(payload, "menuCommands", "MenuCommands", []);
   const remoteCommands = readPayloadValue(payload, "remoteCommands", "RemoteCommands", []);
+  const availableCommands = readPayloadValue(payload, "availableCommands", "AvailableCommands", []);
+  const shortcutBindings = readPayloadValue(payload, "shortcutBindings", "ShortcutBindings", []);
   const statusText = readPayloadValue(payload, "statusText", "StatusText", "");
   const graphicPresetName = readPayloadValue(payload, "graphicPresetName", "GraphicPresetName", "기본");
   const autosaveEnabled = readPayloadValue(payload, "autosaveEnabled", "AutosaveEnabled", true);
   const activeView = readPayloadValue(payload, "activeView", "ActiveView", "editor");
   const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
+  state.availableCommands = availableCommands.map(normalizeCommand);
+  state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
+  state.remoteDraftCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
 
   $("project-title").textContent = readPayloadValue(project, "title", "Title", "원고 작업대");
   $("project-path").textContent = readPayloadValue(project, "rootPath", "RootPath", "");
@@ -73,7 +81,9 @@ function render(payload) {
   renderPipeline(binder);
   renderSettingsPanel(menuCommands);
   renderReferencePanel(project, active);
-  renderBoundaryPanels(menuCommands, remoteCommands);
+  renderBoundaryPanels(menuCommands);
+  renderRemoteSettings(remoteCommands, state.availableCommands);
+  renderShortcutSettings(state.shortcutBindings);
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   setActiveView(activeView);
   state.isRendering = false;
@@ -88,6 +98,16 @@ function normalizeCommand(command) {
     area: readPayloadValue(command, "area", "Area", "top.project"),
     slotKey: readPayloadValue(command, "slotKey", "SlotKey", ""),
     order: readPayloadValue(command, "order", "Order", 0),
+  };
+}
+
+function normalizeShortcut(shortcut) {
+  return {
+    commandId: readPayloadValue(shortcut, "commandId", "CommandId", ""),
+    commandName: readPayloadValue(shortcut, "commandName", "CommandName", ""),
+    category: readPayloadValue(shortcut, "category", "Category", ""),
+    scope: readPayloadValue(shortcut, "scope", "Scope", ""),
+    gesture: readPayloadValue(shortcut, "gesture", "Gesture", ""),
   };
 }
 
@@ -255,32 +275,7 @@ function renderPreview(text) {
   $("preview-reader").textContent = text || "";
 }
 
-function renderBoundaryPanels(menuCommands, remoteCommands) {
-  const shortcuts = (menuCommands || [])
-    .map(normalizeCommand)
-    .filter((command) => command.category === "작업공간" || command.area === "top.tools");
-  const shortcutList = $("shortcut-shell-list");
-  shortcutList.textContent = "";
-  for (const command of shortcuts) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "side-action";
-    button.dataset.command = command.commandId;
-    button.textContent = command.label || command.commandId;
-    shortcutList.appendChild(button);
-  }
-
-  const remoteList = $("remote-settings-shell-list");
-  remoteList.textContent = "";
-  for (const command of (remoteCommands || []).map(normalizeCommand)) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "side-action";
-    button.dataset.command = command.commandId;
-    button.textContent = command.label || command.commandId;
-    remoteList.appendChild(button);
-  }
-
+function renderBoundaryPanels(menuCommands) {
   const relationshipSummary = $("relationship-shell-summary");
   relationshipSummary.textContent = "";
   for (const [title, value] of [["상태", "HTML 화면 소유"], ["저장", "로컬 엔진"], ["다음", "캔버스 이식"]]) {
@@ -292,6 +287,160 @@ function renderBoundaryPanels(menuCommands, remoteCommands) {
     item.append(strong, span);
     relationshipSummary.appendChild(item);
   }
+}
+
+function renderRemoteSettings(remoteCommands, availableCommands) {
+  const currentList = $("remote-settings-current-list");
+  const availableList = $("remote-settings-available-list");
+  if (!currentList || !availableList) return;
+
+  const commandById = new Map();
+  for (const command of [...(availableCommands || []), ...(remoteCommands || []).map(normalizeCommand)]) {
+    if (command.commandId) {
+      commandById.set(command.commandId.toLowerCase(), command);
+    }
+  }
+
+  const selected = new Set(state.remoteDraftCommandIds.map((id) => id.toLowerCase()));
+  currentList.textContent = "";
+  state.remoteDraftCommandIds.forEach((commandId, index) => {
+    const command = commandById.get(commandId.toLowerCase()) || {
+      commandId,
+      label: commandId,
+      category: "",
+    };
+    currentList.appendChild(createRemoteSettingsRow(command, index));
+  });
+
+  availableList.textContent = "";
+  const candidates = (availableCommands || [])
+    .filter((command) => command.commandId && !selected.has(command.commandId.toLowerCase()))
+    .sort((a, b) => (a.category || "").localeCompare(b.category || "", "ko-KR") ||
+      (a.label || a.commandId).localeCompare(b.label || b.commandId, "ko-KR"));
+  for (const command of candidates) {
+    availableList.appendChild(createRemoteSettingsCandidate(command));
+  }
+
+  $("remote-settings-current-count").textContent = formatNumber(state.remoteDraftCommandIds.length);
+  $("remote-settings-available-count").textContent = formatNumber(candidates.length);
+}
+
+function createRemoteSettingsRow(command, index) {
+  const row = document.createElement("article");
+  row.className = "remote-settings-row";
+  const body = document.createElement("div");
+  body.className = "remote-settings-body";
+  const title = document.createElement("strong");
+  title.textContent = command.label || command.commandId;
+  const meta = document.createElement("span");
+  meta.textContent = `${command.category || "명령"} · ${command.commandId}`;
+  body.append(title, meta);
+
+  const actions = document.createElement("div");
+  actions.className = "remote-settings-actions";
+  actions.append(
+    createRemoteSettingsButton("up", command.commandId, "위", index === 0),
+    createRemoteSettingsButton("down", command.commandId, "아래", index === state.remoteDraftCommandIds.length - 1),
+    createRemoteSettingsButton("remove", command.commandId, "삭제", false));
+  row.append(body, actions);
+  return row;
+}
+
+function createRemoteSettingsCandidate(command) {
+  const row = document.createElement("article");
+  row.className = "remote-settings-row remote-settings-row-candidate";
+  const body = document.createElement("div");
+  body.className = "remote-settings-body";
+  const title = document.createElement("strong");
+  title.textContent = command.label || command.commandId;
+  const meta = document.createElement("span");
+  meta.textContent = `${command.category || "명령"} · ${command.commandId}`;
+  body.append(title, meta);
+  row.append(body, createRemoteSettingsButton("add", command.commandId, "추가", false));
+  return row;
+}
+
+function createRemoteSettingsButton(action, commandId, label, disabled) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.remoteAction = action;
+  button.dataset.remoteCommand = commandId;
+  button.disabled = disabled;
+  button.textContent = label;
+  return button;
+}
+
+function handleRemoteSettingsAction(button) {
+  const action = button.dataset.remoteAction;
+  const commandId = button.dataset.remoteCommand;
+  if (!action || !commandId) return;
+
+  const index = state.remoteDraftCommandIds.findIndex((id) => id.toLowerCase() === commandId.toLowerCase());
+  if (action === "add" && index < 0) {
+    state.remoteDraftCommandIds.push(commandId);
+  } else if (action === "remove" && index >= 0) {
+    state.remoteDraftCommandIds.splice(index, 1);
+  } else if (action === "up" && index > 0) {
+    [state.remoteDraftCommandIds[index - 1], state.remoteDraftCommandIds[index]] =
+      [state.remoteDraftCommandIds[index], state.remoteDraftCommandIds[index - 1]];
+  } else if (action === "down" && index >= 0 && index < state.remoteDraftCommandIds.length - 1) {
+    [state.remoteDraftCommandIds[index], state.remoteDraftCommandIds[index + 1]] =
+      [state.remoteDraftCommandIds[index + 1], state.remoteDraftCommandIds[index]];
+  }
+
+  renderRemoteSettings([], state.availableCommands);
+}
+
+function saveRemoteSettings() {
+  postWebMessage({
+    type: "remoteSettings.update",
+    commandIds: state.remoteDraftCommandIds,
+  });
+  $("status-text").textContent = `리모컨 저장 요청 · ${formatNumber(state.remoteDraftCommandIds.length)}개`;
+}
+
+function renderShortcutSettings(shortcuts) {
+  const list = $("shortcut-shell-list");
+  if (!list) return;
+
+  list.textContent = "";
+  for (const shortcut of shortcuts || []) {
+    const row = document.createElement("article");
+    row.className = "shortcut-row";
+    row.dataset.searchText = [
+      shortcut.commandName,
+      shortcut.commandId,
+      shortcut.category,
+      shortcut.scope,
+      shortcut.gesture
+    ].join(" ").toLowerCase();
+    const left = document.createElement("div");
+    left.className = "shortcut-command";
+    const title = document.createElement("strong");
+    title.textContent = shortcut.commandName || shortcut.commandId;
+    const meta = document.createElement("span");
+    meta.textContent = `${shortcut.category || "명령"} · ${shortcut.commandId}`;
+    left.append(title, meta);
+    const right = document.createElement("div");
+    right.className = "shortcut-keys";
+    const gesture = document.createElement("strong");
+    gesture.textContent = shortcut.gesture || "-";
+    const scope = document.createElement("span");
+    scope.textContent = shortcut.scope || "Workbench";
+    right.append(gesture, scope);
+    row.append(left, right);
+    list.appendChild(row);
+  }
+
+  filterShortcutSettings();
+}
+
+function filterShortcutSettings() {
+  const input = $("shortcut-search");
+  const query = (input?.value || "").trim().toLowerCase();
+  document.querySelectorAll(".shortcut-row").forEach((row) => {
+    row.hidden = query.length > 0 && !row.dataset.searchText.includes(query);
+  });
 }
 
 function renderInspector(active) {
@@ -376,6 +525,18 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const remoteSave = event.target.closest("#remote-settings-save");
+  if (remoteSave) {
+    saveRemoteSettings();
+    return;
+  }
+
+  const remoteAction = event.target.closest("[data-remote-action]");
+  if (remoteAction) {
+    handleRemoteSettingsAction(remoteAction);
+    return;
+  }
+
   const button = event.target.closest("button[data-command]");
   if (button) {
     sendCommand(button.dataset.command);
@@ -384,6 +545,7 @@ document.addEventListener("click", (event) => {
 
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
+$("shortcut-search")?.addEventListener("input", filterShortcutSettings);
 
 $("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);
 document.addEventListener("pointermove", moveRemoteDrag);
@@ -506,6 +668,18 @@ if (window.chrome && window.chrome.webview) {
       { commandId: "snapshot.createCurrent", label: "현재 장면 스냅샷", category: "스냅샷", surface: "remote", area: "floating", slotKey: "snapshot", order: 10 },
       { commandId: "project.save", label: "저장", category: "프로젝트", surface: "remote", area: "floating", slotKey: "save", order: 20 },
       { commandId: "document.detachCurrent", label: "창 분리", category: "문서", surface: "remote", area: "floating", slotKey: "detach", order: 30 }
+    ],
+    availableCommands: [
+      { commandId: "project.save", label: "저장", category: "프로젝트", surface: "catalog", area: "catalog", slotKey: "project.save", order: 1 },
+      { commandId: "document.createScene", label: "새 장면", category: "문서", surface: "catalog", area: "catalog", slotKey: "document.createScene", order: 2 },
+      { commandId: "story.relationshipMap.open", label: "관계도", category: "구조", surface: "catalog", area: "catalog", slotKey: "story.relationshipMap.open", order: 3 },
+      { commandId: "view.preview.toggle", label: "미리보기", category: "보기", surface: "catalog", area: "catalog", slotKey: "view.preview.toggle", order: 4 },
+      { commandId: "help.open", label: "도움말", category: "도움말", surface: "catalog", area: "catalog", slotKey: "help.open", order: 5 }
+    ],
+    shortcutBindings: [
+      { commandId: "project.save", commandName: "저장", category: "프로젝트", scope: "Global", gesture: "Ctrl+S" },
+      { commandId: "view.preview.toggle", commandName: "미리보기", category: "보기", scope: "Workbench", gesture: "Ctrl+Alt+P" },
+      { commandId: "help.open", commandName: "도움말", category: "도움말", scope: "Global", gesture: "F1" }
     ],
     commands: [],
     statusText: "메인",

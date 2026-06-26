@@ -1691,6 +1691,54 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-27 KST feature implementation update: HTML remote editor and shortcut list bridge
+
+Feature(s) implemented:
+- HTML workbench payload now includes catalog commands and shortcut bindings for HTML-side settings screens.
+- HTML remote-control editor can add, remove, and reorder remote commands, then save explicitly through the WebView bridge.
+- WPF bridge now handles `remoteSettings.update` and persists the remote command order into the active customization profile.
+- HTML shortcut screen now renders shortcut bindings with search/filter.
+- Dist publish updated `dist/WriterWorkbench-menu-remote/WriterWorkbench.exe` and copied current `WebWorkbench` assets.
+
+Files changed:
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Payload exposes available catalog commands and shortcut bindings for HTML settings.
+- MainWindow applies HTML remote settings updates to the customization profile and preserves order.
+- HTML asset tests cover remote settings, shortcut search, and WebView bridge anchors.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "CreatesDashboardPayloadWithActiveEditorTextOnly|PayloadExposesCatalogCommandsForHtmlRemoteSettingsEvenWhenToolbarProfileIsSparse|MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile|WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate"` -> 5 passed.
+- `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8')); console.log('app.js syntax ok')"` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate"` -> 2 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 188 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-menu-remote --no-restore` -> failed because restore assets for `net8.0-windows/win-x64` were missing.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-menu-remote` -> passed.
+- `node -e "new Function(require('fs').readFileSync('dist/WriterWorkbench-menu-remote/WebWorkbench/app.js','utf8')); console.log('dist app.js syntax ok')"` -> passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not touched.
+- Export, autosave, and editor input loops do not run remote settings save; remote settings persist only on explicit HTML save.
+
+Remaining problems:
+- Shortcut screen is searchable/read-only in this pass; actual shortcut editing/save still needs a dedicated HTML shortcut editor bridge.
+- Relationship map remains an HTML shell entry point unless the native relationship map is ported into the HTML workbench.
+- Some older WPF surfaces remain as host/legacy code while the HTML workbench becomes the main UI.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음.
+
 ## 2026-06-27 KST feature implementation update: HTML surface promoted to main
 
 Feature(s) implemented:
