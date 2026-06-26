@@ -313,7 +313,7 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
-    public async Task DeleteDocumentRemovesFilesManifestEntryAndSearchIndex()
+    public async Task DeleteDocumentMovesFilesToTrashAndRemovesManifestEntryAndSearchIndex()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
         var paths = ProjectPaths.ForRoot(root);
@@ -334,9 +334,15 @@ public sealed class ProjectStoreTests
 
         Assert.Equal([first.Id], manifest.Documents.Select(document => document.Id));
         Assert.Equal([first.Id], reloadedManifest.Documents.Select(document => document.Id));
+        var trashFolders = Directory.GetDirectories(paths.TrashPath, $"{second.Id}-*");
+        var trashFolder = Assert.Single(trashFolders);
         Assert.False(File.Exists(paths.DocumentJsonPath(second.Id)));
         Assert.False(File.Exists(paths.DocumentTextPath(second.Id)));
         Assert.False(File.Exists(paths.SceneMetadataPath(second.Id)));
+        Assert.True(File.Exists(Path.Combine(trashFolder, $"{second.Id}.wwdoc.json")));
+        Assert.True(File.Exists(Path.Combine(trashFolder, $"{second.Id}.txt")));
+        Assert.True(File.Exists(Path.Combine(trashFolder, $"{second.Id}.meta.json")));
+        Assert.True(File.Exists(Path.Combine(trashFolder, "trash.info.json")));
         Assert.Empty(results);
     }
 

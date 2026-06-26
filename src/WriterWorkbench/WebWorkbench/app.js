@@ -4,8 +4,10 @@ const state = {
   railMode: "binder",
   pendingEditorUpdate: null,
   editorUpdateTimer: 0,
+  metricUpdateTimer: 0,
   isRendering: false,
   remoteDrag: null,
+  storyDrag: null,
   activeView: "editor",
   selectedDocumentId: "",
   binderContextDocumentId: "",
@@ -64,6 +66,7 @@ function render(payload) {
   const autosaveEnabled = readPayloadValue(payload, "autosaveEnabled", "AutosaveEnabled", true);
   const activeView = readPayloadValue(payload, "activeView", "ActiveView", "editor");
   const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
+  const story = readPayloadValue(payload, "story", "Story", null);
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   state.remoteDraftCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
@@ -84,7 +87,7 @@ function render(payload) {
   renderPipeline(binder);
   renderSettingsPanel(menuCommands);
   renderReferencePanel(project, active);
-  renderBoundaryPanels(menuCommands);
+  renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
   renderShortcutSettings(state.shortcutBindings);
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
@@ -320,17 +323,150 @@ function renderPreview(text) {
   $("preview-reader").textContent = text || "";
 }
 
-function renderBoundaryPanels(menuCommands) {
-  const relationshipSummary = $("relationship-shell-summary");
-  relationshipSummary.textContent = "";
-  for (const [title, value] of [["상태", "HTML 화면 소유"], ["저장", "로컬 엔진"], ["다음", "캔버스 이식"]]) {
-    const item = document.createElement("div");
-    const strong = document.createElement("strong");
-    strong.textContent = title;
-    const span = document.createElement("span");
-    span.textContent = value;
-    item.append(strong, span);
-    relationshipSummary.appendChild(item);
+function normalizeStory(story) {
+  const entities = readPayloadValue(story, "entities", "Entities", []) || [];
+  const relationships = readPayloadValue(story, "relationships", "Relationships", []) || [];
+  return {
+    entities: entities.map((entity) => ({
+      id: readPayloadValue(entity, "id", "Id", ""),
+      type: readPayloadValue(entity, "type", "Type", "Character"),
+      name: readPayloadValue(entity, "name", "Name", ""),
+      role: readPayloadValue(entity, "role", "Role", ""),
+      summary: readPayloadValue(entity, "summary", "Summary", ""),
+      color: readPayloadValue(entity, "color", "Color", "#2563EB"),
+      tags: readPayloadValue(entity, "tags", "Tags", []) || [],
+      x: Number(readPayloadValue(entity, "x", "X", 0)) || 0,
+      y: Number(readPayloadValue(entity, "y", "Y", 0)) || 0,
+    })),
+    relationships: relationships.map((relationship) => ({
+      id: readPayloadValue(relationship, "id", "Id", ""),
+      sourceEntityId: readPayloadValue(relationship, "sourceEntityId", "SourceEntityId", ""),
+      targetEntityId: readPayloadValue(relationship, "targetEntityId", "TargetEntityId", ""),
+      label: readPayloadValue(relationship, "label", "Label", "관계"),
+      notes: readPayloadValue(relationship, "notes", "Notes", ""),
+      isDirectional: Boolean(readPayloadValue(relationship, "isDirectional", "IsDirectional", false)),
+    })),
+  };
+}
+
+function renderRelationshipMap(story) {
+  const model = normalizeStory(story);
+  $("relationship-counts").textContent = `${formatNumber(model.entities.length)}명 / 관계 ${formatNumber(model.relationships.length)}개`;
+  renderStoryLists(model);
+  renderStorySelectors(model.entities);
+  renderStoryCanvas(model);
+}
+
+function renderStoryLists(model) {
+  const entityList = $("story-entity-list");
+  const relationshipList = $("story-relationship-list");
+  entityList.textContent = "";
+  relationshipList.textContent = "";
+
+  for (const entity of model.entities) {
+    const item = document.createElement("article");
+    item.className = "story-list-item";
+    const title = document.createElement("strong");
+    title.textContent = entity.name || entity.id;
+    const meta = document.createElement("span");
+    meta.textContent = `${entity.role || entity.type} · ${entity.id}`;
+    item.append(title, meta);
+    entityList.appendChild(item);
+  }
+
+  const entityById = new Map(model.entities.map((entity) => [entity.id, entity]));
+  for (const relationship of model.relationships) {
+    const source = entityById.get(relationship.sourceEntityId);
+    const target = entityById.get(relationship.targetEntityId);
+    const item = document.createElement("article");
+    item.className = "story-list-item";
+    const title = document.createElement("strong");
+    title.textContent = relationship.label || "관계";
+    const meta = document.createElement("span");
+    meta.textContent = `${source?.name || relationship.sourceEntityId} → ${target?.name || relationship.targetEntityId}`;
+    item.append(title, meta);
+    relationshipList.appendChild(item);
+  }
+}
+
+function renderStorySelectors(entities) {
+  for (const select of [$("story-relationship-source"), $("story-relationship-target")]) {
+    const previous = select.value;
+    select.textContent = "";
+    for (const entity of entities) {
+      const option = document.createElement("option");
+      option.value = entity.id;
+      option.textContent = entity.name || entity.id;
+      select.appendChild(option);
+    }
+    if (previous && entities.some((entity) => entity.id === previous)) {
+      select.value = previous;
+    }
+  }
+}
+
+function renderStoryCanvas(model) {
+  const canvas = $("relationship-map-canvas");
+  canvas.textContent = "";
+  const entityById = new Map(model.entities.map((entity) => [entity.id, entity]));
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.classList.add("relationship-lines");
+  canvas.appendChild(svg);
+
+  for (const relationship of model.relationships) {
+    const source = entityById.get(relationship.sourceEntityId);
+    const target = entityById.get(relationship.targetEntityId);
+    if (!source || !target) continue;
+
+    const x1 = source.x + 66;
+    const y1 = source.y + 27;
+    const x2 = target.x + 66;
+    const y2 = target.y + 27;
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", x1);
+    line.setAttribute("y1", y1);
+    line.setAttribute("x2", x2);
+    line.setAttribute("y2", y2);
+    line.setAttribute("stroke", "#64748B");
+    line.setAttribute("stroke-width", relationship.isDirectional ? "2.5" : "1.5");
+    svg.appendChild(line);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", (x1 + x2) / 2);
+    label.setAttribute("y", (y1 + y2) / 2 - 6);
+    label.setAttribute("fill", "#111827");
+    label.setAttribute("font-size", "12");
+    label.setAttribute("text-anchor", "middle");
+    label.textContent = relationship.label || "관계";
+    svg.appendChild(label);
+  }
+
+  if (model.entities.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "story-list-item";
+    empty.style.position = "absolute";
+    empty.style.left = "24px";
+    empty.style.top = "24px";
+    empty.innerHTML = "<strong>캐릭터 없음</strong><span>왼쪽에서 캐릭터를 추가하세요.</span>";
+    canvas.appendChild(empty);
+    return;
+  }
+
+  for (const entity of model.entities) {
+    const node = document.createElement("button");
+    node.type = "button";
+    node.className = "story-map-node";
+    node.dataset.entityId = entity.id;
+    node.style.left = `${entity.x}px`;
+    node.style.top = `${entity.y}px`;
+    node.style.background = entity.color || "#2563EB";
+    const title = document.createElement("strong");
+    title.textContent = entity.name || entity.id;
+    const meta = document.createElement("span");
+    meta.textContent = entity.role || entity.type;
+    node.append(title, meta);
+    node.addEventListener("pointerdown", startStoryNodeDrag);
+    canvas.appendChild(node);
   }
 }
 
@@ -598,6 +734,18 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const addEntity = event.target.closest("#story-add-entity");
+  if (addEntity) {
+    addStoryEntity();
+    return;
+  }
+
+  const addRelationship = event.target.closest("#story-add-relationship");
+  if (addRelationship) {
+    addStoryRelationship();
+    return;
+  }
+
   const button = event.target.closest("button[data-command]");
   if (button) {
     sendCommand(button.dataset.command);
@@ -612,6 +760,9 @@ $("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);
 document.addEventListener("pointermove", moveRemoteDrag);
 document.addEventListener("pointerup", endRemoteDrag);
 document.addEventListener("pointercancel", endRemoteDrag);
+document.addEventListener("pointermove", moveStoryNodeDrag);
+document.addEventListener("pointerup", endStoryNodeDrag);
+document.addEventListener("pointercancel", endStoryNodeDrag);
 
 function setRailMode(mode) {
   state.railMode = mode || "binder";
@@ -650,6 +801,7 @@ function scheduleActiveSceneUpdate() {
     editorText: $("active-body-editor").value,
   };
   state.editorUpdateTimer = window.setTimeout(flushActiveSceneUpdate, 450);
+  scheduleLocalMetricUpdate();
 }
 
 function flushActiveSceneUpdate() {
@@ -659,6 +811,49 @@ function flushActiveSceneUpdate() {
   const message = state.pendingEditorUpdate;
   state.pendingEditorUpdate = null;
   postWebMessage(message);
+}
+
+function scheduleLocalMetricUpdate() {
+  window.clearTimeout(state.metricUpdateTimer);
+  state.metricUpdateTimer = window.setTimeout(updateActiveEditorMetrics, 1000);
+}
+
+function updateActiveEditorMetrics() {
+  const text = $("active-body-editor").value || "";
+  $("active-length").textContent = formatNumber(text.replace(/\s/g, "").length);
+  $("active-length-spaces").textContent = formatNumber(text.length);
+}
+
+function addStoryEntity() {
+  const name = $("story-entity-name").value.trim();
+  const role = $("story-entity-role").value.trim();
+  if (!name) {
+    $("status-text").textContent = "관계도 캐릭터 이름을 입력하세요.";
+    return;
+  }
+
+  postWebMessage({ type: "story.entity.add", name, role });
+  $("story-entity-name").value = "";
+  $("story-entity-role").value = "";
+}
+
+function addStoryRelationship() {
+  const sourceEntityId = $("story-relationship-source").value;
+  const targetEntityId = $("story-relationship-target").value;
+  const label = $("story-relationship-label").value.trim() || "관계";
+  if (!sourceEntityId || !targetEntityId || sourceEntityId === targetEntityId) {
+    $("status-text").textContent = "서로 다른 캐릭터 두 명을 선택하세요.";
+    return;
+  }
+
+  postWebMessage({
+    type: "story.relationship.add",
+    sourceEntityId,
+    targetEntityId,
+    label,
+    notes: "",
+  });
+  $("story-relationship-label").value = "";
 }
 
 function startRemoteDrag(event) {
@@ -687,6 +882,55 @@ function endRemoteDrag(event) {
 
   $("floating-remote").releasePointerCapture?.(event.pointerId);
   state.remoteDrag = null;
+}
+
+function startStoryNodeDrag(event) {
+  const node = event.currentTarget;
+  const rect = node.getBoundingClientRect();
+  state.storyDrag = {
+    pointerId: event.pointerId,
+    entityId: node.dataset.entityId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+  node.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function moveStoryNodeDrag(event) {
+  if (!state.storyDrag || state.storyDrag.pointerId !== event.pointerId) return;
+
+  const node = findStoryNode(state.storyDrag.entityId);
+  const canvas = $("relationship-map-canvas");
+  if (!node || !canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const x = Math.max(0, event.clientX - rect.left + canvas.scrollLeft - state.storyDrag.offsetX);
+  const y = Math.max(0, event.clientY - rect.top + canvas.scrollTop - state.storyDrag.offsetY);
+  node.style.left = `${x}px`;
+  node.style.top = `${y}px`;
+}
+
+function endStoryNodeDrag(event) {
+  if (!state.storyDrag || state.storyDrag.pointerId !== event.pointerId) return;
+
+  const entityId = state.storyDrag.entityId;
+  const node = findStoryNode(entityId);
+  node?.releasePointerCapture?.(event.pointerId);
+  state.storyDrag = null;
+  if (!node) return;
+
+  postWebMessage({
+    type: "story.layout.update",
+    entityId,
+    x: parseFloat(node.style.left) || 0,
+    y: parseFloat(node.style.top) || 0,
+  });
+}
+
+function findStoryNode(entityId) {
+  return Array.from(document.querySelectorAll(".story-map-node"))
+    .find((node) => node.dataset.entityId === entityId);
 }
 
 if (window.chrome && window.chrome.webview) {

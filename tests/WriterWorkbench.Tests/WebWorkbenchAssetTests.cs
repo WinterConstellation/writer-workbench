@@ -34,6 +34,17 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
         Assert.Contains("html-view-relationship", html);
+        Assert.Contains("relationship-workbench", html);
+        Assert.Contains("story-entity-name", html);
+        Assert.Contains("story-entity-role", html);
+        Assert.Contains("story-add-entity", html);
+        Assert.Contains("story-relationship-source", html);
+        Assert.Contains("story-relationship-target", html);
+        Assert.Contains("story-relationship-label", html);
+        Assert.Contains("story-add-relationship", html);
+        Assert.Contains("relationship-map-canvas", html);
+        Assert.Contains("story-entity-list", html);
+        Assert.Contains("story-relationship-list", html);
         Assert.Contains("html-view-shortcuts", html);
         Assert.Contains("html-view-remote-settings", html);
         Assert.Contains("html-view-help", html);
@@ -69,6 +80,12 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("remoteSettings.update", script);
         Assert.Contains("renderShortcutSettings", script);
         Assert.Contains("filterShortcutSettings", script);
+        Assert.Contains("scheduleLocalMetricUpdate", script);
+        Assert.Contains("1000", script);
+        Assert.Contains("renderRelationshipMap", script);
+        Assert.Contains("story.entity.add", script);
+        Assert.Contains("story.relationship.add", script);
+        Assert.Contains("story.layout.update", script);
     }
 
     [Fact]
@@ -81,5 +98,9 @@ public sealed class WebWorkbenchAssetTests
 
         Assert.Contains(".floating-remote", css);
         Assert.Contains("display: none", css);
+        Assert.Contains("#rail-panel-binder", css);
+        Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
+        Assert.Contains(".relationship-workbench", css);
+        Assert.Contains(".relationship-map-canvas", css);
     }
 }

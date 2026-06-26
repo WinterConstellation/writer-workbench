@@ -13,7 +13,8 @@ public sealed record WebWorkbenchPayload(
     string GraphicPresetName,
     bool AutosaveEnabled,
     string ActiveView = "editor",
-    string PreviewText = "");
+    string PreviewText = "",
+    WebWorkbenchStory? Story = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -50,3 +51,26 @@ public sealed record WebWorkbenchShortcut(
     string Category,
     string Scope,
     string Gesture);
+
+public sealed record WebWorkbenchStory(
+    IReadOnlyList<WebWorkbenchStoryEntity> Entities,
+    IReadOnlyList<WebWorkbenchStoryRelationship> Relationships);
+
+public sealed record WebWorkbenchStoryEntity(
+    string Id,
+    string Type,
+    string Name,
+    string Role,
+    string Summary,
+    string Color,
+    IReadOnlyList<string> Tags,
+    double X,
+    double Y);
+
+public sealed record WebWorkbenchStoryRelationship(
+    string Id,
+    string SourceEntityId,
+    string TargetEntityId,
+    string Label,
+    string Notes,
+    bool IsDirectional);

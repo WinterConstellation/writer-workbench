@@ -103,10 +103,41 @@
           </article>
         </section>
         <section id="html-view-relationship" class="view-panel" data-view-panel="relationship-map">
-          <article class="mode-sheet">
-            <h3>관계도</h3>
-            <p>관계도는 HTML 화면 소유로 이동 중입니다. 데이터와 저장은 기존 로컬 엔진을 사용합니다.</p>
-            <div id="relationship-shell-summary" class="mode-grid"></div>
+          <article class="mode-sheet relationship-mode-sheet">
+            <div class="settings-heading">
+              <h3>관계도</h3>
+              <span id="relationship-counts" class="state-pill">0명 / 관계 0개</span>
+            </div>
+            <div id="relationship-workbench" class="relationship-workbench">
+              <section class="relationship-panel">
+                <div class="settings-subtitle">
+                  <strong>캐릭터</strong>
+                  <span>수동 추가</span>
+                </div>
+                <div class="compact-form">
+                  <input id="story-entity-name" type="text" placeholder="이름">
+                  <input id="story-entity-role" type="text" placeholder="역할">
+                  <button id="story-add-entity" type="button">추가</button>
+                </div>
+                <div id="story-entity-list" class="story-list"></div>
+              </section>
+              <section class="relationship-map-wrap">
+                <div id="relationship-map-canvas" class="relationship-map-canvas" aria-label="관계도 캔버스"></div>
+              </section>
+              <section class="relationship-panel">
+                <div class="settings-subtitle">
+                  <strong>관계</strong>
+                  <span>선택 연결</span>
+                </div>
+                <div class="compact-form">
+                  <select id="story-relationship-source" aria-label="시작 캐릭터"></select>
+                  <select id="story-relationship-target" aria-label="도착 캐릭터"></select>
+                  <input id="story-relationship-label" type="text" placeholder="관계명">
+                  <button id="story-add-relationship" type="button">연결</button>
+                </div>
+                <div id="story-relationship-list" class="story-list"></div>
+              </section>
+            </div>
           </article>
         </section>
         <section id="html-view-shortcuts" class="view-panel" data-view-panel="shortcuts">

@@ -150,6 +150,9 @@ public sealed class ProjectStore(ProjectPaths paths)
         }
 
         var documents = manifest.Documents.ToList();
+        var deletedDocument = documents[index];
+        var deletedAt = DateTimeOffset.UtcNow;
+        await StageDocumentForDeletionAsync(deletedDocument, deletedAt, token);
         documents.RemoveAt(index);
         var updatedManifest = manifest with { Documents = documents };
         await SaveManifestAsync(updatedManifest, token);
@@ -161,6 +164,31 @@ public sealed class ProjectStore(ProjectPaths paths)
         await indexStore.DeleteDocumentAsync(documentId, token);
 
         return updatedManifest;
+    }
+
+    private async Task StageDocumentForDeletionAsync(
+        ProjectDocumentInfo document,
+        DateTimeOffset deletedAt,
+        CancellationToken token)
+    {
+        Directory.CreateDirectory(paths.TrashPath);
+        var trashFolder = Path.Combine(paths.TrashPath, $"{document.Id}-{deletedAt:yyyyMMddHHmmssfff}");
+        Directory.CreateDirectory(trashFolder);
+
+        CopyFileIfExists(paths.DocumentJsonPath(document.Id), Path.Combine(trashFolder, $"{document.Id}.wwdoc.json"));
+        CopyFileIfExists(paths.DocumentTextPath(document.Id), Path.Combine(trashFolder, $"{document.Id}.txt"));
+        CopyFileIfExists(paths.SceneMetadataPath(document.Id), Path.Combine(trashFolder, $"{document.Id}.meta.json"));
+
+        var trashInfo = new DeletedDocumentInfo(
+            "PendingDelete",
+            deletedAt,
+            document.Id,
+            document.Title,
+            document.JsonPath,
+            document.TextPath,
+            document.UpdatedAt);
+        var json = JsonSerializer.Serialize(trashInfo, JsonOptions);
+        await WriteUtf8AtomicAsync(Path.Combine(trashFolder, "trash.info.json"), json, token);
     }
 
     public async Task<ProjectManifest> MoveDocumentAsync(string documentId, int offset, CancellationToken token)
@@ -310,6 +338,14 @@ public sealed class ProjectStore(ProjectPaths paths)
         }
     }
 
+    private static void CopyFileIfExists(string sourcePath, string targetPath)
+    {
+        if (File.Exists(sourcePath))
+        {
+            File.Copy(sourcePath, targetPath, overwrite: true);
+        }
+    }
+
     private async Task UpdateMetadataForDocumentAsync(WriterDocument document, DateTimeOffset updatedAt, CancellationToken token)
     {
         var metadataStore = new SceneMetadataStore(paths);
@@ -322,4 +358,13 @@ public sealed class ProjectStore(ProjectPaths paths)
         var sourceMetadata = await metadataStore.LoadAsync(sourceDocumentId, token);
         await metadataStore.SaveAsync(sourceMetadata.CopyForDocument(targetDocumentId), token);
     }
+
+    private sealed record DeletedDocumentInfo(
+        string State,
+        DateTimeOffset DeletedAt,
+        string Id,
+        string Title,
+        string JsonPath,
+        string TextPath,
+        DateTimeOffset UpdatedAt);
 }

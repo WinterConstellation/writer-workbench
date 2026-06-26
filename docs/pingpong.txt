@@ -1745,6 +1745,63 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-27 KST feature repair update: HTML metrics, trash delete, relationship map MVP, reference usage
+
+Feature(s) implemented:
+- HTML editor visible character counts now refresh on a 1-second debounce while typing.
+- The HTML editor still sends body/title changes through the existing WPF bridge; export/snapshot/index work remains outside the typing loop.
+- Fixed the binder action bar layout so the `새 장면 / 이름 / 복제 / 삭제 / 위 / 아래` button area stays in a fixed row set instead of growing with binder refreshes.
+- Scene delete now stages the removed scene under `trash/{scene-id}-{timestamp}/` before removing it from the binder and search index.
+- HTML relationship map is no longer a placeholder: it now has character add controls, relationship add controls, lists, a canvas, relationship lines/labels, draggable nodes, and layout save messages.
+- `WebWorkbenchPayload` now carries story entities/relationships/layout data for the HTML relationship surface.
+- MainWindow WebView bridge now handles `story.entity.add`, `story.relationship.add`, and `story.layout.update`.
+- Added a reference usage report showing how LLL notes and the attached `writing-studio_14.html` were used without copying code/UI/data.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/reports/reference-usage-2026-06-27.md`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Delete document moves files to project trash and removes manifest/search entries.
+- HTML shell contains relationship map controls and canvas anchors.
+- HTML script wires 1-second local metric refresh and story map bridge messages.
+- HTML CSS locks binder action bar rows and provides relationship map layout styles.
+- Payload carries story structure data for HTML relationship map.
+- MainWindow HTML story command handlers persist entities, relationships, and node layout.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DeleteDocumentMovesFilesToTrashAndRemovesManifestEntryAndSearchIndex|WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate|WebWorkbenchCssKeepsInWindowRemoteSecondary|PayloadCarriesStoryStructureForHtmlRelationshipMap|MainWindowHtmlStoryCommandsPersistRelationshipMapData"` -> failed first because trash/story payload APIs did not exist, then 6 passed.
+- `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8')); console.log('app.js syntax ok')"` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 193 passed.
+
+Large manuscript regression check, if touched:
+- The editor input bridge is touched only for visible HTML character count refresh and still uses a debounce.
+- The 1-second character count reads the current visible editor text only and does not trigger export, snapshot, full index rebuild, or full project scan.
+- Relationship map state reads only story JSON files and does not read manuscript bodies.
+
+Remaining problems:
+- Relationship map is MVP only: no edit/delete controls in the HTML relationship surface yet.
+- Settings book and reference/resource panels still need real full work surfaces.
+- Shortcut editing is still mostly read/list in the HTML shell; full capture/save is still native/old path.
+- Trash restore UI is not implemented yet; deleted scene files are recoverable from disk under `trash/`.
+- This does not claim that all removed HTML-era functions are restored.
+
+Separate data artifact 여부:
+- `docs/reports/reference-usage-2026-06-27.md` was added as a handoff artifact.
+
 ## 2026-06-27 KST feature implementation update: HTML remote editor and shortcut list bridge
 
 Feature(s) implemented:

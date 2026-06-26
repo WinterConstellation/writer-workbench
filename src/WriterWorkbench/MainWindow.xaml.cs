@@ -2348,6 +2348,33 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "story.entity.add", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryEntityAddAsync(
+                    ReadJsonString(root, "name"),
+                    ReadJsonString(root, "role"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.relationship.add", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryRelationshipAddAsync(
+                    ReadJsonString(root, "sourceEntityId"),
+                    ReadJsonString(root, "targetEntityId"),
+                    ReadJsonString(root, "label"),
+                    ReadJsonString(root, "notes"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.layout.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryLayoutUpdateAsync(
+                    ReadJsonString(root, "entityId"),
+                    ReadJsonDouble(root, "x"),
+                    ReadJsonDouble(root, "y"));
+                return;
+            }
+
             if (string.Equals(messageType, "remoteSettings.update", StringComparison.OrdinalIgnoreCase))
             {
                 var commandIds = root.TryGetProperty("commandIds", out var commandIdsElement) &&
@@ -2365,6 +2392,20 @@ public partial class MainWindow : Window
         {
             StatusText.Text = $"메인 메시지 오류: {ex.Message}";
         }
+    }
+
+    private static string ReadJsonString(JsonElement root, string propertyName)
+    {
+        return root.TryGetProperty(propertyName, out var element) && element.ValueKind == JsonValueKind.String
+            ? element.GetString() ?? ""
+            : "";
+    }
+
+    private static double ReadJsonDouble(JsonElement root, string propertyName)
+    {
+        return root.TryGetProperty(propertyName, out var element) && element.TryGetDouble(out var value)
+            ? value
+            : 0;
     }
 
     private void ApplyHtmlActiveSceneUpdate(string title, string editorText)
@@ -2423,6 +2464,87 @@ public partial class MainWindow : Window
         }
 
         await ExecuteCommandAsync(commandId);
+    }
+
+    private async Task ApplyHtmlStoryEntityAddAsync(string name, string role)
+    {
+        var normalizedName = name.Trim();
+        if (normalizedName.Length == 0)
+        {
+            StatusText.Text = "관계도 캐릭터 추가 실패 - 이름을 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var entity = await _storyStructureStore.AddEntityAsync(
+                StoryEntityType.Character,
+                normalizedName,
+                role.Trim(),
+                "",
+                "#2563EB",
+                [],
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 캐릭터 추가됨 {entity.Id} - {entity.Name}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"관계도 캐릭터 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryRelationshipAddAsync(
+        string sourceEntityId,
+        string targetEntityId,
+        string label,
+        string notes)
+    {
+        if (string.IsNullOrWhiteSpace(sourceEntityId) || string.IsNullOrWhiteSpace(targetEntityId))
+        {
+            StatusText.Text = "관계도 관계 추가 실패 - 시작/도착 캐릭터를 선택하세요.";
+            return;
+        }
+
+        try
+        {
+            var relationship = await _storyStructureStore.AddRelationshipAsync(
+                sourceEntityId.Trim(),
+                targetEntityId.Trim(),
+                string.IsNullOrWhiteSpace(label) ? "관계" : label.Trim(),
+                notes.Trim(),
+                true,
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 관계 추가됨 {relationship.Id} - {relationship.Label}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            StatusText.Text = $"관계도 관계 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryLayoutUpdateAsync(string entityId, double x, double y)
+    {
+        if (string.IsNullOrWhiteSpace(entityId))
+        {
+            StatusText.Text = "관계도 위치 저장 실패 - 캐릭터가 없습니다.";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.SaveNodeLayoutAsync(entityId.Trim(), x, y, CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 위치 저장됨 {entityId} - X {x:N0}, Y {y:N0}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계도 위치 저장 실패 {entityId} - {ex.Message}";
+        }
     }
 
     private static bool CommandRequiresActiveDocument(string commandId)
@@ -2493,6 +2615,7 @@ public partial class MainWindow : Window
             "profile-html-default",
             "메인",
             _commandRegistry);
+        var story = await CreateHtmlStoryPayloadAsync();
         var payload = WebWorkbenchPayloadFactory.Create(
             manifest,
             _projectRoot,
@@ -2507,7 +2630,8 @@ public partial class MainWindow : Window
             _widgetRegistry,
             _htmlActiveView,
             CreateHtmlPreviewText(),
-            _shortcutManager.Bindings);
+            _shortcutManager.Bindings,
+            story);
         var message = JsonSerializer.Serialize(new
         {
             type = "state",
@@ -2516,6 +2640,48 @@ public partial class MainWindow : Window
 
         HtmlWorkbenchBrowser.CoreWebView2.PostWebMessageAsJson(message);
         await Task.CompletedTask;
+    }
+
+    private async Task<WebWorkbenchStory> CreateHtmlStoryPayloadAsync()
+    {
+        try
+        {
+            var entities = await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None);
+            var relationships = await _storyStructureStore.LoadRelationshipsAsync(CancellationToken.None);
+            var layout = await _storyStructureStore.LoadRelationLayoutAsync(CancellationToken.None);
+            var positions = CreateRelationshipMapPositions(entities, layout);
+            return new WebWorkbenchStory(
+                entities
+                    .Select(entity =>
+                    {
+                        var position = positions.GetValueOrDefault(entity.Id, new System.Windows.Point(0, 0));
+                        return new WebWorkbenchStoryEntity(
+                            entity.Id,
+                            entity.Type.ToString(),
+                            entity.Name,
+                            entity.Role,
+                            entity.Summary,
+                            entity.Color,
+                            entity.Tags,
+                            position.X,
+                            position.Y);
+                    })
+                    .ToList(),
+                relationships
+                    .Select(relationship => new WebWorkbenchStoryRelationship(
+                        relationship.Id,
+                        relationship.SourceEntityId,
+                        relationship.TargetEntityId,
+                        relationship.Label,
+                        relationship.Notes,
+                        relationship.IsDirectional))
+                    .ToList());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"관계도 상태 생성 실패 - {ex.Message}";
+            return new WebWorkbenchStory([], []);
+        }
     }
 
     private string CreateHtmlPreviewText()

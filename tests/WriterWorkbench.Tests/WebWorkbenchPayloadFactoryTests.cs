@@ -220,4 +220,47 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Contains(payload.AvailableCommands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Equal(AppCommandIds.ProjectSave, Assert.Single(payload.RemoteCommands).CommandId);
     }
+
+    [Fact]
+    public void PayloadCarriesStoryStructureForHtmlRelationshipMap()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-story", "관계도", registry);
+        var now = DateTimeOffset.Parse("2026-06-27T01:00:00+09:00");
+        var story = new WebWorkbenchStory(
+            [
+                new WebWorkbenchStoryEntity("entity-0001", "Character", "윤서", "주연", "요약", "#2563EB", ["주연"], 80, 70),
+                new WebWorkbenchStoryEntity("entity-0002", "Character", "도현", "조력자", "", "#DB2777", [], 260, 160)
+            ],
+            [
+                new WebWorkbenchStoryRelationship("rel-0001", "entity-0001", "entity-0002", "동맹", "서로 돕는다", true)
+            ]);
+        var manifest = new ProjectManifest(
+            1,
+            "관계도 테스트",
+            [
+                new ProjectDocumentInfo("scene-0001", "첫 장면", "scene-0001.wwdoc.json", "scene-0001.txt", now)
+            ]);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "관계도",
+            "기본",
+            autosaveEnabled: true,
+            activeView: "relationship-map",
+            story: story);
+
+        Assert.Equal("relationship-map", payload.ActiveView);
+        Assert.NotNull(payload.Story);
+        Assert.Equal(["윤서", "도현"], payload.Story!.Entities.Select(entity => entity.Name));
+        Assert.Equal("동맹", Assert.Single(payload.Story.Relationships).Label);
+        Assert.Equal(80, payload.Story.Entities[0].X);
+        Assert.Equal(160, payload.Story.Entities[1].Y);
+    }
 }

@@ -8,6 +8,7 @@ public sealed record ProjectPaths(string RootPath)
     public string AutosavesPath => Path.Combine(RootPath, "autosaves");
     public string ExportsPath => Path.Combine(RootPath, "exports");
     public string SnapshotsPath => Path.Combine(RootPath, "snapshots");
+    public string TrashPath => Path.Combine(RootPath, "trash");
     public string StoryPath => Path.Combine(RootPath, "story");
     public string StoryStructurePath => Path.Combine(StoryPath, "story.structure.json");
     public string StoryEntitiesPath => Path.Combine(StoryPath, "entities.json");

@@ -9,6 +9,7 @@ using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
 using WriterWorkbench.Core.Documents;
 using WriterWorkbench.Core.Storage;
+using WriterWorkbench.Core.Story;
 using WriterWorkbench.Core.Workspace;
 using Xunit.Abstractions;
 
@@ -1121,6 +1122,53 @@ public sealed class MainWindowSmokeTests
 
                 Assert.Contains(canvas.Children.OfType<System.Windows.Shapes.Line>(), line => line.X2 > line.X1);
                 Assert.Contains(canvas.Children.OfType<TextBlock>(), label => label.Text == "동맹");
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlStoryCommandsPersistRelationshipMapData()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
+
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "");
+                InvokePrivateAsync(window, "ApplyHtmlStoryLayoutUpdateAsync", "entity-0002", 333d, 144d);
+
+                var entities = WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None));
+                var relationships = WaitForTaskOnDispatcher(store.LoadRelationshipsAsync(CancellationToken.None));
+                var layout = WaitForTaskOnDispatcher(store.LoadRelationLayoutAsync(CancellationToken.None));
+
+                Assert.Equal(["윤서", "도현"], entities.Select(entity => entity.Name));
+                Assert.Equal("동맹", Assert.Single(relationships).Label);
+                var node = Assert.Single(layout, item => item.EntityId == "entity-0002");
+                Assert.Equal(333d, node.X);
+                Assert.Equal(144d, node.Y);
+                Assert.Contains("관계도 위치 저장됨", ((TextBlock)window.FindName("StatusText")).Text);
                 window.Close();
             }
             catch (Exception ex)
