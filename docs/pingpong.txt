@@ -1639,6 +1639,39 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-26 KST reference lock update: LLL structure to Writer Workbench shell
+
+Feature(s) implemented:
+- Added a reference-lock document that converts LLL local structure observations into Writer Workbench implementation constraints.
+- Locked the direction that HTML/WebView2 should become the primary workbench surface, while WPF remains the host for files, windows, shortcuts, and native commands.
+- Defined non-copy boundaries: no LLL executable analysis, no asset/code copy, no user data extraction, no WebView cache/Login Data access, and no LLL format compatibility.
+- Defined the next implementation scope around settings separation, widget registry, command-rendered menu/remote, and path restoration.
+
+Files changed:
+- `docs/reference-locks/lll-structure-to-workbench.md`
+- `docs/pingpong.txt`
+
+Tests added:
+- None. This is a design/reference-lock update only.
+
+Commands run:
+- Local structure inspection for `C:\Users\Masters\AppData\Local\Muvel`
+- Local structure inspection for `C:\Users\Masters\AppData\Local\com.muvel`
+- `git log --oneline -5`
+- `git status --short --branch`
+
+Large manuscript regression check, if touched:
+- Large manuscript code paths were not touched.
+- The reference lock explicitly keeps export, snapshot, full index rebuild, and full manuscript scan out of the input loop.
+
+Remaining problems:
+- The HTML workbench still needs to be rebuilt from this reference lock.
+- Settings are not yet split into the locked `settings/*.json` stores.
+- Widget registry is not yet the renderer source for menu/remote UI.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Only a reference-lock document was added.
+
 ## 2026-06-25 KST feature implementation update: Icon menu and customizable remote control bar
 
 Feature(s) implemented:
