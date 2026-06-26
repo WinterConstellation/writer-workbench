@@ -49,7 +49,7 @@ public sealed class ShortcutManager
             string.Equals(binding.Gesture, normalizedGesture, StringComparison.OrdinalIgnoreCase))?.CommandId;
     }
 
-    private static string NormalizeGesture(string gesture)
+    public static string NormalizeGesture(string gesture)
     {
         return string.Join(
             '+',

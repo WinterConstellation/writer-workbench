@@ -48,17 +48,17 @@ public sealed class ShortcutProfileService(string filePath)
 
     public static ShortcutManager CreateDefaultManager()
     {
+        return CreateDefaultManager(AppCommandCatalog.CreateDefaultRegistry());
+    }
+
+    public static ShortcutManager CreateDefaultManager(CommandRegistry commandRegistry)
+    {
         var manager = new ShortcutManager();
-        Bind(manager, new ShortcutBinding(AppCommandIds.ProjectSave, "Ctrl+S", CommandScope.Global));
-        Bind(manager, new ShortcutBinding(AppCommandIds.AutosaveToggle, "Ctrl+Alt+S", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.WorkspacePresetOne, "Ctrl+Alt+1", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.WorkspacePresetTwo, "Ctrl+Alt+2", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.WorkspacePresetThree, "Ctrl+Alt+3", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.WorkspaceStartupPresetCycle, "Ctrl+Alt+0", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.ShortcutsOpenSettings, "Ctrl+Alt+K", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.ViewPreviewToggle, "Ctrl+Alt+P", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.RemoteControlToggle, "Ctrl+Alt+R", CommandScope.Workbench));
-        Bind(manager, new ShortcutBinding(AppCommandIds.HelpOpen, "F1", CommandScope.Global));
+        foreach (var binding in commandRegistry.DefaultShortcuts)
+        {
+            Bind(manager, binding);
+        }
+
         return manager;
     }
 

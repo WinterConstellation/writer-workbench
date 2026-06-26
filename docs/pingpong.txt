@@ -1161,6 +1161,54 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-26 KST feature implementation update: GitHub-style command contribution foundation
+
+Feature(s) implemented:
+- Applied a VS Code-style command contribution structure from trusted GitHub references.
+- Added `CommandContribution` and `CommandPlacementContribution`.
+- `CommandRegistry` now stores commands, default UI placements, and default shortcuts together.
+- Default toolbar, remote-control, and shortcut bootstrap now derive from command contribution data instead of scattered hardcoded lists.
+- `WorkbenchCustomizationProfileFactory` now creates editable profile placements/shortcuts from the registry contribution data.
+- `ShortcutProfileService` now builds default shortcuts from the default command registry.
+- Added a research note explaining the GitHub reference structure and what was adapted.
+
+Files changed:
+- `src/WriterWorkbench/Core/Commands/CommandContribution.cs`
+- `src/WriterWorkbench/Core/Commands/CommandRegistry.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/Commands/ShortcutManager.cs`
+- `src/WriterWorkbench/Core/Commands/ShortcutProfileService.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `tests/WriterWorkbench.Tests/CommandContributionTests.cs`
+- `docs/research/github-workbench-architecture-references.md`
+- `docs/pingpong.txt`
+
+Tests added:
+- Registry stores command placements and shortcuts from contributions.
+- Default catalog exposes toolbar, remote-control, and shortcut contributions.
+- Registry rejects duplicate contribution slots and shortcut conflicts.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter CommandContributionTests` -> failed before implementation because contribution types/APIs did not exist.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "CommandContributionTests|WorkbenchCustomizationProfileTests|ShortcutManagerTests"` -> 16 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 160 passed.
+- `dotnet publish .\src\WriterWorkbench\WriterWorkbench.csproj -c Release -o .\dist\WriterWorkbench-menu-remote --no-restore` -> published local executable.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 160 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not touched.
+- This change only reorganizes command metadata and profile bootstrap.
+
+Remaining problems:
+- MainWindow still owns many command handlers directly; the next structural step is a command execution pipeline/hook layer.
+- HTML/WebView2 workbench surface is not implemented yet.
+- Context menus still need to be fully generated from contribution/profile data.
+
+Separate data artifact 여부:
+- `docs/research/github-workbench-architecture-references.md` added as a design/reference artifact.
+
 ## 2026-06-24 KST feature implementation update: Story Structure Foundation + Relationship Map MVP 1
 
 Feature(s) implemented:
