@@ -1209,6 +1209,76 @@ Remaining problems:
 Separate data artifact 여부:
 - `docs/research/github-workbench-architecture-references.md` added as a design/reference artifact.
 
+## 2026-06-26 KST feature implementation update: HTML Workbench MVP start
+
+Feature(s) implemented:
+- Started the HTML conversion path without replacing the Windows-native engine.
+- Added WebView2 dependency for an in-app local HTML workbench surface.
+- Added `view.htmlWorkbench.open` / `HTML 작업대` command.
+- Added `AppSessionState.HtmlWorkbenchSurface` so the HTML workbench can be restored as the last active surface.
+- Added a WebView2 host surface inside MainWindow while keeping WPF editor/preview/main/relationship-map fallback surfaces.
+- Added local HTML/CSS/JS assets under `src/WriterWorkbench/WebWorkbench`.
+- Added a WebView2 bridge: WPF posts project/binder/active-scene/command state to HTML, and HTML posts command IDs back to existing `ExecuteCommandAsync`.
+- Added `WebWorkbenchPayloadFactory` so the HTML UI receives metadata and command placement data without large manuscript body text.
+- Published local executable with bundled `WebWorkbench/index.html`, `styles.css`, and `app.js`.
+
+Files changed:
+- `src/WriterWorkbench/WriterWorkbench.csproj`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/Core/Application/AppSessionState.cs`
+- `src/WriterWorkbench/Core/Application/AppSessionStateService.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/Workspace/WorkbenchSurfaceCatalog.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `docs/superpowers/plans/2026-06-26-html-workbench-mvp.md`
+- `docs/pingpong.txt`
+
+Tests added:
+- Web workbench payload excludes manuscript body text.
+- Web workbench payload preserves Korean project/status text.
+- Web workbench assets are copied next to the application output.
+- MainWindow contains the HTML workbench surface and can switch to it.
+- App command catalog exposes the new `HTML 작업대` command.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchPayloadFactoryTests` -> failed before WebWorkbench namespace existed, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> failed before assets/copy settings existed, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "AppCommandCatalogTests|MainWindowContainsWorkspacePresetCommands|MainWindowContainsLongOperationProgressSurface"` -> failed before `view.htmlWorkbench.open` existed, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowCanShowHtmlWorkbenchSurface` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|AppCommandCatalogTests|MainWindowCanShowHtmlWorkbenchSurface|MainWindowContainsWorkspacePresetCommands|MainWindowContainsLongOperationProgressSurface"` -> 7 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 163 passed.
+- `dotnet publish .\src\WriterWorkbench\WriterWorkbench.csproj -c Release -o .\dist\WriterWorkbench-menu-remote --no-restore` -> published local executable.
+- Public repo `dotnet restore WriterWorkbench.sln` -> restored after adding WebView2 package.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 163 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors after rerunning build alone. The first parallel build/test attempt raced WPF generated files and build failed while the parallel test passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor input/render/save paths were not touched.
+- HTML workbench payload intentionally excludes full manuscript body text.
+- HTML bridge only sends metadata, binder summaries, command placements, status text, and active scene metadata.
+
+Remaining problems:
+- The HTML surface is an MVP dashboard; the main editor is still WPF.
+- WebView2 initialization was not run inside automated tests because STA test initialization can hang without a normal app message loop.
+- Relationship map, settings book, and timeline still need HTML-native surfaces.
+- Context menus and remote-control editing still render in WPF.
+
+Separate data artifact 여부:
+- `docs/superpowers/plans/2026-06-26-html-workbench-mvp.md` added.
+- Local HTML assets added under `src/WriterWorkbench/WebWorkbench`.
+- NuGet package added: `Microsoft.Web.WebView2` 1.0.4022.49, package cache size observed at about 9.6 MB.
+
 ## 2026-06-24 KST feature implementation update: Story Structure Foundation + Relationship Map MVP 1
 
 Feature(s) implemented:

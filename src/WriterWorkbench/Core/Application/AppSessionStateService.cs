@@ -55,6 +55,8 @@ public sealed class AppSessionStateService(string filePath)
         var surface = state.Surface is AppSessionState.EditorSurface
             or AppSessionState.PreviewSurface
             or AppSessionState.MainSurface
+            or AppSessionState.HtmlWorkbenchSurface
+            or AppSessionState.RelationshipMapSurface
             ? state.Surface
             : AppSessionState.EditorSurface;
 

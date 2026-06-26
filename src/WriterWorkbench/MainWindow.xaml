@@ -1,6 +1,7 @@
 <Window x:Class="WriterWorkbench.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -118,6 +119,7 @@
                                 </Border>
                             </MenuItem.Icon>
                             <MenuItem Header="메인" Tag="view.main.open" Click="CommandButton_Click"/>
+                            <MenuItem Header="HTML 작업대" Tag="view.htmlWorkbench.open" Click="CommandButton_Click"/>
                             <MenuItem Header="미리보기" Tag="view.preview.toggle" Click="CommandButton_Click"/>
                         </MenuItem>
                         <MenuItem Header="창" Tag="menu.window">
@@ -236,6 +238,14 @@
                             Tag="shortcuts.openSettings"
                             ToolTip="단축키 설정을 엽니다. 기본 단축키: Ctrl+Alt+K."
                             MinWidth="96"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            Padding="10,0"
+                            Click="CommandButton_Click"/>
+                    <Button Content="HTML 작업대"
+                            Tag="view.htmlWorkbench.open"
+                            ToolTip="HTML/CSS 작업대 화면을 엽니다."
+                            MinWidth="106"
                             Height="28"
                             Margin="8,0,0,0"
                             Padding="10,0"
@@ -426,6 +436,33 @@
             <Border Grid.Column="1"
                     Background="White">
                 <Grid>
+                    <DockPanel x:Name="HtmlWorkbenchSurface"
+                               Visibility="Collapsed"
+                               Background="#EEF1F4">
+                        <Border DockPanel.Dock="Top"
+                                Height="44"
+                                Background="#F8FAFC"
+                                BorderBrush="#D1D5DB"
+                                BorderThickness="0,0,0,1">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Content="작업으로"
+                                        Tag="view.main.open"
+                                        MinWidth="92"
+                                        Height="30"
+                                        Margin="0,6,10,6"
+                                        Padding="10,0"
+                                        Click="CommandButton_Click"/>
+                                <TextBlock Text="HTML 작업대"
+                                           VerticalAlignment="Center"
+                                           Margin="14,0,0,0"
+                                           FontWeight="SemiBold"/>
+                            </DockPanel>
+                        </Border>
+                        <wv2:WebView2 x:Name="HtmlWorkbenchBrowser"
+                                      DefaultBackgroundColor="#EEF1F4"/>
+                    </DockPanel>
+
                     <DockPanel x:Name="EditorSurface">
                         <TextBox x:Name="TitleBox"
                                  DockPanel.Dock="Top"

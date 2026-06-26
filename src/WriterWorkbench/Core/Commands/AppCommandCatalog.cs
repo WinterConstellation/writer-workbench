@@ -43,6 +43,7 @@ public static class AppCommandCatalog
         Register(registry, AppCommandIds.RemoteControlToggle, "리모콘 켜기/끄기", "작업공간", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.RemoteControlOpenSettings, "리모콘 편집", "작업공간", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ShortcutsOpenSettings, "단축키", "작업공간", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
+        Register(registry, AppCommandIds.ViewHtmlWorkbenchOpen, "HTML 작업대", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewMainOpen, "메인", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewPreviewToggle, "미리보기", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.SearchRun, "검색", "검색", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
@@ -69,9 +70,10 @@ public static class AppCommandCatalog
             new CommandSlot(12, AppCommandIds.WorkspacePresetThree, "프리셋 3"),
             new CommandSlot(13, AppCommandIds.WorkspaceStartupPresetCycle, "시작 적용 안 함"),
             new CommandSlot(14, AppCommandIds.ShortcutsOpenSettings, "단축키"),
-            new CommandSlot(15, AppCommandIds.ViewMainOpen, "메인"),
-            new CommandSlot(16, AppCommandIds.ViewPreviewToggle, "미리보기"),
-            new CommandSlot(17, AppCommandIds.HelpOpen, "도움말")
+            new CommandSlot(15, AppCommandIds.ViewHtmlWorkbenchOpen, "HTML 작업대"),
+            new CommandSlot(16, AppCommandIds.ViewMainOpen, "메인"),
+            new CommandSlot(17, AppCommandIds.ViewPreviewToggle, "미리보기"),
+            new CommandSlot(18, AppCommandIds.HelpOpen, "도움말")
         ];
     }
 

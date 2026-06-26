@@ -11,6 +11,7 @@ public sealed record AppSessionState(
     public const string EditorSurface = "editor";
     public const string PreviewSurface = "preview";
     public const string MainSurface = "main";
+    public const string HtmlWorkbenchSurface = "html-workbench";
     public const string RelationshipMapSurface = "relationship-map";
     public const string DefaultGraphicPresetId = "default";
 

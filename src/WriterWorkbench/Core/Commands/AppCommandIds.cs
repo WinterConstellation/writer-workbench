@@ -36,6 +36,7 @@ public static class AppCommandIds
     public const string RemoteControlToggle = "remote.toggle";
     public const string RemoteControlOpenSettings = "remote.openSettings";
     public const string ShortcutsOpenSettings = "shortcuts.openSettings";
+    public const string ViewHtmlWorkbenchOpen = "view.htmlWorkbench.open";
     public const string ViewMainOpen = "view.main.open";
     public const string ViewPreviewToggle = "view.preview.toggle";
     public const string SearchRun = "search.run";

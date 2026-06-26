@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>원고 작업대</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="topbar">
+      <div class="brand">
+        <span class="brand-mark">W</span>
+        <div>
+          <h1 id="project-title">원고 작업대</h1>
+          <p id="project-path"></p>
+        </div>
+      </div>
+      <div class="status-strip">
+        <span id="autosave-pill" class="pill">자동저장</span>
+        <span id="theme-pill" class="pill">기본</span>
+        <span id="scene-count-pill" class="pill">0 장면</span>
+      </div>
+    </section>
+
+    <section class="command-ribbon" id="command-ribbon"></section>
+
+    <section class="workspace">
+      <aside class="binder-panel">
+        <div class="panel-title">
+          <span>바인더</span>
+          <small id="binder-count">0</small>
+        </div>
+        <div id="scene-list" class="scene-list"></div>
+      </aside>
+
+      <section class="focus-panel">
+        <div class="focus-header">
+          <div>
+            <span class="eyebrow">현재 장면</span>
+            <h2 id="active-title">장면 없음</h2>
+          </div>
+          <span id="active-status" class="status-badge">초고</span>
+        </div>
+
+        <div class="metric-row">
+          <div>
+            <span class="metric-label">공백 제외</span>
+            <strong id="active-length">0</strong>
+          </div>
+          <div>
+            <span class="metric-label">공백 포함</span>
+            <strong id="active-length-spaces">0</strong>
+          </div>
+          <div>
+            <span class="metric-label">유형</span>
+            <strong id="active-type">Scene</strong>
+          </div>
+        </div>
+
+        <p id="active-summary" class="summary"></p>
+        <div id="active-tags" class="tag-row"></div>
+
+        <div class="action-grid">
+          <button data-command="project.save">저장</button>
+          <button data-command="document.createScene">새 장면</button>
+          <button data-command="writing.focus.toggle">집중</button>
+          <button data-command="export.fullManuscript">전체 TXT</button>
+        </div>
+      </section>
+
+      <aside class="pipeline-panel">
+        <div class="panel-title">
+          <span>파이프라인</span>
+          <small>Local</small>
+        </div>
+        <div class="pipeline-card">
+          <span>작성</span>
+          <strong id="pipeline-draft">0</strong>
+        </div>
+        <div class="pipeline-card">
+          <span>수정</span>
+          <strong id="pipeline-revising">0</strong>
+        </div>
+        <div class="pipeline-card">
+          <span>완료</span>
+          <strong id="pipeline-final">0</strong>
+        </div>
+        <div class="pipeline-card muted">
+          <span>제외</span>
+          <strong id="pipeline-excluded">0</strong>
+        </div>
+      </aside>
+    </section>
+
+    <footer class="statusbar" id="status-text">초기화 중...</footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

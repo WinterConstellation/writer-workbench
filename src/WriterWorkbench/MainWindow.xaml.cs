@@ -1,5 +1,6 @@
 using System.IO;
 using System.Diagnostics;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,6 +18,7 @@ using WriterWorkbench.Core.Progress;
 using WriterWorkbench.Core.Snapshots;
 using WriterWorkbench.Core.Storage;
 using WriterWorkbench.Core.Story;
+using WriterWorkbench.Core.WebWorkbench;
 using WriterWorkbench.Core.Workspace;
 using Forms = System.Windows.Forms;
 
@@ -29,9 +31,16 @@ public partial class MainWindow : Window
     private const int MinFocusDurationMinutes = 1;
     private const int MaxFocusDurationMinutes = 240;
     private static readonly TimeSpan AutosaveIdleDelay = TimeSpan.FromSeconds(3);
+    private static readonly JsonSerializerOptions WebWorkbenchJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
+
     private readonly DispatcherTimer _autosaveTimer;
     private readonly DispatcherTimer _focusTimer;
     private readonly List<double> _remainingSecondsSamples = [];
+    private readonly Dictionary<string, SceneMetadata> _binderMetadataByDocumentId = new(StringComparer.OrdinalIgnoreCase);
     private readonly FocusSessionService _focusSession = new();
     private readonly CommandRegistry _commandRegistry = AppCommandCatalog.CreateDefaultRegistry();
     private readonly WorkbenchSurfaceClaimRegistry _surfaceClaims = new();
@@ -50,6 +59,7 @@ public partial class MainWindow : Window
     private SceneSnapshotService _snapshotService;
     private StoryStructureStore _storyStructureStore;
     private SceneEntityLinkStore _sceneEntityLinkStore;
+    private ProjectManifest? _currentManifest;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
     private SceneMetadata? _activeSceneMetadata;
@@ -71,6 +81,7 @@ public partial class MainWindow : Window
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
     private RemoteControlLayerWindow? _remoteControlLayer;
+    private bool _htmlWorkbenchInitialized;
     private string? _draggedRelationshipMapEntityId;
     private System.Windows.Point _relationshipMapDragOffset;
 
@@ -215,18 +226,28 @@ public partial class MainWindow : Window
     private async Task RefreshBinderAsync(ProjectManifest? manifest = null)
     {
         manifest ??= await _store.LoadManifestAsync(CancellationToken.None);
+        _currentManifest = manifest;
         var items = await CreateDocumentListItemsAsync(manifest.Documents);
         BinderList.ItemsSource = items;
         UpdateMainSurface(manifest, items);
+        await PushHtmlWorkbenchStateAsync();
     }
 
     private async Task<IReadOnlyList<DocumentListItem>> CreateDocumentListItemsAsync(IEnumerable<ProjectDocumentInfo> documents)
     {
         var items = new List<DocumentListItem>();
+        var metadataByDocumentId = new Dictionary<string, SceneMetadata>(StringComparer.OrdinalIgnoreCase);
         foreach (var document in documents)
         {
             var metadata = await _metadataStore.LoadExistingOrDefaultAsync(document.Id, CancellationToken.None);
+            metadataByDocumentId[document.Id] = metadata;
             items.Add(DocumentListItem.From(document, metadata));
+        }
+
+        _binderMetadataByDocumentId.Clear();
+        foreach (var (documentId, metadata) in metadataByDocumentId)
+        {
+            _binderMetadataByDocumentId[documentId] = metadata;
         }
 
         return items;
@@ -450,7 +471,7 @@ public partial class MainWindow : Window
             await LoadSceneMetadataAsync(document.Id);
             await RefreshSnapshotsAsync(document.Id);
             await RefreshSceneEntityLinksAsync(document.Id);
-            ShowRequestedSurface(startupSurface);
+            await ShowRequestedSurfaceAsync(startupSurface);
             _dirty = false;
             StatusText.Text = editorView.IsSegmentMode
                 ? $"불러옴 {document.Id} - 대용량 편집 구간 {editorView.VisibleParagraphCount:N0}/{document.Paragraphs.Count:N0}문단"
@@ -472,7 +493,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowRequestedSurface(string? surface)
+    private async Task ShowRequestedSurfaceAsync(string? surface)
     {
         switch (surface)
         {
@@ -481,6 +502,9 @@ public partial class MainWindow : Window
                 break;
             case AppSessionState.MainSurface:
                 ShowMainSurface();
+                break;
+            case AppSessionState.HtmlWorkbenchSurface:
+                await OpenHtmlWorkbenchSurfaceAsync();
                 break;
             case AppSessionState.RelationshipMapSurface:
                 ShowRelationshipMapSurface();
@@ -520,6 +544,7 @@ public partial class MainWindow : Window
         }
 
         await handler();
+        await PushHtmlWorkbenchStateAsync();
     }
 
     private void RegisterCommandHandlers()
@@ -562,6 +587,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.RemoteControlToggle] = ToggleRemoteControlLayerAsync;
         _commandHandlers[AppCommandIds.RemoteControlOpenSettings] = OpenRemoteControlSettingsAsync;
         _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
+        _commandHandlers[AppCommandIds.ViewHtmlWorkbenchOpen] = OpenHtmlWorkbenchSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
         _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
@@ -625,6 +651,8 @@ public partial class MainWindow : Window
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
         _activeCustomizationProfile = null;
+        _currentManifest = null;
+        _binderMetadataByDocumentId.Clear();
         _activeDocumentId = "scene-0001";
         _activeDocument = null;
         _activeSceneMetadata = null;
@@ -2083,7 +2111,9 @@ public partial class MainWindow : Window
         {
             var metadata = await _metadataStore.LoadAsync(documentId, CancellationToken.None);
             _activeSceneMetadata = metadata;
+            _binderMetadataByDocumentId[documentId] = metadata;
             PopulateSceneInspector(metadata);
+            await PushHtmlWorkbenchStateAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -2173,6 +2203,98 @@ public partial class MainWindow : Window
     {
         ShowMainSurface();
         await PersistSessionStateAsync();
+    }
+
+    private async Task OpenHtmlWorkbenchSurfaceAsync()
+    {
+        ShowHtmlWorkbenchSurface();
+        await EnsureHtmlWorkbenchAsync();
+        await PushHtmlWorkbenchStateAsync();
+        await PersistSessionStateAsync();
+    }
+
+    private async Task EnsureHtmlWorkbenchAsync()
+    {
+        if (_htmlWorkbenchInitialized)
+        {
+            return;
+        }
+
+        var indexPath = Path.Combine(AppContext.BaseDirectory, "WebWorkbench", "index.html");
+        if (!File.Exists(indexPath))
+        {
+            StatusText.Text = $"HTML 작업대 파일 없음: {indexPath}";
+            return;
+        }
+
+        await HtmlWorkbenchBrowser.EnsureCoreWebView2Async();
+        HtmlWorkbenchBrowser.CoreWebView2.WebMessageReceived += HtmlWorkbenchBrowser_WebMessageReceived;
+        HtmlWorkbenchBrowser.NavigationCompleted += async (_, _) => await PushHtmlWorkbenchStateAsync();
+        HtmlWorkbenchBrowser.Source = new Uri(indexPath);
+        _htmlWorkbenchInitialized = true;
+    }
+
+    private async void HtmlWorkbenchBrowser_WebMessageReceived(
+        object? sender,
+        Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(e.WebMessageAsJson);
+            var root = document.RootElement;
+            if (!root.TryGetProperty("type", out var type) ||
+                !string.Equals(type.GetString(), "command", StringComparison.OrdinalIgnoreCase) ||
+                !root.TryGetProperty("commandId", out var commandIdElement))
+            {
+                return;
+            }
+
+            var commandId = commandIdElement.GetString();
+            if (!string.IsNullOrWhiteSpace(commandId))
+            {
+                await ExecuteCommandAsync(commandId);
+            }
+        }
+        catch (JsonException ex)
+        {
+            StatusText.Text = $"HTML 작업대 메시지 오류: {ex.Message}";
+        }
+    }
+
+    private async Task PushHtmlWorkbenchStateAsync()
+    {
+        if (!_htmlWorkbenchInitialized || HtmlWorkbenchBrowser.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        var manifest = _currentManifest ?? new ProjectManifest(
+            1,
+            Path.GetFileNameWithoutExtension(_projectRoot),
+            []);
+        var profile = _activeCustomizationProfile ?? WorkbenchCustomizationProfileFactory.CreateDefault(
+            "profile-html-default",
+            "HTML 작업대",
+            _commandRegistry);
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            _projectRoot,
+            _activeDocument,
+            _activeSceneMetadata,
+            _binderMetadataByDocumentId,
+            profile,
+            _commandRegistry,
+            StatusText.Text,
+            _graphicPreset.Name,
+            _autosaveEnabled);
+        var message = JsonSerializer.Serialize(new
+        {
+            type = "state",
+            payload
+        }, WebWorkbenchJsonOptions);
+
+        HtmlWorkbenchBrowser.CoreWebView2.PostWebMessageAsJson(message);
+        await Task.CompletedTask;
     }
 
     private Task TogglePreviewAsync()
@@ -2378,6 +2500,7 @@ public partial class MainWindow : Window
             : EditorBox.Text;
 
         PreviewText.Text = PreviewTextService.CreatePreview(sourceText);
+        HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
@@ -2395,6 +2518,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
@@ -2412,6 +2536,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Visible;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
@@ -2422,6 +2547,24 @@ public partial class MainWindow : Window
         StatusText.Text = "메인 화면";
     }
 
+    private void ShowHtmlWorkbenchSurface()
+    {
+        if (!TryClaimMainSurface(AppSessionState.HtmlWorkbenchSurface))
+        {
+            return;
+        }
+
+        HtmlWorkbenchSurface.Visibility = Visibility.Visible;
+        MainSurface.Visibility = Visibility.Collapsed;
+        RelationshipMapSurface.Visibility = Visibility.Collapsed;
+        PreviewSurface.Visibility = Visibility.Collapsed;
+        EditorSurface.Visibility = Visibility.Collapsed;
+        PreviewModeButton.Content = "미리보기";
+        _previewMode = false;
+        RememberSessionState(AppSessionState.HtmlWorkbenchSurface);
+        StatusText.Text = "HTML 작업대 화면";
+    }
+
     private void ShowRelationshipMapSurface()
     {
         if (!TryClaimMainSurface(AppSessionState.RelationshipMapSurface))
@@ -2429,6 +2572,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;
         MainSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;

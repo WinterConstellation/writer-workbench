@@ -67,6 +67,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.WorkspacePresetThree, commandTags);
                 Assert.Contains(AppCommandIds.WorkspaceStartupPresetCycle, commandTags);
                 Assert.Contains(AppCommandIds.ShortcutsOpenSettings, commandTags);
+                Assert.Contains(AppCommandIds.ViewHtmlWorkbenchOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
                 Assert.Contains(AppCommandIds.HelpOpen, commandTags);
@@ -328,6 +329,8 @@ public sealed class MainWindowSmokeTests
                 var window = new MainWindow();
 
                 Assert.NotNull(window.FindName("EditorSurface"));
+                Assert.NotNull(window.FindName("HtmlWorkbenchSurface"));
+                Assert.NotNull(window.FindName("HtmlWorkbenchBrowser"));
                 Assert.NotNull(window.FindName("PreviewSurface"));
                 Assert.NotNull(window.FindName("MainSurface"));
                 Assert.NotNull(window.FindName("MainRecentList"));
@@ -338,6 +341,41 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("OperationProgressPanel"));
                 Assert.NotNull(window.FindName("OperationProgressBar"));
                 Assert.NotNull(window.FindName("OperationRemainingGraph"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowCanShowHtmlWorkbenchSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var htmlSurface = Assert.IsType<DockPanel>(window.FindName("HtmlWorkbenchSurface"));
+                var editorSurface = Assert.IsType<DockPanel>(window.FindName("EditorSurface"));
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+
+                Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, editorSurface.Visibility);
                 window.Close();
             }
             catch (Exception ex)
