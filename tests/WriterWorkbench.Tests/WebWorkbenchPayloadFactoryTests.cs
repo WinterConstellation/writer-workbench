@@ -12,7 +12,7 @@ namespace WriterWorkbench.Tests;
 public sealed class WebWorkbenchPayloadFactoryTests
 {
     [Fact]
-    public void CreatesDashboardPayloadWithoutDocumentBodyText()
+    public void CreatesDashboardPayloadWithActiveEditorTextOnly()
     {
         var registry = AppCommandCatalog.CreateDefaultRegistry();
         var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-html", "HTML 작업대", registry);
@@ -48,7 +48,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "scene-0001",
             "첫 장면",
             [
-                new WriterParagraph("p1", "본문은 HTML 작업대 상태에 들어가면 안 된다", "Body", [], [])
+                new WriterParagraph("p1", "본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", "Body", [], [])
             ]);
 
         var payload = WebWorkbenchPayloadFactory.Create(
@@ -70,11 +70,14 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("한국어 장편", payload.Project.Title);
         Assert.Equal("scene-0001", payload.ActiveScene!.Id);
         Assert.Equal("도입부", payload.ActiveScene.Summary);
+        Assert.Equal("본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
+        Assert.False(payload.ActiveScene.IsSegmentMode);
         Assert.Equal(["scene-0001", "scene-0002"], payload.Binder.Select(item => item.Id));
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.ProjectSave);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Contains("한국어 장편", json);
-        Assert.DoesNotContain("본문은 HTML 작업대 상태에 들어가면 안 된다", json);
+        Assert.Contains("본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", json);
+        Assert.DoesNotContain("두 번째 장면 본문은 로드하지 않는다", json);
     }
 
     [Fact]

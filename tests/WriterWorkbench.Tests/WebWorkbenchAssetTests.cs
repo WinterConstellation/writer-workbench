@@ -26,6 +26,23 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("center-surface", html);
         Assert.Contains("right-inspector", html);
         Assert.Contains("floating-remote", html);
+        Assert.Contains("remote-drag-handle", html);
+        Assert.Contains("active-body-editor", html);
+        Assert.Contains("rail-panel-settings", html);
+        Assert.Contains("rail-panel-reference", html);
         Assert.Contains("bottom-status", html);
+    }
+
+    [Fact]
+    public async Task WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+
+        Assert.Contains("startRemoteDrag", script);
+        Assert.Contains("activeScene.update", script);
+        Assert.Contains("setRailMode", script);
     }
 }

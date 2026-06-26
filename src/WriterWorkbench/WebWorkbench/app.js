@@ -1,6 +1,11 @@
 const state = {
   payload: null,
   remoteIconOnly: false,
+  railMode: "binder",
+  pendingEditorUpdate: null,
+  editorUpdateTimer: 0,
+  isRendering: false,
+  remoteDrag: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -19,8 +24,13 @@ const badgeColors = ["#285fbd", "#16806b", "#a56416", "#6e5bb8", "#b83f5f", "#44
 function sendCommand(commandId) {
   if (!commandId) return;
 
+  flushActiveSceneUpdate();
+  postWebMessage({ type: "command", commandId });
+}
+
+function postWebMessage(message) {
   if (window.chrome && window.chrome.webview) {
-    window.chrome.webview.postMessage({ type: "command", commandId });
+    window.chrome.webview.postMessage(message);
   }
 }
 
@@ -33,6 +43,7 @@ function readPayloadValue(source, camel, pascal, fallback) {
 }
 
 function render(payload) {
+  state.isRendering = true;
   state.payload = payload;
   const project = readPayloadValue(payload, "project", "Project", {});
   const active = readPayloadValue(payload, "activeScene", "ActiveScene", null);
@@ -56,7 +67,10 @@ function render(payload) {
   renderActiveScene(active);
   renderInspector(active);
   renderPipeline(binder);
+  renderSettingsPanel(menuCommands);
+  renderReferencePanel(project, active);
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
+  state.isRendering = false;
 }
 
 function normalizeCommand(command) {
@@ -139,10 +153,14 @@ function renderBinder(items) {
 function renderActiveScene(active) {
   if (!active) {
     $("active-title").textContent = "장면 없음";
+    $("active-title-editor").value = "";
+    $("active-body-editor").value = "";
+    $("active-body-editor").disabled = true;
     $("active-status").textContent = "-";
     $("active-length").textContent = "0";
     $("active-length-spaces").textContent = "0";
     $("active-type").textContent = "Scene";
+    $("active-segment-status").textContent = "";
     $("active-summary").textContent = "";
     $("active-tags").textContent = "";
     $("status-active-scene").textContent = "-";
@@ -155,12 +173,25 @@ function renderActiveScene(active) {
   const sceneType = readPayloadValue(active, "sceneType", "SceneType", "Scene");
   const summary = readPayloadValue(active, "summary", "Summary", "");
   const tags = readPayloadValue(active, "tags", "Tags", []);
+  const editorText = readPayloadValue(active, "editorText", "EditorText", "");
+  const isSegmentMode = readPayloadValue(active, "isSegmentMode", "IsSegmentMode", false);
+  const visibleParagraphCount = readPayloadValue(active, "visibleParagraphCount", "VisibleParagraphCount", 0);
 
   $("active-title").textContent = title;
+  if (document.activeElement !== $("active-title-editor")) {
+    $("active-title-editor").value = title;
+  }
+  if (document.activeElement !== $("active-body-editor")) {
+    $("active-body-editor").value = editorText;
+  }
+  $("active-body-editor").disabled = false;
   $("active-status").textContent = status;
   $("active-length").textContent = formatNumber(readPayloadValue(active, "contentLength", "ContentLength", 0));
   $("active-length-spaces").textContent = formatNumber(readPayloadValue(active, "contentLengthWithSpaces", "ContentLengthWithSpaces", 0));
   $("active-type").textContent = sceneType;
+  $("active-segment-status").textContent = isSegmentMode
+    ? `대형 장면 편집 구간 · ${formatNumber(visibleParagraphCount)}문단`
+    : "";
   $("active-summary").textContent = summary || " ";
   $("status-active-scene").textContent = `${id} · ${title}`;
 
@@ -171,6 +202,46 @@ function renderActiveScene(active) {
     span.className = "tag";
     span.textContent = tag;
     tagRow.appendChild(span);
+  }
+}
+
+function renderSettingsPanel(menuCommands) {
+  const list = $("settings-list");
+  const commands = (menuCommands || [])
+    .map(normalizeCommand)
+    .filter((command) => command.area === "top.story" || command.area === "top.tools");
+  list.textContent = "";
+  $("settings-count").textContent = formatNumber(commands.length);
+
+  for (const command of commands) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "side-action";
+    button.dataset.command = command.commandId;
+    button.textContent = command.label || command.commandId;
+    list.appendChild(button);
+  }
+}
+
+function renderReferencePanel(project, active) {
+  const list = $("reference-list");
+  list.textContent = "";
+  const references = [
+    ["프로젝트", readPayloadValue(project, "rootPath", "RootPath", "")],
+    ["현재 장면", active ? `${readPayloadValue(active, "id", "Id", "")} · ${readPayloadValue(active, "title", "Title", "")}` : "-"],
+    ["요약", active ? readPayloadValue(active, "summary", "Summary", "-") || "-" : "-"],
+  ];
+  $("reference-count").textContent = formatNumber(references.length);
+
+  for (const [title, value] of references) {
+    const item = document.createElement("div");
+    item.className = "reference-item";
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const span = document.createElement("span");
+    span.textContent = value;
+    item.append(strong, span);
+    list.appendChild(item);
   }
 }
 
@@ -242,6 +313,12 @@ function formatDate(value) {
 }
 
 document.addEventListener("click", (event) => {
+  const railTab = event.target.closest("[data-rail-mode]");
+  if (railTab) {
+    setRailMode(railTab.dataset.railMode);
+    return;
+  }
+
   const densityToggle = event.target.closest("#remote-density-toggle");
   if (densityToggle) {
     state.remoteIconOnly = !state.remoteIconOnly;
@@ -255,6 +332,73 @@ document.addEventListener("click", (event) => {
     sendCommand(button.dataset.command);
   }
 });
+
+$("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
+$("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
+
+$("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);
+document.addEventListener("pointermove", moveRemoteDrag);
+document.addEventListener("pointerup", endRemoteDrag);
+document.addEventListener("pointercancel", endRemoteDrag);
+
+function setRailMode(mode) {
+  state.railMode = mode || "binder";
+  document.querySelectorAll("[data-rail-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.railMode === state.railMode);
+  });
+  document.querySelectorAll(".rail-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `rail-panel-${state.railMode}`);
+  });
+}
+
+function scheduleActiveSceneUpdate() {
+  if (state.isRendering) return;
+
+  window.clearTimeout(state.editorUpdateTimer);
+  state.pendingEditorUpdate = {
+    type: "activeScene.update",
+    title: $("active-title-editor").value,
+    editorText: $("active-body-editor").value,
+  };
+  state.editorUpdateTimer = window.setTimeout(flushActiveSceneUpdate, 450);
+}
+
+function flushActiveSceneUpdate() {
+  if (!state.pendingEditorUpdate) return;
+
+  window.clearTimeout(state.editorUpdateTimer);
+  const message = state.pendingEditorUpdate;
+  state.pendingEditorUpdate = null;
+  postWebMessage(message);
+}
+
+function startRemoteDrag(event) {
+  const remote = $("floating-remote");
+  const rect = remote.getBoundingClientRect();
+  state.remoteDrag = {
+    pointerId: event.pointerId,
+    offsetX: event.clientX - rect.left,
+    offsetY: event.clientY - rect.top,
+  };
+  remote.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+}
+
+function moveRemoteDrag(event) {
+  if (!state.remoteDrag || state.remoteDrag.pointerId !== event.pointerId) return;
+
+  const remote = $("floating-remote");
+  remote.style.right = "auto";
+  remote.style.left = `${event.clientX - state.remoteDrag.offsetX}px`;
+  remote.style.top = `${event.clientY - state.remoteDrag.offsetY}px`;
+}
+
+function endRemoteDrag(event) {
+  if (!state.remoteDrag || state.remoteDrag.pointerId !== event.pointerId) return;
+
+  $("floating-remote").releasePointerCapture?.(event.pointerId);
+  state.remoteDrag = null;
+}
 
 if (window.chrome && window.chrome.webview) {
   window.chrome.webview.addEventListener("message", (event) => {
@@ -275,7 +419,10 @@ if (window.chrome && window.chrome.webview) {
       contentLength: 1200,
       contentLengthWithSpaces: 1360,
       sceneType: "Scene",
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      editorText: "여기에 원고를 씁니다.\n\nHTML 작업대에서도 현재 장면 본문을 바로 수정할 수 있습니다.",
+      isSegmentMode: false,
+      visibleParagraphCount: 2
     },
     binder: [
       { id: "scene-0001", title: "첫 장면", status: "초고", sceneType: "Scene", contentLength: 1200, isActive: true },

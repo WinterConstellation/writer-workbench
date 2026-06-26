@@ -2332,23 +2332,77 @@ public partial class MainWindow : Window
         {
             using var document = JsonDocument.Parse(e.WebMessageAsJson);
             var root = document.RootElement;
-            if (!root.TryGetProperty("type", out var type) ||
-                !string.Equals(type.GetString(), "command", StringComparison.OrdinalIgnoreCase) ||
-                !root.TryGetProperty("commandId", out var commandIdElement))
+            if (!root.TryGetProperty("type", out var type))
             {
                 return;
             }
 
-            var commandId = commandIdElement.GetString();
-            if (!string.IsNullOrWhiteSpace(commandId))
+            var messageType = type.GetString();
+            if (string.Equals(messageType, "command", StringComparison.OrdinalIgnoreCase))
             {
-                await ExecuteCommandAsync(commandId);
+                if (root.TryGetProperty("commandId", out var commandIdElement))
+                {
+                    var commandId = commandIdElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(commandId))
+                    {
+                        await ExecuteCommandAsync(commandId);
+                    }
+                }
+
+                return;
+            }
+
+            if (string.Equals(messageType, "activeScene.update", StringComparison.OrdinalIgnoreCase))
+            {
+                var title = root.TryGetProperty("title", out var titleElement)
+                    ? titleElement.GetString() ?? ""
+                    : "";
+                var editorText = root.TryGetProperty("editorText", out var editorTextElement)
+                    ? editorTextElement.GetString() ?? ""
+                    : "";
+                ApplyHtmlActiveSceneUpdate(title, editorText);
             }
         }
         catch (JsonException ex)
         {
             StatusText.Text = $"HTML 작업대 메시지 오류: {ex.Message}";
         }
+    }
+
+    private void ApplyHtmlActiveSceneUpdate(string title, string editorText)
+    {
+        if (_activeDocument is null || string.IsNullOrWhiteSpace(_activeDocumentId))
+        {
+            return;
+        }
+
+        var document = DocumentEditorTextService.UpdateFromEditorText(
+            _activeDocument,
+            title,
+            editorText,
+            _editorTextView);
+        _activeDocument = document;
+        _editorTextView = _editorTextView with
+        {
+            Text = editorText,
+            VisibleParagraphCount = DocumentEditorTextService.CountEditorParagraphs(editorText)
+        };
+
+        _loadingDocument = true;
+        try
+        {
+            TitleBox.Text = document.Title;
+            EditorBox.Text = editorText;
+        }
+        finally
+        {
+            _loadingDocument = false;
+        }
+
+        UpdateMetrics(document);
+        _dirty = true;
+        _lastEditAt = DateTimeOffset.Now;
+        StatusText.Text = $"HTML 편집 반영됨 {document.Id}";
     }
 
     private async Task PushHtmlWorkbenchStateAsync()

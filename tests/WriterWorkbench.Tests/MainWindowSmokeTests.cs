@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
+using WriterWorkbench.Core.Documents;
 using WriterWorkbench.Core.Storage;
 using WriterWorkbench.Core.Workspace;
 using Xunit.Abstractions;
@@ -523,6 +524,61 @@ public sealed class MainWindowSmokeTests
                 Assert.False(layer.IsVisible);
 
                 layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowAppliesHtmlActiveSceneEditorUpdateToCurrentDocument()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var original = new WriterDocument(
+                    "scene-html",
+                    "HTML 장면",
+                    [new WriterParagraph("p-0001", "처음 본문", "body", [], [])]);
+                var editor = Assert.IsType<TextBox>(window.FindName("EditorBox"));
+                var title = Assert.IsType<TextBox>(window.FindName("TitleBox"));
+
+                typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, original);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, original.Id);
+                typeof(MainWindow).GetField("_editorTextView", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(
+                    window,
+                    DocumentEditorTextService.CreateView(original));
+                title.Text = original.Title;
+                editor.Text = "처음 본문";
+
+                InvokePrivate(window, "ApplyHtmlActiveSceneUpdate", "HTML 수정", "바뀐 본문\n\n둘째 문단");
+
+                var updated = Assert.IsType<WriterDocument>(
+                    typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
+                var dirty = Assert.IsType<bool>(
+                    typeof(MainWindow).GetField("_dirty", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
+
+                Assert.True(dirty);
+                Assert.Equal("HTML 수정", updated.Title);
+                Assert.Equal(["바뀐 본문", "둘째 문단"], updated.Paragraphs.Select(paragraph => paragraph.Text));
+                Assert.Equal("HTML 수정", title.Text);
+                Assert.Equal("바뀐 본문\n\n둘째 문단", editor.Text.Replace("\r\n", "\n", StringComparison.Ordinal));
                 window.Close();
             }
             catch (Exception ex)

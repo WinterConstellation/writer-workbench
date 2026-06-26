@@ -22,6 +22,9 @@ public static class WebWorkbenchPayloadFactory
         WorkbenchWidgetRegistry? widgetRegistry = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
+        var activeEditorView = activeDocument is null
+            ? DocumentEditorTextView.Empty
+            : DocumentEditorTextService.CreateView(activeDocument);
         var binder = manifest.Documents
             .Select(document =>
             {
@@ -31,7 +34,7 @@ public static class WebWorkbenchPayloadFactory
                     metadata = activeMetadata;
                 }
 
-                return CreateScene(document, metadata, activeDocumentId);
+                return CreateScene(document, metadata, activeDocumentId, activeEditorView);
             })
             .ToList();
 
@@ -48,7 +51,10 @@ public static class WebWorkbenchPayloadFactory
                                   activeMetadata?.ContentLengthWithSpaces ?? 0,
                                   activeMetadata?.SceneType ?? "Scene",
                                   activeMetadata?.UpdatedAt ?? DateTimeOffset.MinValue,
-                                  true));
+                                  true,
+                                  activeEditorView.Text,
+                                  activeEditorView.IsSegmentMode,
+                                  activeEditorView.VisibleParagraphCount));
 
         var resolver = new WorkbenchCustomizationResolver(profile);
         var commands = CreateCommands(resolver.GetPlacements("toolbar", "main"), commandRegistry);
@@ -159,8 +165,10 @@ public static class WebWorkbenchPayloadFactory
     private static WebWorkbenchScene CreateScene(
         ProjectDocumentInfo document,
         SceneMetadata? metadata,
-        string activeDocumentId)
+        string activeDocumentId,
+        DocumentEditorTextView activeEditorView)
     {
+        var isActive = string.Equals(document.Id, activeDocumentId, StringComparison.OrdinalIgnoreCase);
         return new WebWorkbenchScene(
             document.Id,
             document.Title,
@@ -171,7 +179,10 @@ public static class WebWorkbenchPayloadFactory
             metadata?.ContentLengthWithSpaces ?? 0,
             metadata?.SceneType ?? "Scene",
             metadata?.UpdatedAt == default ? document.UpdatedAt : metadata!.UpdatedAt,
-            string.Equals(document.Id, activeDocumentId, StringComparison.OrdinalIgnoreCase));
+            isActive,
+            isActive ? activeEditorView.Text : "",
+            isActive && activeEditorView.IsSegmentMode,
+            isActive ? activeEditorView.VisibleParagraphCount : 0);
     }
 
     private static string FormatSceneStatus(SceneStatus status)

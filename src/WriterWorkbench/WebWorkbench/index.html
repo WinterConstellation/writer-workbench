@@ -29,15 +29,31 @@
     <section class="workbench-grid">
       <aside id="left-rail" class="left-rail">
         <div class="rail-tabs">
-          <button class="rail-tab active" type="button">바인더</button>
-          <button class="rail-tab" type="button">설정집</button>
-          <button class="rail-tab" type="button">자료</button>
+          <button class="rail-tab active" type="button" data-rail-mode="binder">바인더</button>
+          <button class="rail-tab" type="button" data-rail-mode="settings">설정집</button>
+          <button class="rail-tab" type="button" data-rail-mode="reference">자료</button>
         </div>
-        <div class="rail-header">
-          <strong>장면</strong>
-          <span id="binder-count">0</span>
+        <div id="rail-panel-binder" class="rail-panel active">
+          <div class="rail-header">
+            <strong>장면</strong>
+            <span id="binder-count">0</span>
+          </div>
+          <div id="scene-list" class="scene-list"></div>
         </div>
-        <div id="scene-list" class="scene-list"></div>
+        <div id="rail-panel-settings" class="rail-panel">
+          <div class="rail-header">
+            <strong>설정집</strong>
+            <span id="settings-count">0</span>
+          </div>
+          <div id="settings-list" class="side-action-list"></div>
+        </div>
+        <div id="rail-panel-reference" class="rail-panel">
+          <div class="rail-header">
+            <strong>자료</strong>
+            <span id="reference-count">0</span>
+          </div>
+          <div id="reference-list" class="reference-list"></div>
+        </div>
       </aside>
 
       <section id="center-surface" class="center-surface">
@@ -51,6 +67,9 @@
 
         <section class="editor-stage">
           <div class="writing-sheet">
+            <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
+            <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
+            <div id="active-segment-status" class="segment-status"></div>
             <p id="active-summary" class="scene-summary"></p>
             <div id="active-tags" class="tag-row"></div>
             <div class="scene-stat-grid">
@@ -111,6 +130,7 @@
     <aside id="floating-remote" class="floating-remote" aria-label="리모컨">
       <div class="remote-header">
         <strong>리모컨</strong>
+        <button id="remote-drag-handle" class="remote-drag-handle" type="button">이동</button>
         <button id="remote-density-toggle" type="button">아이콘</button>
       </div>
       <div id="remote-command-list" class="remote-command-list"></div>
