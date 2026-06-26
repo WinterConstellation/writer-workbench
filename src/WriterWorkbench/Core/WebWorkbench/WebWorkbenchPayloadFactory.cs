@@ -59,6 +59,7 @@ public static class WebWorkbenchPayloadFactory
                     .OrderBy(placement => placement.Order)
                     .ToList(),
                 commandRegistry);
+        EnsureRequiredMenuCommand(menuCommands, commandRegistry, AppCommandIds.ViewEditorOpen, "top.view", "view.editor", "작품 수정");
         var remoteCommands = CreateCommandsFromWidgets(widgetRegistry, "remote", commandRegistry)
             ?? CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
         if (remoteCommands.Count == 0)
@@ -76,6 +77,31 @@ public static class WebWorkbenchPayloadFactory
             statusText,
             graphicPresetName,
             autosaveEnabled);
+    }
+
+    private static void EnsureRequiredMenuCommand(
+        List<WebWorkbenchCommand> commands,
+        CommandRegistry commandRegistry,
+        string commandId,
+        string area,
+        string slotKey,
+        string label)
+    {
+        if (commands.Any(command => string.Equals(command.CommandId, commandId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var command = commandRegistry.Get(commandId);
+        var order = commands.Count == 0 ? 10 : commands.Max(item => item.Order) + 10;
+        commands.Add(new WebWorkbenchCommand(
+            command.Id,
+            label,
+            command.Category,
+            "menu",
+            area,
+            slotKey,
+            order));
     }
 
     private static List<WebWorkbenchCommand> CreateCommands(

@@ -167,7 +167,14 @@ public partial class MainWindow : Window
             _widgetRegistry = await _widgetRegistryStore.LoadOrCreateAsync(_activeCustomizationProfile.Placements, CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
-            ShowRemoteControlLayer(recenter: true);
+            if (string.Equals(_sessionState.Surface, AppSessionState.HtmlWorkbenchSurface, StringComparison.OrdinalIgnoreCase))
+            {
+                HideNativeRemoteControlLayer();
+            }
+            else
+            {
+                ShowRemoteControlLayer(recenter: true);
+            }
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -326,6 +333,13 @@ public partial class MainWindow : Window
 
     private Task ShowRemoteControlLayerAsync()
     {
+        if (IsHtmlWorkbenchSurfaceVisible())
+        {
+            HideNativeRemoteControlLayer();
+            StatusText.Text = "HTML 작업대 리모콘 사용 중";
+            return Task.CompletedTask;
+        }
+
         ShowRemoteControlLayer(recenter: true);
         StatusText.Text = "리모콘 레이어 표시됨";
         return Task.CompletedTask;
@@ -333,6 +347,13 @@ public partial class MainWindow : Window
 
     private Task ToggleRemoteControlLayerAsync()
     {
+        if (IsHtmlWorkbenchSurfaceVisible())
+        {
+            HideNativeRemoteControlLayer();
+            StatusText.Text = "HTML 작업대 리모콘 사용 중";
+            return Task.CompletedTask;
+        }
+
         if (_remoteControlLayer is { IsVisible: true } layer)
         {
             layer.Hide();
@@ -347,6 +368,12 @@ public partial class MainWindow : Window
 
     private void ShowRemoteControlLayer(bool recenter)
     {
+        if (IsHtmlWorkbenchSurfaceVisible())
+        {
+            HideNativeRemoteControlLayer();
+            return;
+        }
+
         var layer = EnsureRemoteControlLayer();
         layer.Topmost = true;
         if (recenter || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
@@ -360,6 +387,20 @@ public partial class MainWindow : Window
         }
 
         layer.Topmost = true;
+        layer.Activate();
+    }
+
+    private bool IsHtmlWorkbenchSurfaceVisible()
+    {
+        return HtmlWorkbenchSurface.Visibility == Visibility.Visible;
+    }
+
+    private void HideNativeRemoteControlLayer()
+    {
+        if (_remoteControlLayer is { IsVisible: true } layer)
+        {
+            layer.Hide();
+        }
     }
 
     private void PositionRemoteControlLayer(RemoteControlLayerWindow layer)
@@ -600,6 +641,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.RemoteControlOpenSettings] = OpenRemoteControlSettingsAsync;
         _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
         _commandHandlers[AppCommandIds.ViewHtmlWorkbenchOpen] = OpenHtmlWorkbenchSurfaceAsync;
+        _commandHandlers[AppCommandIds.ViewEditorOpen] = OpenEditorSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
         _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
@@ -1894,10 +1936,13 @@ public partial class MainWindow : Window
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
             Left = Left + 48,
-            Top = Top + 48
+            Top = Top + 48,
+            Topmost = true,
+            ShowActivated = true
         };
 
         window.Show();
+        window.Activate();
         StatusText.Text = "분리 작업대 열림 - 화면을 선택하세요";
         return Task.CompletedTask;
     }
@@ -1914,10 +1959,13 @@ public partial class MainWindow : Window
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
             Left = Left + 48,
-            Top = Top + 48
+            Top = Top + 48,
+            Topmost = true,
+            ShowActivated = true
         };
 
         window.Show();
+        window.Activate();
         StatusText.Text = $"창 분리됨 {document.Id}";
     }
 
@@ -2218,6 +2266,12 @@ public partial class MainWindow : Window
     private async Task OpenMainSurfaceAsync()
     {
         ShowMainSurface();
+        await PersistSessionStateAsync();
+    }
+
+    private async Task OpenEditorSurfaceAsync()
+    {
+        ShowEditorSurface();
         await PersistSessionStateAsync();
     }
 
@@ -2595,6 +2649,7 @@ public partial class MainWindow : Window
         }
 
         HideNativeWorkbenchChrome();
+        HideNativeRemoteControlLayer();
         HtmlWorkbenchSurface.Visibility = Visibility.Visible;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
@@ -2653,8 +2708,7 @@ public partial class MainWindow : Window
 
     private async void ReturnToEditorButton_Click(object sender, RoutedEventArgs e)
     {
-        ShowEditorSurface();
-        await PersistSessionStateAsync();
+        await OpenEditorSurfaceAsync();
     }
 
     private void UpdateMetrics(WriterDocument document)

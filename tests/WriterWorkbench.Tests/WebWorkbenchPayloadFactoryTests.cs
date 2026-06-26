@@ -114,7 +114,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "기본",
             autosaveEnabled: true);
 
-        Assert.Equal(["save", "relationship"], payload.MenuCommands.Select(command => command.SlotKey));
+        Assert.Equal(["save", "relationship", "view.editor"], payload.MenuCommands.Select(command => command.SlotKey));
         Assert.Equal("top.project", payload.MenuCommands[0].Area);
         Assert.Equal("floating", Assert.Single(payload.RemoteCommands).Area);
         Assert.Equal("snapshot", Assert.Single(payload.RemoteCommands).SlotKey);
@@ -162,7 +162,8 @@ public sealed class WebWorkbenchPayloadFactoryTests
             autosaveEnabled: true,
             widgetRegistry);
 
-        Assert.Equal("registry-save", Assert.Single(payload.MenuCommands).SlotKey);
+        Assert.Contains(payload.MenuCommands, command => command.SlotKey == "registry-save");
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Equal("registry-focus", Assert.Single(payload.RemoteCommands).SlotKey);
         Assert.Equal("legacy", Assert.Single(payload.Commands).SlotKey);
     }

@@ -6,6 +6,7 @@
         Height="720"
         MinWidth="640"
         MinHeight="480"
+        Topmost="True"
         FontFamily="Malgun Gothic"
         Background="White">
     <DockPanel>

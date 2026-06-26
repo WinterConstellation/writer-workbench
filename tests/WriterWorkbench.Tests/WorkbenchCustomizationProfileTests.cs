@@ -216,6 +216,7 @@ public sealed class WorkbenchCustomizationProfileTests
         Assert.Contains(menu, placement => placement.Area == "top.project" && placement.CommandId == AppCommandIds.ProjectSave);
         Assert.Contains(menu, placement => placement.Area == "top.manuscript" && placement.CommandId == AppCommandIds.DocumentCreateScene);
         Assert.Contains(menu, placement => placement.Area == "top.story" && placement.CommandId == AppCommandIds.StoryRelationshipMapOpen);
+        Assert.Contains(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Contains(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewMainOpen);
         Assert.Contains(menu, placement => placement.Area == "top.tools" && placement.CommandId == AppCommandIds.ShortcutsOpenSettings);
         Assert.Contains(menu, placement => placement.Area == "top.help" && placement.CommandId == AppCommandIds.HelpOpen);

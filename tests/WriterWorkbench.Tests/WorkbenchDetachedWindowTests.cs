@@ -56,6 +56,37 @@ public sealed class WorkbenchDetachedWindowTests
     }
 
     [Fact]
+    public void DetachedWorkbenchWindowStartsAsTopmostLayer()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var registry = new WorkbenchSurfaceClaimRegistry();
+                var window = new WorkbenchDetachedWindow(registry, "detached-topmost-test");
+
+                Assert.True(window.Topmost);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine(ex.ToString());
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void DetachedWorkbenchClaimsSelectedSurfaceAndBlocksDuplicateSelection()
     {
         Exception? failure = null;

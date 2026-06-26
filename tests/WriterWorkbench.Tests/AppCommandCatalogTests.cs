@@ -43,6 +43,7 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.WorkspaceStartupPresetCycle,
             AppCommandIds.ShortcutsOpenSettings,
             AppCommandIds.ViewHtmlWorkbenchOpen,
+            AppCommandIds.ViewEditorOpen,
             AppCommandIds.ViewMainOpen,
             AppCommandIds.ViewPreviewToggle,
             AppCommandIds.SearchRun,
@@ -75,6 +76,7 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("관계 수정", registry.Get(AppCommandIds.StoryUpdateRelationship).Name);
         Assert.Equal("관계 삭제", registry.Get(AppCommandIds.StoryDeleteRelationship).Name);
         Assert.Equal("HTML 작업대", registry.Get(AppCommandIds.ViewHtmlWorkbenchOpen).Name);
+        Assert.Equal("작품 수정", registry.Get(AppCommandIds.ViewEditorOpen).Name);
     }
 
     [Fact]

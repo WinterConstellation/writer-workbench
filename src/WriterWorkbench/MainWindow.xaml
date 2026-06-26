@@ -119,6 +119,7 @@
                                     <TextBlock Text="V" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </MenuItem.Icon>
+                            <MenuItem Header="작품 수정" Tag="view.editor.open" Click="CommandButton_Click"/>
                             <MenuItem Header="메인" Tag="view.main.open" Click="CommandButton_Click"/>
                             <MenuItem Header="HTML 작업대" Tag="view.htmlWorkbench.open" Click="CommandButton_Click"/>
                             <MenuItem Header="미리보기" Tag="view.preview.toggle" Click="CommandButton_Click"/>

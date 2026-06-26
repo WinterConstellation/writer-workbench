@@ -69,6 +69,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.WorkspaceStartupPresetCycle, commandTags);
                 Assert.Contains(AppCommandIds.ShortcutsOpenSettings, commandTags);
                 Assert.Contains(AppCommandIds.ViewHtmlWorkbenchOpen, commandTags);
+                Assert.Contains(AppCommandIds.ViewEditorOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
                 Assert.Contains(AppCommandIds.HelpOpen, commandTags);
@@ -440,6 +441,88 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(Visibility.Visible, nativeChrome.Visibility);
                 Assert.Equal(Visibility.Visible, statusText.Visibility);
                 Assert.Equal(Visibility.Visible, metricsText.Visibility);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowCanReturnFromHtmlWorkbenchToEditorSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var htmlSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface"));
+                var editorSurface = Assert.IsType<DockPanel>(window.FindName("EditorSurface"));
+                var nativeChrome = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("NativeCommandChrome"));
+                var statusText = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("StatusText"));
+                var metricsText = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("MetricsText"));
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+                InvokeCommand(window, AppCommandIds.ViewEditorOpen);
+
+                Assert.Equal(Visibility.Collapsed, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Visible, editorSurface.Visibility);
+                Assert.Equal(Visibility.Visible, nativeChrome.Visibility);
+                Assert.Equal(Visibility.Visible, statusText.Visibility);
+                Assert.Equal(Visibility.Visible, metricsText.Visibility);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlWorkbenchDoesNotOpenSecondNativeRemoteControlLayer()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(layerField);
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.False(layer.IsVisible);
+
+                layer.Close();
                 window.Close();
             }
             catch (Exception ex)

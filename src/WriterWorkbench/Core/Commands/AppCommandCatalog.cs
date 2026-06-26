@@ -44,6 +44,7 @@ public static class AppCommandCatalog
         Register(registry, AppCommandIds.RemoteControlOpenSettings, "리모콘 편집", "작업공간", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ShortcutsOpenSettings, "단축키", "작업공간", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewHtmlWorkbenchOpen, "HTML 작업대", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
+        Register(registry, AppCommandIds.ViewEditorOpen, "작품 수정", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewMainOpen, "메인", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewPreviewToggle, "미리보기", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.SearchRun, "검색", "검색", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
