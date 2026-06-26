@@ -1672,6 +1672,79 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Only a reference-lock document was added.
 
+## 2026-06-26 KST feature implementation update: LLL-inspired settings and HTML workbench shell slice
+
+Feature(s) implemented:
+- Added separated project settings paths under `settings/`.
+- Added `ProjectAppSettings` and `ProjectSettingsStore` for `settings/app.json`.
+- Added `WorkbenchWidgetRegistry`, `WidgetInstance`, and `WidgetRegistryStore` for `settings/widget-registry.json`.
+- MainWindow project initialization now creates/loads `app.json` and `widget-registry.json`.
+- Default customization profile now includes top menu placements for project/manuscript/story/view/tools/help groups.
+- Web workbench payload now separates toolbar, top menu, and remote commands.
+- Web workbench payload now uses `widget-registry` instances for menu/remote rendering when provided.
+- HTML workbench shell was rebuilt around top menu, left rail, center surface, right inspector, floating remote, and bottom status anchors.
+- Floating remote in the HTML shell supports icon-only/title mode at the web layer.
+
+Files changed:
+- `docs/superpowers/plans/2026-06-26-lll-workbench-shell.md`
+- `docs/pingpong.txt`
+- `src/WriterWorkbench/Core/Storage/ProjectPaths.cs`
+- `src/WriterWorkbench/Core/AppSettings/ProjectAppSettings.cs`
+- `src/WriterWorkbench/Core/AppSettings/ProjectSettingsStore.cs`
+- `src/WriterWorkbench/Core/AppSettings/WorkbenchWidgetRegistry.cs`
+- `src/WriterWorkbench/Core/AppSettings/WidgetRegistryStore.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/ProjectSettingsStoreTests.cs`
+- `tests/WriterWorkbench.Tests/WidgetRegistryStoreTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchCustomizationProfileTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+
+Tests added:
+- Project paths expose separated `settings/*.json` files.
+- Missing `settings/app.json` creates Korean-safe default JSON.
+- Existing `settings/app.json` loads without overwriting user values.
+- Missing `settings/widget-registry.json` creates default widget instances from placements.
+- Existing widget registry loads without replacing user order.
+- Payload separates top menu and remote commands.
+- Payload uses widget registry for menu/remote when provided.
+- Default profile includes top menu placements.
+- HTML asset contains full workbench shell anchors.
+- MainWindow initialization creates separated settings files.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter ProjectSettingsStoreTests` -> failed before store existed, then 3 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WidgetRegistryStoreTests` -> failed before registry store existed, then 2 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchPayloadFactoryTests` -> failed before payload fields existed, then passed after implementation.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlWorkbench` -> failed before menu placements existed, then 1 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchHtmlContainsFullWorkbenchShellAnchors` -> failed before shell anchors existed, then 1 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowInitializationCreatesSeparatedProjectSettingsFiles` -> failed before MainWindow wiring existed, then 1 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ProjectSettingsStoreTests|WidgetRegistryStoreTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlWorkbench|MainWindowInitializationCreatesSeparatedProjectSettingsFiles"` -> 12 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 173 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> succeeded.
+
+Large manuscript regression check, if touched:
+- Editor input loop was not touched.
+- Export, snapshot, full index rebuild, and full manuscript scan were not added to `EditorBox_TextChanged`.
+- New settings/widget files are created during project initialization, not while typing.
+
+Remaining problems:
+- HTML workbench is now structurally closer to the target shell, but the embedded editor is still metadata/dashboard-level and not the final writing surface.
+- Widget registry can drive menu/remote rendering data, but user-facing widget editing UI is not implemented yet.
+- Path restorer is still represented by session state plus `app.json`; separate `path-restorer.json` is not implemented yet.
+- WebView visual validation with an actual running app screenshot is still needed after the next UI polish pass.
+
+Separate data artifact 여부:
+- 별도 샘플 프로젝트/fixture 산출물 없음. Tests create only temporary settings JSON data.
+
 ## 2026-06-25 KST feature implementation update: Icon menu and customizable remote control bar
 
 Feature(s) implemented:

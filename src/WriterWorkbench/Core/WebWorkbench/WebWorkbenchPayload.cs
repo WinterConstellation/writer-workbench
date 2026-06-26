@@ -5,6 +5,8 @@ public sealed record WebWorkbenchPayload(
     WebWorkbenchScene? ActiveScene,
     IReadOnlyList<WebWorkbenchScene> Binder,
     IReadOnlyList<WebWorkbenchCommand> Commands,
+    IReadOnlyList<WebWorkbenchCommand> MenuCommands,
+    IReadOnlyList<WebWorkbenchCommand> RemoteCommands,
     string StatusText,
     string GraphicPresetName,
     bool AutosaveEnabled);
@@ -32,4 +34,5 @@ public sealed record WebWorkbenchCommand(
     string Category,
     string Surface,
     string Area,
+    string SlotKey,
     int Order);

@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
+using WriterWorkbench.Core.Storage;
 using WriterWorkbench.Core.Workspace;
 using Xunit.Abstractions;
 
@@ -342,6 +343,50 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("OperationProgressPanel"));
                 Assert.NotNull(window.FindName("OperationProgressBar"));
                 Assert.NotNull(window.FindName("OperationRemainingGraph"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowInitializationCreatesSeparatedProjectSettingsFiles()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(
+                    new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"), "Sample.writerproj");
+                var paths = ProjectPaths.ForRoot(root);
+                var window = new MainWindow();
+
+                InvokePrivate(window, "ConfigureProject", root);
+                typeof(MainWindow)
+                    .GetField("_startupStateLoaded", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, true);
+                WaitForTaskOnDispatcher((Task)typeof(MainWindow)
+                    .GetMethod("InitializeProjectAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(window, [])!);
+
+                Assert.True(File.Exists(paths.AppSettingsPath), paths.AppSettingsPath);
+                Assert.True(File.Exists(paths.WidgetRegistryPath), paths.WidgetRegistryPath);
+                Assert.Contains("마지막 작업", File.ReadAllText(paths.AppSettingsPath));
+                Assert.Contains("widget-registry", File.ReadAllText(paths.WidgetRegistryPath));
                 window.Close();
             }
             catch (Exception ex)
@@ -892,6 +937,20 @@ public sealed class MainWindowSmokeTests
         var method = typeof(MainWindow).GetMethod("ExecuteCommandAsync", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(MainWindow).FullName, "ExecuteCommandAsync");
         var task = (Task)method.Invoke(window, [commandId])!;
+        while (!task.IsCompleted)
+        {
+            var frame = new DispatcherFrame();
+            Dispatcher.CurrentDispatcher.BeginInvoke(
+                DispatcherPriority.Background,
+                new Action(() => frame.Continue = false));
+            Dispatcher.PushFrame(frame);
+        }
+
+        task.GetAwaiter().GetResult();
+    }
+
+    private static void WaitForTaskOnDispatcher(Task task)
+    {
         while (!task.IsCompleted)
         {
             var frame = new DispatcherFrame();

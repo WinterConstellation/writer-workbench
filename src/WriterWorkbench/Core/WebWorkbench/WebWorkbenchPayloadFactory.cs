@@ -1,3 +1,4 @@
+using WriterWorkbench.Core.AppSettings;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
 using WriterWorkbench.Core.Documents;
@@ -17,7 +18,8 @@ public static class WebWorkbenchPayloadFactory
         CommandRegistry commandRegistry,
         string statusText,
         string graphicPresetName,
-        bool autosaveEnabled)
+        bool autosaveEnabled,
+        WorkbenchWidgetRegistry? widgetRegistry = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var binder = manifest.Documents
@@ -48,8 +50,39 @@ public static class WebWorkbenchPayloadFactory
                                   activeMetadata?.UpdatedAt ?? DateTimeOffset.MinValue,
                                   true));
 
-        var commands = new WorkbenchCustomizationResolver(profile)
-            .GetPlacements("toolbar", "main")
+        var resolver = new WorkbenchCustomizationResolver(profile);
+        var commands = CreateCommands(resolver.GetPlacements("toolbar", "main"), commandRegistry);
+        var menuCommands = CreateCommandsFromWidgets(widgetRegistry, "menu", commandRegistry)
+            ?? CreateCommands(
+                profile.Placements
+                    .Where(placement => string.Equals(placement.Surface, "menu", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(placement => placement.Order)
+                    .ToList(),
+                commandRegistry);
+        var remoteCommands = CreateCommandsFromWidgets(widgetRegistry, "remote", commandRegistry)
+            ?? CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
+        if (remoteCommands.Count == 0)
+        {
+            remoteCommands = CreateCommands(resolver.GetPlacements("remote", "floating"), commandRegistry);
+        }
+
+        return new WebWorkbenchPayload(
+            new WebWorkbenchProject(manifest.Title, projectRoot, manifest.Documents.Count),
+            activeScene,
+            binder,
+            commands,
+            menuCommands,
+            remoteCommands,
+            statusText,
+            graphicPresetName,
+            autosaveEnabled);
+    }
+
+    private static List<WebWorkbenchCommand> CreateCommands(
+        IReadOnlyList<CommandPlacement> placements,
+        CommandRegistry commandRegistry)
+    {
+        return placements
             .Select(placement =>
             {
                 var command = commandRegistry.Get(placement.CommandId);
@@ -59,18 +92,42 @@ public static class WebWorkbenchPayloadFactory
                     command.Category,
                     placement.Surface,
                     placement.Area,
+                    placement.SlotKey,
                     placement.Order);
             })
             .ToList();
+    }
 
-        return new WebWorkbenchPayload(
-            new WebWorkbenchProject(manifest.Title, projectRoot, manifest.Documents.Count),
-            activeScene,
-            binder,
-            commands,
-            statusText,
-            graphicPresetName,
-            autosaveEnabled);
+    private static List<WebWorkbenchCommand>? CreateCommandsFromWidgets(
+        WorkbenchWidgetRegistry? widgetRegistry,
+        string surface,
+        CommandRegistry commandRegistry)
+    {
+        var widgets = (widgetRegistry?.Instances ?? [])
+            .Where(widget => string.Equals(widget.Surface, surface, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(widget => widget.Order)
+            .ThenBy(widget => widget.Area, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(widget => widget.SlotKey, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (widgets.Count == 0)
+        {
+            return null;
+        }
+
+        return widgets
+            .Select(widget =>
+            {
+                var command = commandRegistry.Get(widget.CommandId);
+                return new WebWorkbenchCommand(
+                    command.Id,
+                    string.IsNullOrWhiteSpace(widget.Label) ? command.Name : widget.Label,
+                    command.Category,
+                    widget.Surface,
+                    widget.Area,
+                    widget.SlotKey,
+                    widget.Order);
+            })
+            .ToList();
     }
 
     private static WebWorkbenchScene CreateScene(

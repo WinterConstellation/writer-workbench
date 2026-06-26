@@ -17,6 +17,15 @@ public sealed record ProjectPaths(string RootPath)
     public string ProjectDatabasePath => Path.Combine(RootPath, "project.sqlite");
     public string ManifestPath => Path.Combine(RootPath, "project.manifest.json");
     public string SettingsPath => Path.Combine(RootPath, "settings");
+    public string AppSettingsPath => Path.Combine(SettingsPath, "app.json");
+    public string EditorProfilesPath => Path.Combine(SettingsPath, "editor-profiles.json");
+    public string WorkspaceOptionsPath => Path.Combine(SettingsPath, "workspace-options.json");
+    public string WidgetRegistryPath => Path.Combine(SettingsPath, "widget-registry.json");
+    public string CommandAssignmentsPath => Path.Combine(SettingsPath, "command-assignments.json");
+    public string TextReplacementsPath => Path.Combine(SettingsPath, "text-replacements.json");
+    public string ExportProfilesPath => Path.Combine(SettingsPath, "export-profiles.json");
+    public string PathRestorerPath => Path.Combine(SettingsPath, "path-restorer.json");
+    public string MigrationStatePath => Path.Combine(SettingsPath, "migration-state.json");
     public string WorkbenchProfilesPath => Path.Combine(SettingsPath, "workbench-profiles.json");
     public string WorkspacePresetsPath => Path.Combine(RootPath, "workspace.presets.json");
     public string ShortcutsPath => Path.Combine(RootPath, "shortcuts.json");

@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using WriterWorkbench.Core.AppSettings;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Appearance;
 using WriterWorkbench.Core.Commands;
@@ -50,7 +51,11 @@ public partial class MainWindow : Window
     private WorkspacePresetService _workspacePresets;
     private ShortcutProfileService _shortcuts;
     private WorkbenchCustomizationProfileService _customizationProfiles;
+    private ProjectSettingsStore _projectSettingsStore;
+    private WidgetRegistryStore _widgetRegistryStore;
     private WorkbenchCustomizationProfile? _activeCustomizationProfile;
+    private ProjectAppSettings _projectAppSettings = ProjectAppSettings.Default;
+    private WorkbenchWidgetRegistry _widgetRegistry = WorkbenchWidgetRegistry.Empty;
     private AppSessionState _sessionState = AppSessionState.Empty;
     private GraphicPreset _graphicPreset = GraphicPresetCatalog.GetOrDefault(null);
     private ProjectStore _store;
@@ -99,6 +104,8 @@ public partial class MainWindow : Window
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
+        _projectSettingsStore = new ProjectSettingsStore(projectPaths.AppSettingsPath);
+        _widgetRegistryStore = new WidgetRegistryStore(projectPaths.WidgetRegistryPath);
         ProjectPathText.Text = _projectRoot;
         StatusText.Text = "프로젝트 불러오는 중...";
         GraphicPresetBox.ItemsSource = GraphicPresetCatalog.All;
@@ -153,6 +160,10 @@ public partial class MainWindow : Window
             await _workspacePresets.LoadAsync(CancellationToken.None);
             _shortcutManager = await _shortcuts.LoadOrCreateDefaultAsync(CancellationToken.None);
             _activeCustomizationProfile = await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
+            _projectAppSettings = await _projectSettingsStore.LoadOrCreateAsync(CancellationToken.None);
+            _autosaveEnabled = _projectAppSettings.AutosaveEnabled;
+            AutosaveButton.Content = _autosaveEnabled ? "자동저장 켬" : "자동저장 끔";
+            _widgetRegistry = await _widgetRegistryStore.LoadOrCreateAsync(_activeCustomizationProfile.Placements, CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
             ShowRemoteControlLayer(recenter: true);
@@ -650,7 +661,11 @@ public partial class MainWindow : Window
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
+        _projectSettingsStore = new ProjectSettingsStore(projectPaths.AppSettingsPath);
+        _widgetRegistryStore = new WidgetRegistryStore(projectPaths.WidgetRegistryPath);
         _activeCustomizationProfile = null;
+        _projectAppSettings = ProjectAppSettings.Default;
+        _widgetRegistry = WorkbenchWidgetRegistry.Empty;
         _currentManifest = null;
         _binderMetadataByDocumentId.Clear();
         _activeDocumentId = "scene-0001";
@@ -2286,7 +2301,8 @@ public partial class MainWindow : Window
             _commandRegistry,
             StatusText.Text,
             _graphicPreset.Name,
-            _autosaveEnabled);
+            _autosaveEnabled,
+            _widgetRegistry);
         var message = JsonSerializer.Serialize(new
         {
             type = "state",

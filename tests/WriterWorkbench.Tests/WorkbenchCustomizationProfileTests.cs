@@ -202,6 +202,25 @@ public sealed class WorkbenchCustomizationProfileTests
         Assert.Equal(remote.Count, remote.Select(placement => placement.SlotKey).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
+    [Fact]
+    public void DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlWorkbench()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-default", "기본 작업대", registry);
+        var menu = profile.Placements
+            .Where(placement => string.Equals(placement.Surface, "menu", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(placement => placement.Order)
+            .ToList();
+
+        Assert.Contains(menu, placement => placement.Area == "top.project" && placement.CommandId == AppCommandIds.ProjectSave);
+        Assert.Contains(menu, placement => placement.Area == "top.manuscript" && placement.CommandId == AppCommandIds.DocumentCreateScene);
+        Assert.Contains(menu, placement => placement.Area == "top.story" && placement.CommandId == AppCommandIds.StoryRelationshipMapOpen);
+        Assert.Contains(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewMainOpen);
+        Assert.Contains(menu, placement => placement.Area == "top.tools" && placement.CommandId == AppCommandIds.ShortcutsOpenSettings);
+        Assert.Contains(menu, placement => placement.Area == "top.help" && placement.CommandId == AppCommandIds.HelpOpen);
+    }
+
     private static CommandRegistry CreateRegistry()
     {
         var registry = new CommandRegistry();
