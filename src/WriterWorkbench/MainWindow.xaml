@@ -119,9 +119,8 @@
                                     <TextBlock Text="V" Foreground="White" FontSize="9" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                             </MenuItem.Icon>
-                            <MenuItem Header="작품 수정" Tag="view.editor.open" Click="CommandButton_Click"/>
                             <MenuItem Header="메인" Tag="view.main.open" Click="CommandButton_Click"/>
-                            <MenuItem Header="HTML 작업대" Tag="view.htmlWorkbench.open" Click="CommandButton_Click"/>
+                            <MenuItem Header="작품 수정" Tag="view.editor.open" Click="CommandButton_Click"/>
                             <MenuItem Header="미리보기" Tag="view.preview.toggle" Click="CommandButton_Click"/>
                         </MenuItem>
                         <MenuItem Header="창" Tag="menu.window">
@@ -244,10 +243,10 @@
                             Margin="8,0,0,0"
                             Padding="10,0"
                             Click="CommandButton_Click"/>
-                    <Button Content="HTML 작업대"
-                            Tag="view.htmlWorkbench.open"
-                            ToolTip="HTML/CSS 작업대 화면을 엽니다."
-                            MinWidth="106"
+                    <Button Content="메인"
+                            Tag="view.main.open"
+                            ToolTip="메인 작업대 화면을 엽니다."
+                            MinWidth="86"
                             Height="28"
                             Margin="8,0,0,0"
                             Padding="10,0"

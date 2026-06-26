@@ -55,4 +55,15 @@ public sealed class StartupSurfaceResolverTests
             AppSessionState.RelationshipMapSurface,
             StartupSurfaceResolver.ToPersistedStartupSurface(AppSessionState.RelationshipMapSurface));
     }
+
+    [Fact]
+    public void LegacyMainSurfaceNormalizesToHtmlWorkbenchSurface()
+    {
+        Assert.Equal(
+            AppSessionState.HtmlWorkbenchSurface,
+            StartupSurfaceResolver.NormalizeSurface(AppSessionState.MainSurface));
+        Assert.Equal(
+            AppSessionState.HtmlWorkbenchSurface,
+            StartupSurfaceResolver.NormalizeSurface(null, AppSessionState.MainSurface));
+    }
 }

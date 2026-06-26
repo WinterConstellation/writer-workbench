@@ -14,7 +14,7 @@ public sealed class WorkbenchSurfaceClaimRegistryTests
         Assert.False(registry.TryClaim("detached-1", AppSessionState.EditorSurface, out var occupiedOwner));
         Assert.Equal(WorkbenchSurfaceClaimRegistry.MainOwnerId, occupiedOwner);
 
-        Assert.True(registry.TryClaim(WorkbenchSurfaceClaimRegistry.MainOwnerId, AppSessionState.MainSurface, out _));
+        Assert.True(registry.TryClaim(WorkbenchSurfaceClaimRegistry.MainOwnerId, AppSessionState.HtmlWorkbenchSurface, out _));
         Assert.True(registry.TryClaim("detached-1", AppSessionState.EditorSurface, out _));
 
         Assert.True(registry.IsClaimedBy("detached-1", AppSessionState.EditorSurface));
@@ -44,7 +44,9 @@ public sealed class WorkbenchSurfaceClaimRegistryTests
 
         Assert.False(availability.Single(item => item.SurfaceId == AppSessionState.EditorSurface).IsAvailable);
         Assert.False(availability.Single(item => item.SurfaceId == AppSessionState.PreviewSurface).IsAvailable);
-        Assert.True(availability.Single(item => item.SurfaceId == AppSessionState.MainSurface).IsAvailable);
+        Assert.True(availability.Single(item => item.SurfaceId == AppSessionState.HtmlWorkbenchSurface).IsAvailable);
+        Assert.DoesNotContain(availability, item => item.SurfaceId == AppSessionState.MainSurface);
+        Assert.Equal("메인", availability.Single(item => item.SurfaceId == AppSessionState.HtmlWorkbenchSurface).Name);
         Assert.Equal("작품 수정", availability.Single(item => item.SurfaceId == AppSessionState.EditorSurface).Name);
     }
 }

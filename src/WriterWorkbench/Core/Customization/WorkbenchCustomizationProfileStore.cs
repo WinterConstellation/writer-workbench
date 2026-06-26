@@ -71,7 +71,7 @@ public sealed class WorkbenchCustomizationProfileStore(string filePath, CommandR
                 Surface = NormalizeRequired(placement.Surface, "placement surface"),
                 Area = NormalizeRequired(placement.Area, "placement area"),
                 SlotKey = NormalizeRequired(placement.SlotKey, "placement slot"),
-                CommandId = NormalizeRequired(placement.CommandId, "placement command"),
+                CommandId = AppCommandIds.NormalizeLegacyId(NormalizeRequired(placement.CommandId, "placement command")),
                 Label = (placement.Label ?? "").Trim(),
                 Parameters = NormalizeParameters(placement.Parameters)
             })
@@ -86,7 +86,7 @@ public sealed class WorkbenchCustomizationProfileStore(string filePath, CommandR
             {
                 Scope = NormalizeRequired(shortcut.Scope, "shortcut scope"),
                 Gesture = NormalizeRequired(shortcut.Gesture, "shortcut gesture"),
-                CommandId = NormalizeRequired(shortcut.CommandId, "shortcut command")
+                CommandId = AppCommandIds.NormalizeLegacyId(NormalizeRequired(shortcut.CommandId, "shortcut command"))
             })
             .OrderBy(shortcut => shortcut.Scope, StringComparer.OrdinalIgnoreCase)
             .ThenBy(shortcut => shortcut.Gesture, StringComparer.OrdinalIgnoreCase)
@@ -100,7 +100,7 @@ public sealed class WorkbenchCustomizationProfileStore(string filePath, CommandR
                 Steps = (macro.Steps ?? [])
                     .Select(step => step with
                     {
-                        CommandId = NormalizeRequired(step.CommandId, "macro command"),
+                        CommandId = AppCommandIds.NormalizeLegacyId(NormalizeRequired(step.CommandId, "macro command")),
                         Parameters = NormalizeParameters(step.Parameters)
                     })
                     .ToList()

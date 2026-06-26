@@ -15,7 +15,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
     public void CreatesDashboardPayloadWithActiveEditorTextOnly()
     {
         var registry = AppCommandCatalog.CreateDefaultRegistry();
-        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-html", "HTML 작업대", registry);
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-html", "메인", registry);
         var manifest = new ProjectManifest(
             1,
             "한국어 장편",
@@ -48,7 +48,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "scene-0001",
             "첫 장면",
             [
-                new WriterParagraph("p1", "본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", "Body", [], [])
+                new WriterParagraph("p1", "본문은 메인에서 바로 수정할 수 있어야 한다", "Body", [], [])
             ]);
 
         var payload = WebWorkbenchPayloadFactory.Create(
@@ -70,13 +70,13 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("한국어 장편", payload.Project.Title);
         Assert.Equal("scene-0001", payload.ActiveScene!.Id);
         Assert.Equal("도입부", payload.ActiveScene.Summary);
-        Assert.Equal("본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
+        Assert.Equal("본문은 메인에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
         Assert.False(payload.ActiveScene.IsSegmentMode);
         Assert.Equal(["scene-0001", "scene-0002"], payload.Binder.Select(item => item.Id));
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.ProjectSave);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Contains("한국어 장편", json);
-        Assert.Contains("본문은 HTML 작업대에서 바로 수정할 수 있어야 한다", json);
+        Assert.Contains("본문은 메인에서 바로 수정할 수 있어야 한다", json);
         Assert.DoesNotContain("두 번째 장면 본문은 로드하지 않는다", json);
     }
 
@@ -143,6 +143,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "widget-registry",
             [
                 new WidgetInstance("w-menu", "command-button", "menu", "top.project", "registry-save", 1, AppCommandIds.ProjectSave, "저장", new Dictionary<string, string>()),
+                new WidgetInstance("w-main", "command-button", "menu", "top.view", "registry-main", 2, AppCommandIds.ViewHtmlWorkbenchOpen, "메인", new Dictionary<string, string>()),
                 new WidgetInstance("w-remote", "command-button", "remote", "floating", "registry-focus", 2, AppCommandIds.WritingFocusToggle, "집중", new Dictionary<string, string>())
             ]);
         var manifest = new ProjectManifest(
@@ -166,6 +167,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
             widgetRegistry);
 
         Assert.Contains(payload.MenuCommands, command => command.SlotKey == "registry-save");
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewMainOpen && command.SlotKey == "registry-main");
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Equal("registry-focus", Assert.Single(payload.RemoteCommands).SlotKey);
         Assert.Equal("legacy", Assert.Single(payload.Commands).SlotKey);

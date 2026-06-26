@@ -336,7 +336,7 @@ public partial class MainWindow : Window
         if (IsHtmlWorkbenchSurfaceVisible())
         {
             HideNativeRemoteControlLayer();
-            StatusText.Text = "HTML 작업대 리모콘 사용 중";
+            StatusText.Text = "메인 리모컨 사용 중";
             return Task.CompletedTask;
         }
 
@@ -350,7 +350,7 @@ public partial class MainWindow : Window
         if (IsHtmlWorkbenchSurfaceVisible())
         {
             HideNativeRemoteControlLayer();
-            StatusText.Text = "HTML 작업대 리모콘 사용 중";
+            StatusText.Text = "메인 리모컨 사용 중";
             return Task.CompletedTask;
         }
 
@@ -554,7 +554,7 @@ public partial class MainWindow : Window
                 ShowPreviewSurface();
                 break;
             case AppSessionState.MainSurface:
-                ShowMainSurface();
+                await OpenHtmlWorkbenchSurfaceAsync();
                 break;
             case AppSessionState.HtmlWorkbenchSurface:
                 await OpenHtmlWorkbenchSurfaceAsync();
@@ -580,6 +580,7 @@ public partial class MainWindow : Window
 
     private async Task ExecuteCommandAsync(string commandId)
     {
+        commandId = AppCommandIds.NormalizeLegacyId(commandId);
         try
         {
             _ = _commandRegistry.Get(commandId);
@@ -640,7 +641,6 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.RemoteControlToggle] = ToggleRemoteControlLayerAsync;
         _commandHandlers[AppCommandIds.RemoteControlOpenSettings] = OpenRemoteControlSettingsAsync;
         _commandHandlers[AppCommandIds.ShortcutsOpenSettings] = OpenShortcutSettingsAsync;
-        _commandHandlers[AppCommandIds.ViewHtmlWorkbenchOpen] = OpenHtmlWorkbenchSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewEditorOpen] = OpenEditorSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
@@ -2265,8 +2265,7 @@ public partial class MainWindow : Window
 
     private async Task OpenMainSurfaceAsync()
     {
-        ShowMainSurface();
-        await PersistSessionStateAsync();
+        await OpenHtmlWorkbenchSurfaceAsync();
     }
 
     private async Task OpenEditorSurfaceAsync()
@@ -2295,11 +2294,11 @@ public partial class MainWindow : Window
         }
         catch (InvalidOperationException ex)
         {
-            StatusText.Text = $"HTML 작업대 초기화 실패: {ex.Message}";
+            StatusText.Text = $"메인 초기화 실패: {ex.Message}";
         }
         catch (IOException ex)
         {
-            StatusText.Text = $"HTML 작업대 파일 오류: {ex.Message}";
+            StatusText.Text = $"메인 파일 오류: {ex.Message}";
         }
     }
 
@@ -2313,7 +2312,7 @@ public partial class MainWindow : Window
         var indexPath = Path.Combine(AppContext.BaseDirectory, "WebWorkbench", "index.html");
         if (!File.Exists(indexPath))
         {
-            StatusText.Text = $"HTML 작업대 파일 없음: {indexPath}";
+            StatusText.Text = $"메인 파일 없음: {indexPath}";
             return;
         }
 
@@ -2365,7 +2364,7 @@ public partial class MainWindow : Window
         }
         catch (JsonException ex)
         {
-            StatusText.Text = $"HTML 작업대 메시지 오류: {ex.Message}";
+            StatusText.Text = $"메인 메시지 오류: {ex.Message}";
         }
     }
 
@@ -2418,7 +2417,7 @@ public partial class MainWindow : Window
             []);
         var profile = _activeCustomizationProfile ?? WorkbenchCustomizationProfileFactory.CreateDefault(
             "profile-html-default",
-            "HTML 작업대",
+            "메인",
             _commandRegistry);
         var payload = WebWorkbenchPayloadFactory.Create(
             manifest,
@@ -2712,7 +2711,7 @@ public partial class MainWindow : Window
         PreviewModeButton.Content = "미리보기";
         _previewMode = false;
         RememberSessionState(AppSessionState.HtmlWorkbenchSurface);
-        StatusText.Text = "HTML 작업대 화면";
+        StatusText.Text = "메인 화면";
     }
 
     private void ShowRelationshipMapSurface()

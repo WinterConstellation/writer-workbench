@@ -42,7 +42,6 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.WorkspacePresetThree,
             AppCommandIds.WorkspaceStartupPresetCycle,
             AppCommandIds.ShortcutsOpenSettings,
-            AppCommandIds.ViewHtmlWorkbenchOpen,
             AppCommandIds.ViewEditorOpen,
             AppCommandIds.ViewMainOpen,
             AppCommandIds.ViewPreviewToggle,
@@ -75,8 +74,8 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("관계 추가", registry.Get(AppCommandIds.StoryAddRelationship).Name);
         Assert.Equal("관계 수정", registry.Get(AppCommandIds.StoryUpdateRelationship).Name);
         Assert.Equal("관계 삭제", registry.Get(AppCommandIds.StoryDeleteRelationship).Name);
-        Assert.Equal("HTML 작업대", registry.Get(AppCommandIds.ViewHtmlWorkbenchOpen).Name);
         Assert.Equal("작품 수정", registry.Get(AppCommandIds.ViewEditorOpen).Name);
+        Assert.Throws<KeyNotFoundException>(() => registry.Get(AppCommandIds.ViewHtmlWorkbenchOpen));
     }
 
     [Fact]
@@ -100,9 +99,11 @@ public sealed class AppCommandCatalogTests
             slot => Assert.Equal(AppCommandIds.WorkspacePresetThree, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.WorkspaceStartupPresetCycle, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ShortcutsOpenSettings, slot.CommandId),
-            slot => Assert.Equal(AppCommandIds.ViewHtmlWorkbenchOpen, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ViewMainOpen, slot.CommandId),
+            slot => Assert.Equal(AppCommandIds.ViewEditorOpen, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ViewPreviewToggle, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.HelpOpen, slot.CommandId));
+
+        Assert.DoesNotContain(slots, slot => slot.CommandId == AppCommandIds.ViewHtmlWorkbenchOpen);
     }
 }

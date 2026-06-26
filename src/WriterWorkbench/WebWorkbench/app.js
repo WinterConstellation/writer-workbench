@@ -420,7 +420,7 @@ if (window.chrome && window.chrome.webview) {
       contentLengthWithSpaces: 1360,
       sceneType: "Scene",
       updatedAt: new Date().toISOString(),
-      editorText: "여기에 원고를 씁니다.\n\nHTML 작업대에서도 현재 장면 본문을 바로 수정할 수 있습니다.",
+      editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다.",
       isSegmentMode: false,
       visibleParagraphCount: 2
     },
@@ -442,7 +442,7 @@ if (window.chrome && window.chrome.webview) {
       { commandId: "document.detachCurrent", label: "창 분리", category: "문서", surface: "remote", area: "floating", slotKey: "detach", order: 30 }
     ],
     commands: [],
-    statusText: "HTML 작업대",
+    statusText: "메인",
     graphicPresetName: "기본",
     autosaveEnabled: true
   });

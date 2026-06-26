@@ -1,3 +1,4 @@
+using System.Text.Json;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
 using WriterWorkbench.Core.Storage;
@@ -123,6 +124,40 @@ public sealed class WorkbenchCustomizationProfileTests
     }
 
     [Fact]
+    public async Task ProfileStoreNormalizesLegacyHtmlWorkbenchCommandToMainCommand()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var path = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"), "settings", "workbench-profiles.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var now = DateTimeOffset.Parse("2026-06-27T00:00:00+09:00");
+        var legacy = new WorkbenchCustomizationProfile(
+            "profile-legacy-html",
+            "옛 메인",
+            [
+                new CommandPlacement("toolbar", "main", "legacy-main", AppCommandIds.ViewHtmlWorkbenchOpen, "메인", 10, new Dictionary<string, string>())
+            ],
+            [
+                new ShortcutAssignment("Workbench", "Ctrl+Alt+M", AppCommandIds.ViewHtmlWorkbenchOpen)
+            ],
+            [
+                new MacroDefinition(
+                    "macro.legacy-main",
+                    "메인 열기",
+                    [new CommandInvocation(AppCommandIds.ViewHtmlWorkbenchOpen, new Dictionary<string, string>())])
+            ],
+            now,
+            now);
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new[] { legacy }), CancellationToken.None);
+        var store = new WorkbenchCustomizationProfileStore(path, registry);
+
+        var loaded = Assert.Single(await store.LoadProfilesAsync(CancellationToken.None));
+
+        Assert.Equal(AppCommandIds.ViewMainOpen, Assert.Single(loaded.Placements).CommandId);
+        Assert.Equal(AppCommandIds.ViewMainOpen, Assert.Single(loaded.Shortcuts).CommandId);
+        Assert.Equal(AppCommandIds.ViewMainOpen, Assert.Single(Assert.Single(loaded.Macros).Steps).CommandId);
+    }
+
+    [Fact]
     public void ResolverReturnsOrderedPlacementsForSurfaceAreaAndMacroSteps()
     {
         var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
@@ -203,7 +238,7 @@ public sealed class WorkbenchCustomizationProfileTests
     }
 
     [Fact]
-    public void DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlWorkbench()
+    public void DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlMain()
     {
         var registry = AppCommandCatalog.CreateDefaultRegistry();
 
@@ -218,6 +253,7 @@ public sealed class WorkbenchCustomizationProfileTests
         Assert.Contains(menu, placement => placement.Area == "top.story" && placement.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Contains(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Contains(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewMainOpen);
+        Assert.DoesNotContain(menu, placement => placement.Area == "top.view" && placement.CommandId == AppCommandIds.ViewHtmlWorkbenchOpen);
         Assert.Contains(menu, placement => placement.Area == "top.tools" && placement.CommandId == AppCommandIds.ShortcutsOpenSettings);
         Assert.Contains(menu, placement => placement.Area == "top.help" && placement.CommandId == AppCommandIds.HelpOpen);
     }

@@ -43,4 +43,11 @@ public static class AppCommandIds
     public const string SearchRun = "search.run";
     public const string AutosaveToggle = "autosave.toggle";
     public const string HelpOpen = "help.open";
+
+    public static string NormalizeLegacyId(string commandId)
+    {
+        return string.Equals(commandId, ViewHtmlWorkbenchOpen, StringComparison.OrdinalIgnoreCase)
+            ? ViewMainOpen
+            : commandId;
+    }
 }

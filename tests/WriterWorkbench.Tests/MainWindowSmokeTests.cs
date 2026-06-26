@@ -69,7 +69,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.WorkspacePresetThree, commandTags);
                 Assert.Contains(AppCommandIds.WorkspaceStartupPresetCycle, commandTags);
                 Assert.Contains(AppCommandIds.ShortcutsOpenSettings, commandTags);
-                Assert.Contains(AppCommandIds.ViewHtmlWorkbenchOpen, commandTags);
+                Assert.DoesNotContain(AppCommandIds.ViewHtmlWorkbenchOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewEditorOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
@@ -442,6 +442,82 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(Visibility.Visible, nativeChrome.Visibility);
                 Assert.Equal(Visibility.Visible, statusText.Visibility);
                 Assert.Equal(Visibility.Visible, metricsText.Visibility);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowMainCommandOpensHtmlMainSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var htmlSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface"));
+                var mainSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("MainSurface"));
+                var editorSurface = Assert.IsType<DockPanel>(window.FindName("EditorSurface"));
+                var nativeChrome = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("NativeCommandChrome"));
+
+                InvokeCommand(window, AppCommandIds.ViewMainOpen);
+
+                Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, mainSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, editorSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, nativeChrome.Visibility);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowRestoresLegacyMainSurfaceAsHtmlMainSurface()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var htmlSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface"));
+                var mainSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("MainSurface"));
+                var nativeChrome = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("NativeCommandChrome"));
+
+                InvokePrivateAsync(window, "ShowRequestedSurfaceAsync", AppSessionState.MainSurface);
+
+                Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, mainSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, nativeChrome.Visibility);
                 window.Close();
             }
             catch (Exception ex)
@@ -1073,6 +1149,15 @@ public sealed class MainWindowSmokeTests
         var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
         method.Invoke(window, args);
+    }
+
+    private static void InvokePrivateAsync(MainWindow window, string methodName, params object[] args)
+    {
+        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var task = (Task)method.Invoke(window, args)!;
+        WaitForTaskOnDispatcher(task);
+        task.GetAwaiter().GetResult();
     }
 
     private static void InvokeCommand(MainWindow window, string commandId)

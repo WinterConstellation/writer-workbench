@@ -117,7 +117,8 @@ public static class WebWorkbenchPayloadFactory
         return placements
             .Select(placement =>
             {
-                var command = commandRegistry.Get(placement.CommandId);
+                var commandId = AppCommandIds.NormalizeLegacyId(placement.CommandId);
+                var command = commandRegistry.Get(commandId);
                 return new WebWorkbenchCommand(
                     command.Id,
                     string.IsNullOrWhiteSpace(placement.Label) ? command.Name : placement.Label,
@@ -149,7 +150,8 @@ public static class WebWorkbenchPayloadFactory
         return widgets
             .Select(widget =>
             {
-                var command = commandRegistry.Get(widget.CommandId);
+                var commandId = AppCommandIds.NormalizeLegacyId(widget.CommandId);
+                var command = commandRegistry.Get(commandId);
                 return new WebWorkbenchCommand(
                     command.Id,
                     string.IsNullOrWhiteSpace(widget.Label) ? command.Name : widget.Label,

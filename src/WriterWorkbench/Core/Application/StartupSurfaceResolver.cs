@@ -22,9 +22,13 @@ public static class StartupSurfaceResolver
     public static string NormalizeSurface(string? surface, string? fallback = null)
     {
         var normalized = surface?.Trim() ?? "";
+        if (string.Equals(normalized, AppSessionState.MainSurface, StringComparison.OrdinalIgnoreCase))
+        {
+            return AppSessionState.HtmlWorkbenchSurface;
+        }
+
         return normalized is AppSessionState.EditorSurface
             or AppSessionState.PreviewSurface
-            or AppSessionState.MainSurface
             or AppSessionState.HtmlWorkbenchSurface
             or AppSessionState.RelationshipMapSurface
             ? normalized
@@ -42,9 +46,13 @@ public static class StartupSurfaceResolver
     private static string NormalizeFallback(string? fallback)
     {
         var normalized = fallback?.Trim() ?? "";
+        if (string.Equals(normalized, AppSessionState.MainSurface, StringComparison.OrdinalIgnoreCase))
+        {
+            return AppSessionState.HtmlWorkbenchSurface;
+        }
+
         return normalized is AppSessionState.EditorSurface
             or AppSessionState.PreviewSurface
-            or AppSessionState.MainSurface
             or AppSessionState.HtmlWorkbenchSurface
             or AppSessionState.RelationshipMapSurface
             ? normalized
