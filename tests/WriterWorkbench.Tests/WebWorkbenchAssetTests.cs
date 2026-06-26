@@ -27,6 +27,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("right-inspector", html);
         Assert.Contains("floating-remote", html);
         Assert.Contains("remote-drag-handle", html);
+        Assert.Contains("remote-drag-icon", html);
+        Assert.Contains("binder-action-bar", html);
+        Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
@@ -53,6 +56,11 @@ public sealed class WebWorkbenchAssetTests
 
         Assert.Contains("startRemoteDrag", script);
         Assert.Contains("activeScene.update", script);
+        Assert.Contains("document.select", script);
+        Assert.Contains("document.command", script);
+        Assert.Contains("showBinderContextMenu", script);
+        Assert.Contains("hideBinderContextMenu", script);
+        Assert.Contains("sendBinderCommand", script);
         Assert.Contains("setRailMode", script);
         Assert.Contains("setActiveView", script);
         Assert.Contains("renderPreview", script);
@@ -61,5 +69,17 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("remoteSettings.update", script);
         Assert.Contains("renderShortcutSettings", script);
         Assert.Contains("filterShortcutSettings", script);
+    }
+
+    [Fact]
+    public async Task WebWorkbenchCssKeepsInWindowRemoteSecondary()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var cssPath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
+
+        var css = await File.ReadAllTextAsync(cssPath, CancellationToken.None);
+
+        Assert.Contains(".floating-remote", css);
+        Assert.Contains("display: none", css);
     }
 }

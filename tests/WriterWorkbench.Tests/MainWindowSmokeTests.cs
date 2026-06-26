@@ -628,7 +628,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowHtmlWorkbenchDoesNotOpenSecondNativeRemoteControlLayer()
+    public void MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -646,9 +646,99 @@ public sealed class MainWindowSmokeTests
                 InvokeCommand(window, AppCommandIds.RemoteControlToggle);
 
                 var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
-                Assert.False(layer.IsVisible);
+                Assert.True(layer.IsVisible);
+                Assert.True(layer.Topmost);
 
                 layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowShowingHtmlWorkbenchDoesNotHideVisibleNativeRemoteControlLayer()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(layerField);
+                InvokePrivate(window, "ShowRemoteControlLayer", true);
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.True(layer.IsVisible);
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+
+                Assert.True(layer.IsVisible);
+                Assert.True(layer.Topmost);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlBinderCommandSelectsSceneBeforeRunningBinderCommand()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+
+                WaitForTaskOnDispatcher(store.CreateProjectAsync("HTML 바인더", CancellationToken.None));
+                var second = WaitForTaskOnDispatcher(store.CreateDocumentAsync("두 번째", CancellationToken.None));
+                var manifest = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, "scene-0001");
+
+                InvokePrivateAsync(window, "ApplyHtmlBinderCommandAsync", second.Id, AppCommandIds.DocumentMoveSceneUp);
+
+                var reordered = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                var selectedItem = Assert.IsAssignableFrom<object>(Assert.IsType<ListBox>(window.FindName("BinderList")).SelectedItem);
+                var selectedId = Assert.IsType<string>(selectedItem.GetType().GetProperty("Id")!.GetValue(selectedItem));
+                Assert.Equal(second.Id, reordered.Documents.First().Id);
+                Assert.Equal(second.Id, GetPrivateField<string>(window, "_activeDocumentId"));
+                Assert.Equal(second.Id, selectedId);
                 window.Close();
             }
             catch (Exception ex)
@@ -1313,5 +1403,11 @@ public sealed class MainWindowSmokeTests
         }
 
         task.GetAwaiter().GetResult();
+    }
+
+    private static T WaitForTaskOnDispatcher<T>(Task<T> task)
+    {
+        WaitForTaskOnDispatcher((Task)task);
+        return task.GetAwaiter().GetResult();
     }
 }

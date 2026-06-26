@@ -250,6 +250,24 @@ h1 {
   display: grid;
 }
 
+.binder-action-bar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.binder-action-bar button {
+  min-height: 25px;
+  overflow: hidden;
+  padding: 0 5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
 .scene-list {
   min-height: 0;
   overflow: auto;
@@ -269,6 +287,11 @@ h1 {
 .scene-item:hover {
   border-color: var(--line);
   background: var(--surface);
+}
+
+.scene-item:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 
 .scene-item.active {
@@ -711,6 +734,7 @@ h2 {
 }
 
 .floating-remote {
+  display: none;
   position: fixed;
   top: 128px;
   right: 318px;
@@ -738,12 +762,23 @@ h2 {
 
 .remote-drag-handle {
   cursor: move;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  min-width: 24px;
+  padding: 0;
 }
 
 .remote-header button {
   min-height: 22px;
   padding: 0 7px;
   font-size: 11px;
+}
+
+.remote-drag-icon {
+  display: block;
+  font-size: 16px;
+  line-height: 1;
 }
 
 .remote-command-list {
@@ -788,6 +823,37 @@ h2 {
 
 .remote-icon-only .remote-label {
   display: none;
+}
+
+.binder-context-menu {
+  position: fixed;
+  z-index: 1200;
+  display: grid;
+  gap: 3px;
+  min-width: 132px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 5px;
+}
+
+.binder-context-menu[hidden] {
+  display: none;
+}
+
+.binder-context-menu button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 26px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+}
+
+.binder-context-menu button:hover {
+  background: var(--surface-soft);
 }
 
 .bottom-status {

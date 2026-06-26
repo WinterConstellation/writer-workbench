@@ -7,6 +7,8 @@ const state = {
   isRendering: false,
   remoteDrag: null,
   activeView: "editor",
+  selectedDocumentId: "",
+  binderContextDocumentId: "",
   remoteDraftCommandIds: [],
   availableCommands: [],
   shortcutBindings: [],
@@ -65,6 +67,7 @@ function render(payload) {
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   state.remoteDraftCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
+  state.selectedDocumentId = readPayloadValue(active, "id", "Id", state.selectedDocumentId || "");
 
   $("project-title").textContent = readPayloadValue(project, "title", "Title", "원고 작업대");
   $("project-path").textContent = readPayloadValue(project, "rootPath", "RootPath", "");
@@ -157,6 +160,8 @@ function renderBinder(items) {
     const isActive = readPayloadValue(item, "isActive", "IsActive", false);
     const row = document.createElement("article");
     row.className = `scene-item${isActive ? " active" : ""}`;
+    row.dataset.documentId = id;
+    row.tabIndex = 0;
     row.innerHTML = `
       <div class="scene-line">
         <span class="scene-title"></span>
@@ -171,9 +176,49 @@ function renderBinder(items) {
     const meta = row.querySelectorAll(".scene-meta span");
     meta[0].textContent = id;
     meta[1].textContent = `${sceneType} · ${formatNumber(length)}`;
-    row.addEventListener("dblclick", () => sendCommand("view.main.open"));
+    row.addEventListener("click", () => selectBinderDocument(id));
+    row.addEventListener("dblclick", () => selectBinderDocument(id));
+    row.addEventListener("contextmenu", (event) => showBinderContextMenu(event, id));
     list.appendChild(row);
   }
+}
+
+function selectBinderDocument(documentId) {
+  if (!documentId) return;
+
+  state.selectedDocumentId = documentId;
+  hideBinderContextMenu();
+  flushActiveSceneUpdate();
+  postWebMessage({ type: "document.select", documentId });
+}
+
+function sendBinderCommand(commandId, documentId = state.selectedDocumentId) {
+  if (!commandId) return;
+
+  hideBinderContextMenu();
+  flushActiveSceneUpdate();
+  postWebMessage({
+    type: "document.command",
+    documentId: documentId || state.selectedDocumentId || "",
+    commandId,
+  });
+}
+
+function showBinderContextMenu(event, documentId) {
+  event.preventDefault();
+  state.binderContextDocumentId = documentId;
+  state.selectedDocumentId = documentId;
+  const menu = $("binder-context-menu");
+  menu.hidden = false;
+  menu.style.left = `${event.clientX}px`;
+  menu.style.top = `${event.clientY}px`;
+}
+
+function hideBinderContextMenu() {
+  const menu = $("binder-context-menu");
+  if (!menu) return;
+
+  menu.hidden = true;
 }
 
 function renderActiveScene(active) {
@@ -511,6 +556,22 @@ function formatDate(value) {
 }
 
 document.addEventListener("click", (event) => {
+  const contextCommand = event.target.closest("[data-binder-context-command]");
+  if (contextCommand) {
+    sendBinderCommand(contextCommand.dataset.binderContextCommand, state.binderContextDocumentId);
+    return;
+  }
+
+  const binderCommand = event.target.closest("[data-binder-command]");
+  if (binderCommand) {
+    sendBinderCommand(binderCommand.dataset.binderCommand);
+    return;
+  }
+
+  if (!event.target.closest("#binder-context-menu")) {
+    hideBinderContextMenu();
+  }
+
   const railTab = event.target.closest("[data-rail-mode]");
   if (railTab) {
     setRailMode(railTab.dataset.railMode);

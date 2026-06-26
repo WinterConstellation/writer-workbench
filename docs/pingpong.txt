@@ -1161,6 +1161,60 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-27 KST regression repair update: HTML binder and remote control loop review
+
+Feature(s) implemented:
+- Applied the requested two-pass loop: structure report -> external-style review -> improvements, repeated twice.
+- Added the loop report at `docs/reports/html-workbench-regression-loop-2026-06-27.md`.
+- Restored HTML binder functionality with action bar, context menu, scene selection, and scene-scoped command bridge.
+- Added WPF bridge handling for `document.select` and `document.command`.
+- Binder commands now select the target binder item before running; binder-only commands avoid unnecessary document/WebView loading.
+- Restored native topmost remote as the primary remote while HTML workbench is visible.
+- HTML workbench entry no longer hides the native remote layer.
+- Added cross-arrow move glyph to the native remote handle.
+- Hid the in-WebView floating remote by default to avoid competing with the native remote.
+
+Files changed:
+- `docs/reports/html-workbench-regression-loop-2026-06-27.md`
+- `docs/pingpong.txt`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+
+Tests added/updated:
+- HTML asset tests now lock binder action/context anchors, document command messages, and remote move icon.
+- MainWindow tests now lock native remote availability in HTML workbench and binder command routing.
+- RemoteControlLayerWindow test now locks the cross-arrow move glyph.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate"` -> failed before loop 1 implementation, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowHtmlBinderCommandSelectsSceneBeforeRunningBinderCommand` -> initially timed out due test deadlock, fixed test setup, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate|MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable|MainWindowHtmlBinderCommandSelectsSceneBeforeRunningBinderCommand"` -> 4 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "LayerIsTopmostDraggableAndRendersRemotePlacements|MainWindowShowingHtmlWorkbenchDoesNotHideVisibleNativeRemoteControlLayer|WebWorkbenchCssKeepsInWindowRemoteSecondary"` -> failed before loop 2 implementation, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate|MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable|MainWindowHtmlBinderCommandSelectsSceneBeforeRunningBinderCommand|LayerIsTopmostDraggableAndRendersRemotePlacements|MainWindowShowingHtmlWorkbenchDoesNotHideVisibleNativeRemoteControlLayer|WebWorkbenchCssKeepsInWindowRemoteSecondary"` -> 7 passed.
+- `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8')); console.log('app.js syntax ok')"` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 191 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -r win-x64 --self-contained false -o dist\WriterWorkbench-menu-remote` -> passed.
+- `node -e "new Function(require('fs').readFileSync('dist/WriterWorkbench-menu-remote/WebWorkbench/app.js','utf8')); console.log('dist app.js syntax ok')"` -> passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not touched.
+- Binder actions operate on manifest/selection and do not read all document bodies.
+
+Remaining problems:
+- Settings/reference rails are still incomplete work surfaces.
+- Relationship map HTML view is still a shell while the functional relationship map remains native.
+- HTML shortcut screen remains read-only; shortcut edit/save bridge is not implemented yet.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. The loop report is documentation, not sample project data.
+
 ## 2026-06-27 KST feature implementation update: HTML workbench direct editing and active side panels
 
 Feature(s) implemented:

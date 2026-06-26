@@ -38,6 +38,14 @@
             <strong>장면</strong>
             <span id="binder-count">0</span>
           </div>
+          <div id="binder-action-bar" class="binder-action-bar">
+            <button type="button" data-binder-command="document.createScene">새 장면</button>
+            <button type="button" data-binder-command="document.renameScene">이름</button>
+            <button type="button" data-binder-command="document.duplicateScene">복제</button>
+            <button type="button" data-binder-command="document.deleteScene">삭제</button>
+            <button type="button" data-binder-command="document.moveSceneUp">위</button>
+            <button type="button" data-binder-command="document.moveSceneDown">아래</button>
+          </div>
           <div id="scene-list" class="scene-list"></div>
         </div>
         <div id="rail-panel-settings" class="rail-panel">
@@ -187,11 +195,24 @@
     <aside id="floating-remote" class="floating-remote" aria-label="리모컨">
       <div class="remote-header">
         <strong>리모컨</strong>
-        <button id="remote-drag-handle" class="remote-drag-handle" type="button">이동</button>
+        <button id="remote-drag-handle" class="remote-drag-handle" type="button" aria-label="리모컨 이동">
+          <span id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true">✥</span>
+        </button>
         <button id="remote-density-toggle" type="button">아이콘</button>
       </div>
       <div id="remote-command-list" class="remote-command-list"></div>
     </aside>
+
+    <div id="binder-context-menu" class="binder-context-menu" role="menu" hidden>
+      <button type="button" data-binder-context-command="document.renameScene">이름 변경</button>
+      <button type="button" data-binder-context-command="document.duplicateScene">복제</button>
+      <button type="button" data-binder-context-command="document.deleteScene">삭제</button>
+      <button type="button" data-binder-context-command="document.moveSceneUp">위로</button>
+      <button type="button" data-binder-context-command="document.moveSceneDown">아래로</button>
+      <button type="button" data-binder-context-command="snapshot.createCurrent">스냅샷</button>
+      <button type="button" data-binder-context-command="export.currentScene">TXT</button>
+      <button type="button" data-binder-context-command="document.detachCurrent">분리</button>
+    </div>
 
     <footer id="bottom-status" class="bottom-status">
       <span id="status-text">초기화 중...</span>

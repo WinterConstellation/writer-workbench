@@ -167,14 +167,7 @@ public partial class MainWindow : Window
             _widgetRegistry = await _widgetRegistryStore.LoadOrCreateAsync(_activeCustomizationProfile.Placements, CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
-            if (string.Equals(_sessionState.Surface, AppSessionState.HtmlWorkbenchSurface, StringComparison.OrdinalIgnoreCase))
-            {
-                HideNativeRemoteControlLayer();
-            }
-            else
-            {
-                ShowRemoteControlLayer(recenter: true);
-            }
+            ShowRemoteControlLayer(recenter: true);
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -333,13 +326,6 @@ public partial class MainWindow : Window
 
     private Task ShowRemoteControlLayerAsync()
     {
-        if (IsHtmlWorkbenchSurfaceVisible())
-        {
-            HideNativeRemoteControlLayer();
-            StatusText.Text = "메인 리모컨 사용 중";
-            return Task.CompletedTask;
-        }
-
         ShowRemoteControlLayer(recenter: true);
         StatusText.Text = "리모콘 레이어 표시됨";
         return Task.CompletedTask;
@@ -347,13 +333,6 @@ public partial class MainWindow : Window
 
     private Task ToggleRemoteControlLayerAsync()
     {
-        if (IsHtmlWorkbenchSurfaceVisible())
-        {
-            HideNativeRemoteControlLayer();
-            StatusText.Text = "메인 리모컨 사용 중";
-            return Task.CompletedTask;
-        }
-
         if (_remoteControlLayer is { IsVisible: true } layer)
         {
             layer.Hide();
@@ -368,12 +347,6 @@ public partial class MainWindow : Window
 
     private void ShowRemoteControlLayer(bool recenter)
     {
-        if (IsHtmlWorkbenchSurfaceVisible())
-        {
-            HideNativeRemoteControlLayer();
-            return;
-        }
-
         var layer = EnsureRemoteControlLayer();
         layer.Topmost = true;
         if (recenter || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
@@ -2350,6 +2323,31 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "document.select", StringComparison.OrdinalIgnoreCase))
+            {
+                var documentId = root.TryGetProperty("documentId", out var documentIdElement)
+                    ? documentIdElement.GetString() ?? ""
+                    : "";
+                if (!string.IsNullOrWhiteSpace(documentId))
+                {
+                    await SelectDocumentAsync(documentId);
+                }
+
+                return;
+            }
+
+            if (string.Equals(messageType, "document.command", StringComparison.OrdinalIgnoreCase))
+            {
+                var documentId = root.TryGetProperty("documentId", out var documentIdElement)
+                    ? documentIdElement.GetString() ?? ""
+                    : "";
+                var commandId = root.TryGetProperty("commandId", out var commandIdElement)
+                    ? commandIdElement.GetString() ?? ""
+                    : "";
+                await ApplyHtmlBinderCommandAsync(documentId, commandId);
+                return;
+            }
+
             if (string.Equals(messageType, "remoteSettings.update", StringComparison.OrdinalIgnoreCase))
             {
                 var commandIds = root.TryGetProperty("commandIds", out var commandIdsElement) &&
@@ -2403,6 +2401,37 @@ public partial class MainWindow : Window
         _dirty = true;
         _lastEditAt = DateTimeOffset.Now;
         StatusText.Text = $"HTML 편집 반영됨 {document.Id}";
+    }
+
+    private async Task ApplyHtmlBinderCommandAsync(string documentId, string commandId)
+    {
+        commandId = AppCommandIds.NormalizeLegacyId(commandId);
+        if (string.IsNullOrWhiteSpace(commandId))
+        {
+            StatusText.Text = "바인더 명령 실패 - 명령이 없습니다.";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(documentId))
+        {
+            SelectBinderItem(documentId);
+            if (CommandRequiresActiveDocument(commandId) &&
+                !string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+            {
+                await SelectDocumentAsync(documentId);
+            }
+        }
+
+        await ExecuteCommandAsync(commandId);
+    }
+
+    private static bool CommandRequiresActiveDocument(string commandId)
+    {
+        return commandId is
+            AppCommandIds.ProjectSave or
+            AppCommandIds.ExportCurrentScene or
+            AppCommandIds.SnapshotCreateCurrent or
+            AppCommandIds.DocumentDetachCurrent;
     }
 
     private async Task ApplyHtmlRemoteSettingsUpdateAsync(IReadOnlyList<string> commandIds)
@@ -2752,7 +2781,6 @@ public partial class MainWindow : Window
         }
 
         HideNativeWorkbenchChrome();
-        HideNativeRemoteControlLayer();
         HtmlWorkbenchSurface.Visibility = Visibility.Visible;
         MainSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Collapsed;
