@@ -52,13 +52,7 @@ public sealed class AppSessionStateService(string filePath)
 
     private static AppSessionState Normalize(AppSessionState state)
     {
-        var surface = state.Surface is AppSessionState.EditorSurface
-            or AppSessionState.PreviewSurface
-            or AppSessionState.MainSurface
-            or AppSessionState.HtmlWorkbenchSurface
-            or AppSessionState.RelationshipMapSurface
-            ? state.Surface
-            : AppSessionState.EditorSurface;
+        var surface = StartupSurfaceResolver.NormalizeSurface(state.Surface);
 
         var presetSlot = state.PresetSlot is >= 1 and <= 3 ? state.PresetSlot : null;
         var graphicPreset = GraphicPresetCatalog.GetOrDefault(state.GraphicPresetId);

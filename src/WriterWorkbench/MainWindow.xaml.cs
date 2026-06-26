@@ -163,6 +163,7 @@ public partial class MainWindow : Window
             _projectAppSettings = await _projectSettingsStore.LoadOrCreateAsync(CancellationToken.None);
             _autosaveEnabled = _projectAppSettings.AutosaveEnabled;
             AutosaveButton.Content = _autosaveEnabled ? "자동저장 켬" : "자동저장 끔";
+            _sessionState = StartupSurfaceResolver.ApplyProjectSettings(_sessionState, _projectAppSettings);
             _widgetRegistry = await _widgetRegistryStore.LoadOrCreateAsync(_activeCustomizationProfile.Placements, CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
@@ -2223,9 +2224,29 @@ public partial class MainWindow : Window
     private async Task OpenHtmlWorkbenchSurfaceAsync()
     {
         ShowHtmlWorkbenchSurface();
-        await EnsureHtmlWorkbenchAsync();
-        await PushHtmlWorkbenchStateAsync();
+        if (IsLoaded)
+        {
+            _ = InitializeHtmlWorkbenchSurfaceAsync();
+        }
+
         await PersistSessionStateAsync();
+    }
+
+    private async Task InitializeHtmlWorkbenchSurfaceAsync()
+    {
+        try
+        {
+            await EnsureHtmlWorkbenchAsync();
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = $"HTML 작업대 초기화 실패: {ex.Message}";
+        }
+        catch (IOException ex)
+        {
+            StatusText.Text = $"HTML 작업대 파일 오류: {ex.Message}";
+        }
     }
 
     private async Task EnsureHtmlWorkbenchAsync()
@@ -3071,6 +3092,13 @@ public partial class MainWindow : Window
         {
             RememberSessionState(_sessionState.Surface);
             await _sessionStateService.SaveAsync(_sessionState, CancellationToken.None);
+            _projectAppSettings = _projectAppSettings with
+            {
+                AutosaveEnabled = _autosaveEnabled,
+                LastSurface = _sessionState.Surface,
+                LastSceneId = _sessionState.DocumentId
+            };
+            await _projectSettingsStore.SaveAsync(_projectAppSettings, CancellationToken.None);
         }
         catch (IOException)
         {

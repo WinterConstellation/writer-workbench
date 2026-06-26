@@ -20,7 +20,7 @@ public sealed record AppSessionState(
     public static AppSessionState Empty { get; } = new(
         null,
         null,
-        EditorSurface,
+        HtmlWorkbenchSurface,
         null,
         DefaultGraphicPresetId,
         DefaultFocusDurationMinutes);

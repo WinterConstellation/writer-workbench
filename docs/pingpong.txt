@@ -1745,6 +1745,54 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 샘플 프로젝트/fixture 산출물 없음. Tests create only temporary settings JSON data.
 
+## 2026-06-27 KST bugfix update: HTML workbench startup surface actually visible
+
+Bug fixed:
+- The new HTML workbench shell existed in the published files, but startup restored the global session `Surface = editor`, so the user still saw the old WPF editor and it looked like nothing changed.
+- Project `settings/app.json` already had `LastSurface = html-workbench`, but MainWindow did not use that project-level value to choose the startup surface.
+- Opening the HTML surface during tests could block on WebView2 initialization, so HTML startup needed to show the surface first and initialize WebView asynchronously.
+
+Feature(s) implemented:
+- Added `StartupSurfaceResolver` to apply project-level startup surface and last scene from `settings/app.json`.
+- Changed empty/invalid session fallback from native editor to HTML workbench.
+- MainWindow now applies project app settings to startup session state after loading `settings/app.json`.
+- MainWindow now persists last surface/scene back into project `settings/app.json`.
+- HTML surface switching now shows the surface immediately and initializes WebView2 in the background when the window is loaded.
+
+Files changed:
+- `src/WriterWorkbench/Core/Application/AppSessionState.cs`
+- `src/WriterWorkbench/Core/Application/AppSessionStateService.cs`
+- `src/WriterWorkbench/Core/Application/StartupSurfaceResolver.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/AppSessionStateServiceTests.cs`
+- `tests/WriterWorkbench.Tests/StartupSurfaceResolverTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Project `LastSurface = html-workbench` overrides legacy global `Surface = editor`.
+- Project `LastSurface = editor` is still preserved once the user explicitly saves that state.
+- Invalid session surface now falls back to HTML workbench.
+
+Commands run:
+- Inspected `%LOCALAPPDATA%\WriterWorkbench\app.session.json` -> found `Surface = editor`.
+- Inspected `C:\WriterWorkbench\Projects\Sample.writerproj\settings\app.json` -> found `LastSurface = html-workbench`.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "StartupSurfaceResolverTests|NormalizesInvalidGraphicPresetToDefault|FallsBackToEmptyStateWhenFileIsInvalid"` -> failed before resolver existed, then 4 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowInitializationCreatesSeparatedProjectSettingsFiles|MainWindowCanShowHtmlWorkbenchSurface|AppSessionStateServiceTests|StartupSurfaceResolverTests"` -> initially timed out on WebView2 blocking, then 8 passed after async initialization fix.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 175 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-menu-remote --no-restore` -> succeeded.
+
+Large manuscript regression check, if touched:
+- Editor input loop was not touched.
+- Startup surface resolution and WebView initialization do not add text scanning or export/snapshot work to typing.
+
+Remaining problems:
+- The HTML workbench is now the actual startup surface when project settings say so, but the center surface still needs the real writing editor bridge rather than metadata-only display.
+- The user-facing widget editor is still not implemented.
+
+Separate data artifact 여부:
+- 별도 데이터 산출물 없음. Tests create only temporary session/settings JSON data.
+
 ## 2026-06-25 KST feature implementation update: Icon menu and customizable remote control bar
 
 Feature(s) implemented:

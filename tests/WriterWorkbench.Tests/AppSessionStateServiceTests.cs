@@ -42,7 +42,7 @@ public sealed class AppSessionStateServiceTests
             CancellationToken.None);
         var loaded = await service.LoadAsync(CancellationToken.None);
 
-        Assert.Equal(AppSessionState.EditorSurface, loaded.Surface);
+        Assert.Equal(AppSessionState.HtmlWorkbenchSurface, loaded.Surface);
         Assert.Null(loaded.PresetSlot);
         Assert.Equal(AppSessionState.DefaultGraphicPresetId, loaded.GraphicPresetId);
         Assert.Equal(AppSessionState.DefaultFocusDurationMinutes, loaded.FocusDurationMinutes);
