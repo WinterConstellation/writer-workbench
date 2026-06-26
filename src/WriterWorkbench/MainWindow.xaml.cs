@@ -74,7 +74,7 @@ public partial class MainWindow : Window
     private bool _loadingDocument;
     private bool _autosaveEnabled = true;
     private bool _longOperationInProgress;
-    private bool _previewMode;
+    private string _htmlActiveView = "editor";
     private bool _suppressGraphicPresetChange;
     private bool _startupStateLoaded;
     private int? _lastAppliedPresetSlot;
@@ -551,7 +551,7 @@ public partial class MainWindow : Window
         switch (surface)
         {
             case AppSessionState.PreviewSurface:
-                ShowPreviewSurface();
+                await OpenHtmlWorkbenchViewAsync("preview", "미리보기 화면");
                 break;
             case AppSessionState.MainSurface:
                 await OpenHtmlWorkbenchSurfaceAsync();
@@ -560,10 +560,13 @@ public partial class MainWindow : Window
                 await OpenHtmlWorkbenchSurfaceAsync();
                 break;
             case AppSessionState.RelationshipMapSurface:
-                ShowRelationshipMapSurface();
+                await OpenRelationshipMapAsync();
+                break;
+            case AppSessionState.EditorSurface:
+                await OpenHtmlWorkbenchViewAsync("editor", "작품 수정 화면");
                 break;
             default:
-                ShowEditorSurface();
+                await OpenHtmlWorkbenchViewAsync("editor", "작품 수정 화면");
                 break;
         }
     }
@@ -715,7 +718,7 @@ public partial class MainWindow : Window
         _activeDocument = null;
         _activeSceneMetadata = null;
         _editorTextView = DocumentEditorTextView.Empty;
-        _previewMode = false;
+        _htmlActiveView = "editor";
         _lastAppliedPresetSlot = null;
         _dirty = false;
         BinderList.ItemsSource = null;
@@ -738,7 +741,7 @@ public partial class MainWindow : Window
         PreviewText.Text = "";
         ClearStoryStructureInputs();
         ClearSceneInspector();
-        ShowEditorSurface();
+        ShowHtmlWorkbenchSurface();
         ProjectPathText.Text = _projectRoot;
     }
 
@@ -1110,8 +1113,7 @@ public partial class MainWindow : Window
     private async Task OpenRelationshipMapAsync()
     {
         await RefreshStoryStructureAsync();
-        ShowRelationshipMapSurface();
-        await PersistSessionStateAsync();
+        await OpenHtmlWorkbenchViewAsync("relationship-map", "관계도 화면");
     }
 
     private void RenderRelationshipMap(
@@ -2078,53 +2080,17 @@ public partial class MainWindow : Window
     private async Task OpenRemoteControlSettingsAsync()
     {
         _activeCustomizationProfile ??= await _customizationProfiles.LoadOrCreateActiveProfileAsync(CancellationToken.None);
-        var window = new RemoteControlSettingsWindow(_commandRegistry, _activeCustomizationProfile)
-        {
-            Owner = this
-        };
-
-        if (window.ShowDialog() != true || window.UpdatedProfile is null)
-        {
-            return;
-        }
-
-        _activeCustomizationProfile = window.UpdatedProfile;
-        await _customizationProfiles.SaveProfileAsync(_activeCustomizationProfile, CancellationToken.None);
-        RenderRemoteControlLayer(_activeCustomizationProfile);
-        ShowRemoteControlLayer(recenter: false);
-        var remoteCount = new WorkbenchCustomizationResolver(_activeCustomizationProfile)
-            .GetPlacements("remote", "main")
-            .Count;
-        StatusText.Text = $"리모콘 바로가기 {remoteCount:N0}개 저장됨";
+        await OpenHtmlWorkbenchViewAsync("remote-settings", "리모컨 편집 화면");
     }
 
     private async Task OpenShortcutSettingsAsync()
     {
-        var window = new ShortcutSettingsWindow(_commandRegistry, _shortcutManager)
-        {
-            Owner = this
-        };
-
-        if (window.ShowDialog() != true || window.UpdatedShortcutManager is null)
-        {
-            return;
-        }
-
-        _shortcutManager = window.UpdatedShortcutManager;
-        await _shortcuts.SaveAsync(_shortcutManager, CancellationToken.None);
-        StatusText.Text = "단축키 저장됨";
+        await OpenHtmlWorkbenchViewAsync("shortcuts", "단축키 설정 화면");
     }
 
     private Task OpenHelpWindowAsync()
     {
-        var window = new HelpWindow
-        {
-            Owner = this
-        };
-
-        window.Show();
-        StatusText.Text = "도움말 열림";
-        return Task.CompletedTask;
+        return OpenHtmlWorkbenchViewAsync("help", "도움말 화면");
     }
 
     private async void InspectorSaveButton_Click(object sender, RoutedEventArgs e)
@@ -2265,13 +2231,12 @@ public partial class MainWindow : Window
 
     private async Task OpenMainSurfaceAsync()
     {
-        await OpenHtmlWorkbenchSurfaceAsync();
+        await OpenHtmlWorkbenchViewAsync("editor", "메인 화면");
     }
 
     private async Task OpenEditorSurfaceAsync()
     {
-        ShowEditorSurface();
-        await PersistSessionStateAsync();
+        await OpenHtmlWorkbenchViewAsync("editor", "작품 수정 화면");
     }
 
     private async Task OpenHtmlWorkbenchSurfaceAsync()
@@ -2283,6 +2248,28 @@ public partial class MainWindow : Window
         }
 
         await PersistSessionStateAsync();
+    }
+
+    private async Task OpenHtmlWorkbenchViewAsync(string activeView, string status)
+    {
+        _htmlActiveView = NormalizeHtmlActiveView(activeView);
+        await OpenHtmlWorkbenchSurfaceAsync();
+        StatusText.Text = status;
+        await PushHtmlWorkbenchStateAsync();
+    }
+
+    private static string NormalizeHtmlActiveView(string? activeView)
+    {
+        var normalized = (activeView ?? "").Trim();
+        return normalized is
+            "editor" or
+            "preview" or
+            "relationship-map" or
+            "shortcuts" or
+            "remote-settings" or
+            "help"
+            ? normalized
+            : "editor";
     }
 
     private async Task InitializeHtmlWorkbenchSurfaceAsync()
@@ -2430,7 +2417,9 @@ public partial class MainWindow : Window
             StatusText.Text,
             _graphicPreset.Name,
             _autosaveEnabled,
-            _widgetRegistry);
+            _widgetRegistry,
+            _htmlActiveView,
+            CreateHtmlPreviewText());
         var message = JsonSerializer.Serialize(new
         {
             type = "state",
@@ -2441,16 +2430,21 @@ public partial class MainWindow : Window
         await Task.CompletedTask;
     }
 
-    private Task TogglePreviewAsync()
+    private string CreateHtmlPreviewText()
     {
-        if (_previewMode)
+        if (_activeDocument is not null)
         {
-            ShowEditorSurface();
-            return PersistSessionStateAsync();
+            return PreviewTextService.CreatePreview(TextExportService.ToPlainText(_activeDocument));
         }
 
-        ShowPreviewSurface();
-        return PersistSessionStateAsync();
+        return PreviewTextService.CreatePreview(EditorBox.Text);
+    }
+
+    private Task TogglePreviewAsync()
+    {
+        return string.Equals(_htmlActiveView, "preview", StringComparison.OrdinalIgnoreCase)
+            ? OpenHtmlWorkbenchViewAsync("editor", "작품 수정 화면")
+            : OpenHtmlWorkbenchViewAsync("preview", "미리보기 화면");
     }
 
     private void ToggleFocus()
@@ -2651,7 +2645,6 @@ public partial class MainWindow : Window
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewSurface.Visibility = Visibility.Visible;
         PreviewModeButton.Content = "편집";
-        _previewMode = true;
         RememberSessionState(AppSessionState.PreviewSurface);
         StatusText.Text = "미리보기 렌더링됨";
     }
@@ -2670,7 +2663,6 @@ public partial class MainWindow : Window
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Visible;
         PreviewModeButton.Content = "미리보기";
-        _previewMode = false;
         RememberSessionState(AppSessionState.EditorSurface);
         EditorBox.Focus();
     }
@@ -2689,7 +2681,6 @@ public partial class MainWindow : Window
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
-        _previewMode = false;
         RememberSessionState(AppSessionState.MainSurface);
         StatusText.Text = "메인 화면";
     }
@@ -2709,7 +2700,6 @@ public partial class MainWindow : Window
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
-        _previewMode = false;
         RememberSessionState(AppSessionState.HtmlWorkbenchSurface);
         StatusText.Text = "메인 화면";
     }
@@ -2728,7 +2718,6 @@ public partial class MainWindow : Window
         EditorSurface.Visibility = Visibility.Collapsed;
         RelationshipMapSurface.Visibility = Visibility.Visible;
         PreviewModeButton.Content = "미리보기";
-        _previewMode = false;
         RememberSessionState(AppSessionState.RelationshipMapSurface);
         StatusText.Text = "관계도 화면";
     }
@@ -2998,7 +2987,8 @@ public partial class MainWindow : Window
         UpdateFocusButtonIdleContent();
         RememberSessionState(_sessionState.Surface);
 
-        ShowEditorSurface();
+        _htmlActiveView = "editor";
+        ShowHtmlWorkbenchSurface();
         _focusMode = true;
         var state = _focusSession.Start(new FocusSessionOptions(TimeSpan.FromMinutes(_focusDurationMinutes), 20, true));
         _focusEndsAt = state.EndsAt;
@@ -3015,7 +3005,6 @@ public partial class MainWindow : Window
         Topmost = true;
         _focusTimer.Start();
         UpdateFocusCountdown();
-        EditorBox.Focus();
     }
 
     private void TryExitFocus()

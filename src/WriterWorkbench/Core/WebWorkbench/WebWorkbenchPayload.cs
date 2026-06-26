@@ -9,7 +9,9 @@ public sealed record WebWorkbenchPayload(
     IReadOnlyList<WebWorkbenchCommand> RemoteCommands,
     string StatusText,
     string GraphicPresetName,
-    bool AutosaveEnabled);
+    bool AutosaveEnabled,
+    string ActiveView = "editor",
+    string PreviewText = "");
 
 public sealed record WebWorkbenchProject(
     string Title,

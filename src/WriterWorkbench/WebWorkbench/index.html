@@ -65,7 +65,7 @@
           <span id="active-status" class="status-badge">초고</span>
         </div>
 
-        <section class="editor-stage">
+        <section id="html-view-editor" class="view-panel active" data-view-panel="editor">
           <div class="writing-sheet">
             <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
             <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
@@ -87,6 +87,44 @@
               </div>
             </div>
           </div>
+        </section>
+        <section id="html-view-preview" class="view-panel" data-view-panel="preview">
+          <article class="mode-sheet">
+            <h3>미리보기</h3>
+            <div id="preview-reader" class="preview-reader"></div>
+          </article>
+        </section>
+        <section id="html-view-relationship" class="view-panel" data-view-panel="relationship-map">
+          <article class="mode-sheet">
+            <h3>관계도</h3>
+            <p>관계도는 HTML 화면 소유로 이동 중입니다. 데이터와 저장은 기존 로컬 엔진을 사용합니다.</p>
+            <div id="relationship-shell-summary" class="mode-grid"></div>
+          </article>
+        </section>
+        <section id="html-view-shortcuts" class="view-panel" data-view-panel="shortcuts">
+          <article class="mode-sheet">
+            <h3>단축키</h3>
+            <p>단축키 설정 UI는 HTML 화면에서 편집하도록 이동 중입니다.</p>
+            <div id="shortcut-shell-list" class="side-action-list"></div>
+          </article>
+        </section>
+        <section id="html-view-remote-settings" class="view-panel" data-view-panel="remote-settings">
+          <article class="mode-sheet">
+            <h3>리모컨 편집</h3>
+            <p>리모컨 버튼 구성은 HTML 화면에서 편집하도록 이동 중입니다.</p>
+            <div id="remote-settings-shell-list" class="side-action-list"></div>
+          </article>
+        </section>
+        <section id="html-view-help" class="view-panel" data-view-panel="help">
+          <article class="mode-sheet">
+            <h3>도움말</h3>
+            <p>화면은 HTML이 담당하고, 저장과 Windows 기능은 로컬 엔진이 담당합니다.</p>
+            <div class="mode-grid">
+              <div><strong>메인</strong><span>원고 편집과 프로젝트 탐색</span></div>
+              <div><strong>브릿지</strong><span>파일, DB, 창 제어, 단축키</span></div>
+              <div><strong>규칙</strong><span>새 UI는 HTML에만 추가</span></div>
+            </div>
+          </article>
         </section>
       </section>
 

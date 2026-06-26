@@ -28,6 +28,12 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("floating-remote", html);
         Assert.Contains("remote-drag-handle", html);
         Assert.Contains("active-body-editor", html);
+        Assert.Contains("html-view-editor", html);
+        Assert.Contains("html-view-preview", html);
+        Assert.Contains("html-view-relationship", html);
+        Assert.Contains("html-view-shortcuts", html);
+        Assert.Contains("html-view-remote-settings", html);
+        Assert.Contains("html-view-help", html);
         Assert.Contains("rail-panel-settings", html);
         Assert.Contains("rail-panel-reference", html);
         Assert.Contains("bottom-status", html);
@@ -44,5 +50,7 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("startRemoteDrag", script);
         Assert.Contains("activeScene.update", script);
         Assert.Contains("setRailMode", script);
+        Assert.Contains("setActiveView", script);
+        Assert.Contains("renderPreview", script);
     }
 }

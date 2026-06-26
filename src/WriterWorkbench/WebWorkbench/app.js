@@ -6,6 +6,7 @@ const state = {
   editorUpdateTimer: 0,
   isRendering: false,
   remoteDrag: null,
+  activeView: "editor",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -54,6 +55,8 @@ function render(payload) {
   const statusText = readPayloadValue(payload, "statusText", "StatusText", "");
   const graphicPresetName = readPayloadValue(payload, "graphicPresetName", "GraphicPresetName", "기본");
   const autosaveEnabled = readPayloadValue(payload, "autosaveEnabled", "AutosaveEnabled", true);
+  const activeView = readPayloadValue(payload, "activeView", "ActiveView", "editor");
+  const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
 
   $("project-title").textContent = readPayloadValue(project, "title", "Title", "원고 작업대");
   $("project-path").textContent = readPayloadValue(project, "rootPath", "RootPath", "");
@@ -65,11 +68,14 @@ function render(payload) {
   renderTopMenu(menuCommands.length ? menuCommands : toolbarCommands);
   renderBinder(binder);
   renderActiveScene(active);
+  renderPreview(previewText);
   renderInspector(active);
   renderPipeline(binder);
   renderSettingsPanel(menuCommands);
   renderReferencePanel(project, active);
+  renderBoundaryPanels(menuCommands, remoteCommands);
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
+  setActiveView(activeView);
   state.isRendering = false;
 }
 
@@ -245,6 +251,49 @@ function renderReferencePanel(project, active) {
   }
 }
 
+function renderPreview(text) {
+  $("preview-reader").textContent = text || "";
+}
+
+function renderBoundaryPanels(menuCommands, remoteCommands) {
+  const shortcuts = (menuCommands || [])
+    .map(normalizeCommand)
+    .filter((command) => command.category === "작업공간" || command.area === "top.tools");
+  const shortcutList = $("shortcut-shell-list");
+  shortcutList.textContent = "";
+  for (const command of shortcuts) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "side-action";
+    button.dataset.command = command.commandId;
+    button.textContent = command.label || command.commandId;
+    shortcutList.appendChild(button);
+  }
+
+  const remoteList = $("remote-settings-shell-list");
+  remoteList.textContent = "";
+  for (const command of (remoteCommands || []).map(normalizeCommand)) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "side-action";
+    button.dataset.command = command.commandId;
+    button.textContent = command.label || command.commandId;
+    remoteList.appendChild(button);
+  }
+
+  const relationshipSummary = $("relationship-shell-summary");
+  relationshipSummary.textContent = "";
+  for (const [title, value] of [["상태", "HTML 화면 소유"], ["저장", "로컬 엔진"], ["다음", "캔버스 이식"]]) {
+    const item = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = title;
+    const span = document.createElement("span");
+    span.textContent = value;
+    item.append(strong, span);
+    relationshipSummary.appendChild(item);
+  }
+}
+
 function renderInspector(active) {
   if (!active) {
     $("inspector-status").textContent = "-";
@@ -351,6 +400,23 @@ function setRailMode(mode) {
   });
 }
 
+function setActiveView(view) {
+  state.activeView = view || "editor";
+  document.querySelectorAll("[data-view-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.viewPanel === state.activeView);
+  });
+
+  const viewNames = {
+    editor: "현재 작업",
+    preview: "미리보기",
+    "relationship-map": "관계도",
+    shortcuts: "단축키",
+    "remote-settings": "리모컨 편집",
+    help: "도움말",
+  };
+  document.querySelector(".surface-kicker").textContent = viewNames[state.activeView] || "현재 작업";
+}
+
 function scheduleActiveSceneUpdate() {
   if (state.isRendering) return;
 
@@ -444,6 +510,8 @@ if (window.chrome && window.chrome.webview) {
     commands: [],
     statusText: "메인",
     graphicPresetName: "기본",
-    autosaveEnabled: true
+    autosaveEnabled: true,
+    activeView: "editor",
+    previewText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."
   });
 }

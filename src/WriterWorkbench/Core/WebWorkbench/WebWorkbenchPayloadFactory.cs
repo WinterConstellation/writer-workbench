@@ -19,7 +19,9 @@ public static class WebWorkbenchPayloadFactory
         string statusText,
         string graphicPresetName,
         bool autosaveEnabled,
-        WorkbenchWidgetRegistry? widgetRegistry = null)
+        WorkbenchWidgetRegistry? widgetRegistry = null,
+        string activeView = "editor",
+        string previewText = "")
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -82,7 +84,23 @@ public static class WebWorkbenchPayloadFactory
             remoteCommands,
             statusText,
             graphicPresetName,
-            autosaveEnabled);
+            autosaveEnabled,
+            NormalizeActiveView(activeView),
+            previewText ?? "");
+    }
+
+    private static string NormalizeActiveView(string? activeView)
+    {
+        var normalized = (activeView ?? "").Trim();
+        return normalized is
+            "editor" or
+            "preview" or
+            "relationship-map" or
+            "shortcuts" or
+            "remote-settings" or
+            "help"
+            ? normalized
+            : "editor";
     }
 
     private static void EnsureRequiredMenuCommand(

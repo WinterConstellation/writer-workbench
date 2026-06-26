@@ -537,7 +537,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowCanReturnFromHtmlWorkbenchToEditorSurface()
+    public void MainWindowEditorCommandStaysInsideHtmlMainSurface()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -555,11 +555,60 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ShowHtmlWorkbenchSurface");
                 InvokeCommand(window, AppCommandIds.ViewEditorOpen);
 
-                Assert.Equal(Visibility.Collapsed, htmlSurface.Visibility);
-                Assert.Equal(Visibility.Visible, editorSurface.Visibility);
-                Assert.Equal(Visibility.Visible, nativeChrome.Visibility);
-                Assert.Equal(Visibility.Visible, statusText.Visibility);
-                Assert.Equal(Visibility.Visible, metricsText.Visibility);
+                Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, editorSurface.Visibility);
+                Assert.Equal(Visibility.Collapsed, nativeChrome.Visibility);
+                Assert.Equal(Visibility.Collapsed, statusText.Visibility);
+                Assert.Equal(Visibility.Collapsed, metricsText.Visibility);
+                Assert.Equal("editor", GetPrivateField<string>(window, "_htmlActiveView"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowViewCommandsStayInsideHtmlShellBoundary()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var htmlSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("HtmlWorkbenchSurface"));
+                var editorSurface = Assert.IsType<DockPanel>(window.FindName("EditorSurface"));
+                var previewSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("PreviewSurface"));
+                var relationshipSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("RelationshipMapSurface"));
+                var nativeChrome = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("NativeCommandChrome"));
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+
+                InvokeCommand(window, AppCommandIds.ViewPreviewToggle);
+                AssertHtmlOnlySurface(window, htmlSurface, editorSurface, previewSurface, relationshipSurface, nativeChrome);
+                Assert.Equal("preview", GetPrivateField<string>(window, "_htmlActiveView"));
+
+                InvokeCommand(window, AppCommandIds.StoryRelationshipMapOpen);
+                AssertHtmlOnlySurface(window, htmlSurface, editorSurface, previewSurface, relationshipSurface, nativeChrome);
+                Assert.Equal("relationship-map", GetPrivateField<string>(window, "_htmlActiveView"));
+
+                InvokeCommand(window, AppCommandIds.HelpOpen);
+                AssertHtmlOnlySurface(window, htmlSurface, editorSurface, previewSurface, relationshipSurface, nativeChrome);
+                Assert.Equal("help", GetPrivateField<string>(window, "_htmlActiveView"));
+
                 window.Close();
             }
             catch (Exception ex)
@@ -911,7 +960,9 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
 
                 InvokeCommand(window, AppCommandIds.StoryRelationshipMapOpen);
-                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("RelationshipMapSurface")).Visibility);
+                Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("HtmlWorkbenchSurface")).Visibility);
+                Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("RelationshipMapSurface")).Visibility);
+                Assert.Equal("relationship-map", GetPrivateField<string>(window, "_htmlActiveView"));
 
                 ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "윤서";
                 ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "주연";
@@ -1158,6 +1209,30 @@ public sealed class MainWindowSmokeTests
         var task = (Task)method.Invoke(window, args)!;
         WaitForTaskOnDispatcher(task);
         task.GetAwaiter().GetResult();
+    }
+
+    private static T GetPrivateField<T>(MainWindow window, string fieldName)
+    {
+        var field = typeof(MainWindow).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(typeof(MainWindow).FullName, fieldName);
+        return Assert.IsType<T>(field.GetValue(window));
+    }
+
+    private static void AssertHtmlOnlySurface(
+        MainWindow window,
+        FrameworkElement htmlSurface,
+        FrameworkElement editorSurface,
+        FrameworkElement previewSurface,
+        FrameworkElement relationshipSurface,
+        FrameworkElement nativeChrome)
+    {
+        var mainSurface = Assert.IsAssignableFrom<FrameworkElement>(window.FindName("MainSurface"));
+        Assert.Equal(Visibility.Visible, htmlSurface.Visibility);
+        Assert.Equal(Visibility.Collapsed, editorSurface.Visibility);
+        Assert.Equal(Visibility.Collapsed, previewSurface.Visibility);
+        Assert.Equal(Visibility.Collapsed, relationshipSurface.Visibility);
+        Assert.Equal(Visibility.Collapsed, mainSurface.Visibility);
+        Assert.Equal(Visibility.Collapsed, nativeChrome.Visibility);
     }
 
     private static void InvokeCommand(MainWindow window, string commandId)

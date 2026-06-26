@@ -61,7 +61,9 @@ public sealed class WebWorkbenchPayloadFactoryTests
             registry,
             "프로젝트 준비됨",
             "기본",
-            autosaveEnabled: true);
+            autosaveEnabled: true,
+            activeView: "editor",
+            previewText: "미리보기 본문");
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
@@ -69,6 +71,8 @@ public sealed class WebWorkbenchPayloadFactoryTests
 
         Assert.Equal("한국어 장편", payload.Project.Title);
         Assert.Equal("scene-0001", payload.ActiveScene!.Id);
+        Assert.Equal("editor", payload.ActiveView);
+        Assert.Equal("미리보기 본문", payload.PreviewText);
         Assert.Equal("도입부", payload.ActiveScene.Summary);
         Assert.Equal("본문은 메인에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
         Assert.False(payload.ActiveScene.IsSegmentMode);
