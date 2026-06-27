@@ -2932,6 +2932,7 @@ public partial class MainWindow : Window
 
     private async Task<WebWorkbenchPayload> CreateHtmlWorkbenchPayloadAsync(string activeView)
     {
+        await EnsureActiveDocumentForHtmlPayloadAsync();
         var manifest = _currentManifest ?? new ProjectManifest(
             1,
             Path.GetFileNameWithoutExtension(_projectRoot),
@@ -2959,6 +2960,64 @@ public partial class MainWindow : Window
             _shortcutManager.Bindings,
             story,
             trash);
+    }
+
+    private async Task EnsureActiveDocumentForHtmlPayloadAsync()
+    {
+        if (_activeDocument is not null)
+        {
+            return;
+        }
+
+        ProjectManifest manifest;
+        try
+        {
+            manifest = _currentManifest ?? await _store.LoadManifestAsync(CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"원고 상태 생성 실패 - {ex.Message}";
+            return;
+        }
+
+        _currentManifest = manifest;
+        var documentInfo = ResolveStartupDocument(manifest) ?? manifest.Documents.FirstOrDefault();
+        if (documentInfo is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var document = await _store.LoadDocumentAsync(documentInfo.Id, CancellationToken.None);
+            _activeDocument = document;
+            _activeDocumentId = document.Id;
+            _editorTextView = DocumentEditorTextService.CreateView(document);
+            _loadingDocument = true;
+            try
+            {
+                TitleBox.Text = document.Title;
+                EditorBox.IsReadOnly = false;
+                EditorBox.Text = _editorTextView.Text;
+                PreviewText.Text = "";
+            }
+            finally
+            {
+                _loadingDocument = false;
+            }
+
+            UpdateMetrics(document);
+            _dirty = false;
+
+            var metadata = await _metadataStore.LoadAsync(document.Id, CancellationToken.None);
+            _activeSceneMetadata = metadata;
+            _binderMetadataByDocumentId[document.Id] = metadata;
+            PopulateSceneInspector(metadata);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"원고 자동 로드 실패 {documentInfo.Id} - {ex.Message}";
+        }
     }
 
     private async Task<WebWorkbenchStory> CreateHtmlStoryPayloadAsync()

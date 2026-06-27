@@ -581,6 +581,54 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlEditorPayloadLoadsFirstDocumentWhenActiveDocumentIsMissing()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+                var manifest = WaitForTaskOnDispatcher(store.CreateProjectAsync("원고 화면", CancellationToken.None));
+                InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
+                typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, null);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, "");
+
+                var payload = InvokePrivateAsync<WriterWorkbench.Core.WebWorkbench.WebWorkbenchPayload>(
+                    window,
+                    "CreateHtmlWorkbenchPayloadAsync",
+                    "editor");
+
+                Assert.NotNull(payload.ActiveScene);
+                Assert.Equal("scene-0001", payload.ActiveScene!.Id);
+                Assert.Contains("여기에 원고를 씁니다.", payload.ActiveScene.EditorText);
+                Assert.NotNull(GetPrivateField<WriterDocument>(window, "_activeDocument"));
+                Assert.False(GetPrivateField<bool>(window, "_dirty"));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowViewCommandsStayInsideHtmlShellBoundary()
     {
         Exception? failure = null;
@@ -1700,6 +1748,14 @@ public sealed class MainWindowSmokeTests
         var task = (Task)method.Invoke(window, args)!;
         WaitForTaskOnDispatcher(task);
         task.GetAwaiter().GetResult();
+    }
+
+    private static T InvokePrivateAsync<T>(MainWindow window, string methodName, params object[] args)
+    {
+        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var task = Assert.IsAssignableFrom<Task<T>>(method.Invoke(window, args));
+        return WaitForTaskOnDispatcher(task);
     }
 
     private static T GetPrivateField<T>(MainWindow window, string fieldName)
