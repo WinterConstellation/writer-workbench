@@ -12,58 +12,53 @@ public sealed class DocumentEditorTextServiceTests
             "Small",
             [new WriterParagraph("p-1", "Short text", "body", [], [])]);
 
-        var view = DocumentEditorTextService.CreateView(document, 1_000);
+        var view = DocumentEditorTextService.CreateView(document);
 
-        Assert.False(view.IsSegmentMode);
-        Assert.Equal(1, view.VisibleParagraphCount);
+        Assert.Equal(1, view.ParagraphCount);
         Assert.Equal("Short text", view.Text);
     }
 
     [Fact]
-    public void OpensLargeDocumentAsEditableBoundedSegment()
+    public void OpensLargeDocumentAsFullEditableText()
     {
         var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
 
         var view = DocumentEditorTextService.CreateView(document);
 
-        Assert.True(view.IsSegmentMode);
-        Assert.InRange(view.VisibleParagraphCount, 1, document.Paragraphs.Count - 1);
-        Assert.True(view.Text.Length <= DocumentEditorTextService.DefaultLargeDocumentEditorLimit);
+        Assert.Equal(document.Paragraphs.Count, view.ParagraphCount);
         Assert.Contains(document.Paragraphs[0].Text, view.Text);
-        Assert.DoesNotContain("preview mode", view.Text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(document.Paragraphs[^1].Text, view.Text);
     }
 
     [Fact]
-    public void ExposesRemainingLargeDocumentTextForOnScreenReading()
+    public void DoesNotSplitLargeDocument()
     {
         var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
 
         var view = DocumentEditorTextService.CreateView(document);
 
-        Assert.True(view.IsSegmentMode);
-        Assert.Equal(document.Paragraphs.Count, view.TotalParagraphCount);
-        Assert.Contains(document.Paragraphs[view.VisibleParagraphCount].Text, view.RemainderText);
-        Assert.Contains(document.Paragraphs[^1].Text, view.RemainderText);
-        Assert.DoesNotContain(document.Paragraphs[0].Text, view.RemainderText);
+        Assert.Equal(document.Paragraphs.Count, view.ParagraphCount);
+        Assert.Contains(document.Paragraphs[0].Text, view.Text);
+        Assert.Contains(document.Paragraphs[^1].Text, view.Text);
     }
 
     [Fact]
-    public void KeepsDefaultLargeDocumentSegmentSmallEnoughForResponsiveTyping()
+    public void KeepsFullLargeDocumentInEditorEvenWhenLong()
     {
         var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
 
         var view = DocumentEditorTextService.CreateView(document);
 
-        Assert.True(view.IsSegmentMode);
-        Assert.True(view.Text.Length <= 5_000);
+        Assert.True(view.Text.Length > 5_000);
+        Assert.Contains(document.Paragraphs[0].Text, view.Text);
+        Assert.Contains(document.Paragraphs[^1].Text, view.Text);
     }
 
     [Fact]
-    public void MergesEditedSegmentWithoutReplacingRemainingParagraphs()
+    public void UpdatesWholeLargeDocumentFromEditorText()
     {
         var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
-        var view = DocumentEditorTextService.CreateView(document, 20_000);
-        var hiddenParagraph = document.Paragraphs[view.VisibleParagraphCount];
+        var view = DocumentEditorTextService.CreateView(document);
         var editedText = view.Text.Replace(
             document.Paragraphs[0].Text,
             "Edited front paragraph",
@@ -74,7 +69,6 @@ public sealed class DocumentEditorTextServiceTests
         Assert.Equal("Renamed", updated.Title);
         Assert.Equal(document.Paragraphs.Count, updated.Paragraphs.Count);
         Assert.Equal("Edited front paragraph", updated.Paragraphs[0].Text);
-        Assert.Equal(hiddenParagraph, updated.Paragraphs[view.VisibleParagraphCount]);
         Assert.Equal(document.Paragraphs[^1].Text, updated.Paragraphs[^1].Text);
     }
 }

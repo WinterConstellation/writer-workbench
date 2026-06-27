@@ -753,56 +753,12 @@ h2 {
   line-height: 1.9;
 }
 
-.segment-status {
-  min-height: 18px;
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
 .editor-metrics-status {
   min-height: 18px;
   margin-top: 2px;
   color: #52657a;
   font-size: 11px;
   font-weight: 700;
-}
-
-.remainder-panel {
-  margin-top: 14px;
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-}
-
-.remainder-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: #334155;
-  font-size: 12px;
-}
-
-.remainder-header span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.remainder-text {
-  max-height: 560px;
-  margin: 12px 0 0;
-  overflow: auto;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: var(--text);
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  padding: 18px;
-  font-family: "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
-  font-size: 16px;
-  line-height: 1.85;
 }
 
 .scene-summary {

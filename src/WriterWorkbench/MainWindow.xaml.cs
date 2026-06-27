@@ -153,7 +153,7 @@ public partial class MainWindow : Window
     private void NormalizeInspectorCharacterCountLabels()
     {
         SetInspectorGridLabel(4, "목표 글자");
-        SetInspectorGridLabel(5, "편집 구간");
+        SetInspectorGridLabel(5, "현재 문단");
         SetInspectorGridLabel(6, "전체 공백 제외");
         SetInspectorGridLabel(7, "전체 공백 포함");
     }
@@ -526,7 +526,7 @@ public partial class MainWindow : Window
             TitleBox.Text = document.Title;
             if (tracker is not null)
             {
-                ReportLongOperation(tracker.Report(2, "편집 구간 준비 중"));
+                ReportLongOperation(tracker.Report(2, "편집기 준비 중"));
             }
 
             var editorView = DocumentEditorTextService.CreateView(document);
@@ -540,9 +540,7 @@ public partial class MainWindow : Window
             await RefreshSceneEntityLinksAsync(document.Id);
             await ShowRequestedSurfaceAsync(startupSurface);
             _dirty = false;
-            StatusText.Text = editorView.IsSegmentMode
-                ? $"불러옴 {document.Id} - 대용량 편집 구간 {editorView.VisibleParagraphCount:N0}/{document.Paragraphs.Count:N0}문단"
-                : $"불러옴 {document.Id}";
+            StatusText.Text = $"불러옴 {document.Id} - 전체 원고 {document.Paragraphs.Count:N0}문단";
             if (tracker is not null)
             {
                 ReportLongOperation(tracker.Report(3, "준비됨"));
@@ -2556,7 +2554,7 @@ public partial class MainWindow : Window
         _editorTextView = _editorTextView with
         {
             Text = editorText,
-            VisibleParagraphCount = DocumentEditorTextService.CountEditorParagraphs(editorText)
+            ParagraphCount = DocumentEditorTextService.CountEditorParagraphs(editorText)
         };
 
         _loadingDocument = true;
@@ -3266,15 +3264,12 @@ public partial class MainWindow : Window
             EditorBox.Text,
             _editorTextView);
 
-        if (_editorTextView.IsSegmentMode)
-        {
-            _editorTextView = _editorTextView with
-            {
-                VisibleParagraphCount = DocumentEditorTextService.CountEditorParagraphs(EditorBox.Text)
-            };
-        }
-
         _activeDocument = document;
+        _editorTextView = _editorTextView with
+        {
+            Text = EditorBox.Text,
+            ParagraphCount = DocumentEditorTextService.CountEditorParagraphs(EditorBox.Text)
+        };
         return document;
     }
 
@@ -3286,9 +3281,7 @@ public partial class MainWindow : Window
         }
 
         ShowNativeWorkbenchChrome();
-        var sourceText = _editorTextView.IsSegmentMode && _activeDocument is not null
-            ? TextExportService.ToPlainText(_activeDocument)
-            : EditorBox.Text;
+        var sourceText = EditorBox.Text;
 
         PreviewText.Text = PreviewTextService.CreatePreview(sourceText);
         HtmlWorkbenchSurface.Visibility = Visibility.Collapsed;

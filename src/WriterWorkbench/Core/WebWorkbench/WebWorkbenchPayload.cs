@@ -33,11 +33,7 @@ public sealed record WebWorkbenchScene(
     string SceneType,
     DateTimeOffset UpdatedAt,
     bool IsActive,
-    string EditorText,
-    bool IsSegmentMode,
-    int VisibleParagraphCount,
-    string RemainderText,
-    int TotalParagraphCount);
+    string EditorText);
 
 public sealed record WebWorkbenchCommand(
     string CommandId,

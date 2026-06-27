@@ -1,4 +1,4 @@
-using WriterWorkbench.Core.WebWorkbench;
+﻿using WriterWorkbench.Core.WebWorkbench;
 
 namespace WriterWorkbench.Tests;
 
@@ -62,8 +62,6 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("binder-action-bar", html);
         Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);
-        Assert.Contains("active-remainder-panel", html);
-        Assert.Contains("active-remainder-text", html);
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
         Assert.Contains("html-view-relationship", html);
@@ -125,7 +123,7 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchShowsRemainingLargeManuscriptText()
+    public async Task WebWorkbenchDoesNotSplitManuscriptIntoRemainderPanel()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
@@ -134,12 +132,13 @@ public sealed class WebWorkbenchAssetTests
         var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
         var html = await File.ReadAllTextAsync(htmlPath, CancellationToken.None);
 
-        Assert.Contains("active-remainder-panel", html);
-        Assert.Contains("active-remainder-text", html);
-        Assert.Contains("remainderText", script);
-        Assert.Contains("RemainderText", script);
-        Assert.Contains("active-remainder-text", script);
-        Assert.Contains("전체 원고 보기", html);
+        Assert.DoesNotContain("active-remainder-panel", html);
+        Assert.DoesNotContain("active-remainder-text", html);
+        Assert.DoesNotContain("active-segment-status", html);
+        Assert.DoesNotContain("renderRemainderText", script);
+        Assert.DoesNotContain("remainderText", script);
+        Assert.DoesNotContain("RemainderText", script);
+        Assert.DoesNotContain("active-remainder-text", script);
     }
 
     [Fact]
@@ -196,7 +195,7 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline()
+    public async Task WebWorkbenchLocalMetricUpdateUsesWholeEditorText()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
@@ -209,16 +208,15 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("function measureEditorText", script);
         Assert.Contains("updateActiveEditorMetrics", script);
         Assert.Contains("active-editor-metrics", script);
-        Assert.Contains("visibleContentLength", script);
-        Assert.Contains("visibleContentLengthWithSpaces", script);
-        Assert.Contains("estimateFullSceneMetrics", script);
+        Assert.DoesNotContain("visibleContentLength", script);
+        Assert.DoesNotContain("visibleContentLengthWithSpaces", script);
+        Assert.DoesNotContain("estimateFullSceneMetrics", script);
         var updateFunctionStart = script.IndexOf("function updateActiveEditorMetrics()", StringComparison.Ordinal);
         var nextFunctionStart = script.IndexOf("\nfunction addStoryEntity", updateFunctionStart, StringComparison.Ordinal);
         var updateFunction = script[updateFunctionStart..nextFunctionStart];
 
-        Assert.Contains("const estimated = estimateFullSceneMetrics(current);", updateFunction);
-        Assert.Contains("$(\"active-length\").textContent = formatNumber(estimated.contentLength);", updateFunction);
-        Assert.Contains("$(\"active-length-spaces\").textContent = formatNumber(estimated.contentLengthWithSpaces);", updateFunction);
+        Assert.Contains("$(\"active-length\").textContent = formatNumber(current.contentLength);", updateFunction);
+        Assert.Contains("$(\"active-length-spaces\").textContent = formatNumber(current.contentLengthWithSpaces);", updateFunction);
         Assert.DoesNotContain("text.replace(/\\s/g, \"\").length", script);
         Assert.DoesNotContain("text.length", script);
     }

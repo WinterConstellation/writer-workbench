@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>원고 작업대</title>
+  <title>?먭퀬 ?묒뾽?</title>
   <script>
     function createWorkbenchAssetUrl(path) {
       const version = new URLSearchParams(window.location.search).get("wwv") || Date.now().toString();
@@ -23,51 +23,51 @@
         <div class="project-identity">
           <span class="app-mark">W</span>
           <div class="project-copy">
-            <h1 id="project-title">원고 작업대</h1>
+            <h1 id="project-title">?먭퀬 ?묒뾽?</h1>
             <p id="project-path"></p>
           </div>
         </div>
         <div class="project-state">
-          <span id="autosave-pill" class="state-pill">자동저장</span>
-          <span id="theme-pill" class="state-pill">기본</span>
-          <span id="scene-count-pill" class="state-pill">0 장면</span>
+          <span id="autosave-pill" class="state-pill">?먮룞???/span>
+          <span id="theme-pill" class="state-pill">湲곕낯</span>
+          <span id="scene-count-pill" class="state-pill">0 ?λ㈃</span>
         </div>
       </section>
-      <nav id="top-menu" class="top-menu" aria-label="작업대 메뉴"></nav>
+      <nav id="top-menu" class="top-menu" aria-label="?묒뾽? 硫붾돱"></nav>
     </header>
 
     <section class="workbench-grid">
       <aside id="left-rail" class="left-rail">
         <div class="rail-tabs">
-          <button class="rail-tab active" type="button" data-rail-mode="binder">바인더</button>
-          <button class="rail-tab" type="button" data-rail-mode="settings">설정집</button>
-          <button class="rail-tab" type="button" data-rail-mode="reference">자료</button>
+          <button class="rail-tab active" type="button" data-rail-mode="binder">諛붿씤??/button>
+          <button class="rail-tab" type="button" data-rail-mode="settings">?ㅼ젙吏?/button>
+          <button class="rail-tab" type="button" data-rail-mode="reference">?먮즺</button>
         </div>
         <div id="rail-panel-binder" class="rail-panel active">
           <div class="rail-header">
-            <strong>장면</strong>
+            <strong>?λ㈃</strong>
             <span id="binder-count">0</span>
           </div>
           <div id="binder-action-bar" class="binder-action-bar">
-            <button type="button" data-binder-command="document.createScene">새 장면</button>
-            <button type="button" data-binder-command="document.renameScene">이름</button>
-            <button type="button" data-binder-command="document.duplicateScene">복제</button>
-            <button type="button" data-binder-command="document.deleteScene">삭제</button>
-            <button type="button" data-binder-command="document.moveSceneUp">위</button>
-            <button type="button" data-binder-command="document.moveSceneDown">아래</button>
+            <button type="button" data-binder-command="document.createScene">???λ㈃</button>
+            <button type="button" data-binder-command="document.renameScene">?대쫫</button>
+            <button type="button" data-binder-command="document.duplicateScene">蹂듭젣</button>
+            <button type="button" data-binder-command="document.deleteScene">??젣</button>
+            <button type="button" data-binder-command="document.moveSceneUp">??/button>
+            <button type="button" data-binder-command="document.moveSceneDown">?꾨옒</button>
           </div>
           <div id="scene-list" class="scene-list"></div>
         </div>
         <div id="rail-panel-settings" class="rail-panel">
           <div class="rail-header">
-            <strong>설정집</strong>
+            <strong>?ㅼ젙吏?/strong>
             <span id="settings-count">0</span>
           </div>
           <div id="settings-list" class="side-action-list"></div>
         </div>
         <div id="rail-panel-reference" class="rail-panel">
           <div class="rail-header">
-            <strong>자료</strong>
+            <strong>?먮즺</strong>
             <span id="reference-count">0</span>
           </div>
           <div id="reference-list" class="reference-list"></div>
@@ -78,38 +78,30 @@
       <section id="center-surface" class="center-surface">
         <div class="surface-toolbar">
           <div>
-            <span class="surface-kicker">현재 작업</span>
-            <h2 id="active-title">장면 없음</h2>
+            <span class="surface-kicker">?꾩옱 ?묒뾽</span>
+            <h2 id="active-title">?λ㈃ ?놁쓬</h2>
           </div>
-          <span id="active-status" class="status-badge">초고</span>
+          <span id="active-status" class="status-badge">珥덇퀬</span>
         </div>
 
         <section id="html-view-editor" class="view-panel active" data-view-panel="editor">
           <div class="writing-sheet">
-            <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
-            <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
-            <div id="active-segment-status" class="segment-status"></div>
+            <input id="active-title-editor" class="title-editor" type="text" aria-label="?λ㈃ ?쒕ぉ">
+            <textarea id="active-body-editor" class="body-editor" aria-label="?λ㈃ 蹂몃Ц" spellcheck="false"></textarea>
             <div id="active-editor-metrics" class="editor-metrics-status"></div>
-            <section id="active-remainder-panel" class="remainder-panel" hidden>
-              <div class="remainder-header">
-                <strong>전체 원고 보기</strong>
-                <span id="active-remainder-count"></span>
-              </div>
-              <pre id="active-remainder-text" class="remainder-text"></pre>
-            </section>
             <p id="active-summary" class="scene-summary"></p>
             <div id="active-tags" class="tag-row"></div>
             <div class="scene-stat-grid">
               <div>
-                <span>공백 제외</span>
+                <span>怨듬갚 ?쒖쇅</span>
                 <strong id="active-length">0</strong>
               </div>
               <div>
-                <span>공백 포함</span>
+                <span>怨듬갚 ?ы븿</span>
                 <strong id="active-length-spaces">0</strong>
               </div>
               <div>
-                <span>장면 유형</span>
+                <span>?λ㈃ ?좏삎</span>
                 <strong id="active-type">Scene</strong>
               </div>
             </div>
@@ -117,45 +109,45 @@
         </section>
         <section id="html-view-preview" class="view-panel" data-view-panel="preview">
           <article class="mode-sheet">
-            <h3>미리보기</h3>
+            <h3>誘몃━蹂닿린</h3>
             <div id="preview-reader" class="preview-reader"></div>
           </article>
         </section>
         <section id="html-view-relationship" class="view-panel" data-view-panel="relationship-map">
           <article class="mode-sheet relationship-mode-sheet">
             <div class="settings-heading">
-              <h3>관계도</h3>
-              <span id="relationship-counts" class="state-pill">0명 / 관계 0개</span>
+              <h3>愿怨꾨룄</h3>
+              <span id="relationship-counts" class="state-pill">0紐?/ 愿怨?0媛?/span>
             </div>
             <div id="relationship-workbench" class="relationship-workbench">
               <section class="relationship-panel">
                 <div class="settings-subtitle">
-                  <strong>캐릭터</strong>
-                  <span>수동 추가</span>
+                  <strong>罹먮┃??/strong>
+                  <span>?섎룞 異붽?</span>
                 </div>
                 <div class="compact-form">
-                  <input id="story-entity-name" type="text" placeholder="이름">
-                  <input id="story-entity-role" type="text" placeholder="역할">
-                  <button id="story-add-entity" type="button">추가</button>
-                  <button id="story-cancel-entity-edit" type="button" hidden>취소</button>
+                  <input id="story-entity-name" type="text" placeholder="?대쫫">
+                  <input id="story-entity-role" type="text" placeholder="??븷">
+                  <button id="story-add-entity" type="button">異붽?</button>
+                  <button id="story-cancel-entity-edit" type="button" hidden>痍⑥냼</button>
                 </div>
                 <div id="story-entity-list" class="story-list"></div>
               </section>
               <section class="relationship-map-wrap">
-                <div id="relationship-map-canvas" class="relationship-map-canvas" aria-label="관계도 캔버스"></div>
+                <div id="relationship-map-canvas" class="relationship-map-canvas" aria-label="愿怨꾨룄 罹붾쾭??></div>
               </section>
               <section class="relationship-panel">
                 <div class="settings-subtitle">
-                  <strong>관계</strong>
-                  <span>선택 연결</span>
+                  <strong>愿怨?/strong>
+                  <span>?좏깮 ?곌껐</span>
                 </div>
                 <div class="compact-form">
-                  <select id="story-relationship-source" aria-label="시작 캐릭터"></select>
-                  <select id="story-relationship-target" aria-label="도착 캐릭터"></select>
-                  <input id="story-relationship-label" type="text" placeholder="관계명">
-                  <input id="story-relationship-notes" type="text" placeholder="메모">
-                  <button id="story-add-relationship" type="button">연결</button>
-                  <button id="story-cancel-relationship-edit" type="button" hidden>취소</button>
+                  <select id="story-relationship-source" aria-label="?쒖옉 罹먮┃??></select>
+                  <select id="story-relationship-target" aria-label="?꾩갑 罹먮┃??></select>
+                  <input id="story-relationship-label" type="text" placeholder="愿怨꾨챸">
+                  <input id="story-relationship-notes" type="text" placeholder="硫붾え">
+                  <button id="story-add-relationship" type="button">?곌껐</button>
+                  <button id="story-cancel-relationship-edit" type="button" hidden>痍⑥냼</button>
                 </div>
                 <div id="story-relationship-list" class="story-list"></div>
               </section>
@@ -164,9 +156,9 @@
         </section>
         <section id="html-view-shortcuts" class="view-panel" data-view-panel="shortcuts">
           <article class="mode-sheet">
-            <h3>단축키</h3>
+            <h3>?⑥텞??/h3>
             <div class="settings-toolbar">
-              <input id="shortcut-search" class="settings-search" type="search" placeholder="명령, 범위, 단축키 검색">
+              <input id="shortcut-search" class="settings-search" type="search" placeholder="紐낅졊, 踰붿쐞, ?⑥텞??寃??>
             </div>
             <div id="shortcut-shell-list" class="shortcut-list"></div>
           </article>
@@ -174,20 +166,20 @@
         <section id="html-view-remote-settings" class="view-panel" data-view-panel="remote-settings">
           <article class="mode-sheet">
             <div class="settings-heading">
-              <h3>리모컨 편집</h3>
-              <button id="remote-settings-save" type="button">저장</button>
+              <h3>由щえ而??몄쭛</h3>
+              <button id="remote-settings-save" type="button">???/button>
             </div>
             <div class="remote-settings-layout">
               <section>
                 <div class="settings-subtitle">
-                  <strong>현재 리모컨</strong>
+                  <strong>?꾩옱 由щえ而?/strong>
                   <span id="remote-settings-current-count">0</span>
                 </div>
                 <div id="remote-settings-current-list" class="remote-settings-list"></div>
               </section>
               <section>
                 <div class="settings-subtitle">
-                  <strong>추가 가능</strong>
+                  <strong>異붽? 媛??/strong>
                   <span id="remote-settings-available-count">0</span>
                 </div>
                 <div id="remote-settings-available-list" class="remote-settings-list"></div>
@@ -197,12 +189,12 @@
         </section>
         <section id="html-view-help" class="view-panel" data-view-panel="help">
           <article class="mode-sheet">
-            <h3>도움말</h3>
-            <p>화면은 HTML이 담당하고, 저장과 Windows 기능은 로컬 엔진이 담당합니다.</p>
+            <h3>?꾩?留?/h3>
+            <p>?붾㈃? HTML???대떦?섍퀬, ??κ낵 Windows 湲곕뒫? 濡쒖뺄 ?붿쭊???대떦?⑸땲??</p>
             <div class="mode-grid">
-              <div><strong>메인</strong><span>원고 편집과 프로젝트 탐색</span></div>
-              <div><strong>브릿지</strong><span>파일, DB, 창 제어, 단축키</span></div>
-              <div><strong>규칙</strong><span>새 UI는 HTML에만 추가</span></div>
+              <div><strong>硫붿씤</strong><span>?먭퀬 ?몄쭛怨??꾨줈?앺듃 ?먯깋</span></div>
+              <div><strong>釉뚮┸吏</strong><span>?뚯씪, DB, 李??쒖뼱, ?⑥텞??/span></div>
+              <div><strong>洹쒖튃</strong><span>??UI??HTML?먮쭔 異붽?</span></div>
             </div>
           </article>
         </section>
@@ -211,20 +203,20 @@
       <aside id="right-inspector" class="right-inspector">
         <section class="inspector-section">
           <div class="section-title">
-            <strong>인스펙터</strong>
+            <strong>?몄뒪?숉꽣</strong>
             <span id="active-updated">-</span>
           </div>
           <dl class="meta-list">
             <div>
-              <dt>상태</dt>
-              <dd id="inspector-status">초고</dd>
+              <dt>?곹깭</dt>
+              <dd id="inspector-status">珥덇퀬</dd>
             </div>
             <div>
-              <dt>유형</dt>
+              <dt>?좏삎</dt>
               <dd id="inspector-type">Scene</dd>
             </div>
             <div>
-              <dt>태그</dt>
+              <dt>?쒓렇</dt>
               <dd id="inspector-tags">-</dd>
             </div>
           </dl>
@@ -232,43 +224,43 @@
 
         <section class="inspector-section">
           <div class="section-title">
-            <strong>파이프라인</strong>
-            <span>로컬</span>
+            <strong>?뚯씠?꾨씪??/strong>
+            <span>濡쒖뺄</span>
           </div>
           <div class="pipeline-list">
-            <div><span>초고</span><strong id="pipeline-draft">0</strong></div>
-            <div><span>수정중</span><strong id="pipeline-revising">0</strong></div>
-            <div><span>완료</span><strong id="pipeline-final">0</strong></div>
-            <div><span>제외</span><strong id="pipeline-excluded">0</strong></div>
+            <div><span>珥덇퀬</span><strong id="pipeline-draft">0</strong></div>
+            <div><span>?섏젙以?/span><strong id="pipeline-revising">0</strong></div>
+            <div><span>?꾨즺</span><strong id="pipeline-final">0</strong></div>
+            <div><span>?쒖쇅</span><strong id="pipeline-excluded">0</strong></div>
           </div>
         </section>
       </aside>
     </section>
 
-    <aside id="floating-remote" class="floating-remote" aria-label="리모컨">
+    <aside id="floating-remote" class="floating-remote" aria-label="由щえ而?>
       <div class="remote-header">
-        <strong>리모컨</strong>
-        <button id="remote-drag-handle" class="remote-drag-handle" type="button" aria-label="리모컨 이동">
-          <span id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true">✥</span>
+        <strong>由щえ而?/strong>
+        <button id="remote-drag-handle" class="remote-drag-handle" type="button" aria-label="由щえ而??대룞">
+          <span id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true">??/span>
         </button>
-        <button id="remote-density-toggle" type="button">아이콘</button>
+        <button id="remote-density-toggle" type="button">?꾩씠肄?/button>
       </div>
       <div id="remote-command-list" class="remote-command-list"></div>
     </aside>
 
     <div id="binder-context-menu" class="binder-context-menu" role="menu" hidden>
-      <button type="button" data-binder-context-command="document.renameScene">이름 변경</button>
-      <button type="button" data-binder-context-command="document.duplicateScene">복제</button>
-      <button type="button" data-binder-context-command="document.deleteScene">삭제</button>
-      <button type="button" data-binder-context-command="document.moveSceneUp">위로</button>
-      <button type="button" data-binder-context-command="document.moveSceneDown">아래로</button>
-      <button type="button" data-binder-context-command="snapshot.createCurrent">스냅샷</button>
+      <button type="button" data-binder-context-command="document.renameScene">?대쫫 蹂寃?/button>
+      <button type="button" data-binder-context-command="document.duplicateScene">蹂듭젣</button>
+      <button type="button" data-binder-context-command="document.deleteScene">??젣</button>
+      <button type="button" data-binder-context-command="document.moveSceneUp">?꾨줈</button>
+      <button type="button" data-binder-context-command="document.moveSceneDown">?꾨옒濡?/button>
+      <button type="button" data-binder-context-command="snapshot.createCurrent">?ㅻ깄??/button>
       <button type="button" data-binder-context-command="export.currentScene">TXT</button>
-      <button type="button" data-binder-context-command="document.detachCurrent">분리</button>
+      <button type="button" data-binder-context-command="document.detachCurrent">遺꾨━</button>
     </div>
 
     <footer id="bottom-status" class="bottom-status">
-      <span id="status-text">초기화 중...</span>
+      <span id="status-text">珥덇린??以?..</span>
       <span id="status-active-scene">-</span>
     </footer>
   </main>

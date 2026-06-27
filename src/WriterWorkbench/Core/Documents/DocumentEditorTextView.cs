@@ -2,10 +2,7 @@ namespace WriterWorkbench.Core.Documents;
 
 public sealed record DocumentEditorTextView(
     string Text,
-    bool IsSegmentMode,
-    int VisibleParagraphCount,
-    string RemainderText,
-    int TotalParagraphCount)
+    int ParagraphCount)
 {
-    public static DocumentEditorTextView Empty { get; } = new("", false, 0, "", 0);
+    public static DocumentEditorTextView Empty { get; } = new("", 0);
 }
