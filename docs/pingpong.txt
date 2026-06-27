@@ -3320,3 +3320,32 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+## 2026-06-28 KST test update: Encoding damage guardrail
+
+Feature(s) implemented:
+- Added an automated test guard that scans `src`, `tests`, and `docs` for known mojibake markers from the UTF-8 damage incident.
+- Stored detection markers as Unicode escape sequences so the guard does not flag its own source file.
+- Confirmed the guard detects a synthetic damaged string and finds no known damaged markers in repository files.
+
+Files changed:
+- `tests/WriterWorkbench.Tests/EncodingDamageGuard.cs`
+- `tests/WriterWorkbench.Tests/EncodingDamageGuardTests.cs`
+- `docs/pingpong.txt`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter EncodingDamageGuardTests` -> failed before helper implementation, then 2 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `rg` known mojibake marker scan -> no source/test/doc matches except intentional documentation notes.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 220 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+
+Large manuscript regression check:
+- Not touched except verification.
+- Guardrail large manuscript tests still pass.
+
+Remaining problems:
+- Next product work should resume with relationship map/settings/reference UI behavior, not more encoding work unless the guard catches something.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
