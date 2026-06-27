@@ -1,6 +1,9 @@
+using System.IO;
 using System.Windows;
+using System.Text.Json;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Story;
+using WriterWorkbench.Core.WebWorkbench;
 using WriterWorkbench.Core.Workspace;
 
 namespace WriterWorkbench;
@@ -10,7 +13,10 @@ public partial class WorkbenchDetachedWindow : Window
     private readonly WorkbenchSurfaceClaimRegistry _surfaceClaims;
     private readonly string _ownerId;
     private readonly StoryStructureStore? _storyStructureStore;
+    private readonly Func<string, Task<WebWorkbenchPayload>>? _htmlPayloadFactory;
+    private readonly Func<string, Task>? _htmlMessageHandler;
     private WorkbenchRelationshipMapView? _relationshipMapView;
+    private bool _htmlWorkbenchInitialized;
 
     public WorkbenchDetachedWindow(WorkbenchSurfaceClaimRegistry surfaceClaims)
         : this(surfaceClaims, $"detached-{Guid.NewGuid():N}", null)
@@ -26,16 +32,33 @@ public partial class WorkbenchDetachedWindow : Window
         WorkbenchSurfaceClaimRegistry surfaceClaims,
         string ownerId,
         StoryStructureStore? storyStructureStore)
+        : this(surfaceClaims, ownerId, storyStructureStore, null, null)
+    {
+    }
+
+    public WorkbenchDetachedWindow(
+        WorkbenchSurfaceClaimRegistry surfaceClaims,
+        string ownerId,
+        StoryStructureStore? storyStructureStore,
+        Func<string, Task<WebWorkbenchPayload>>? htmlPayloadFactory,
+        Func<string, Task>? htmlMessageHandler)
     {
         _surfaceClaims = surfaceClaims;
         _ownerId = ownerId;
         _storyStructureStore = storyStructureStore;
+        _htmlPayloadFactory = htmlPayloadFactory;
+        _htmlMessageHandler = htmlMessageHandler;
         InitializeComponent();
+        Loaded += DetachedWindow_Loaded;
         RefreshAvailability();
         DetachedWorkbenchStatusText.Text = "작업대를 선택하세요.";
     }
 
     public string? AssignedSurfaceId { get; private set; }
+
+    public string HtmlActiveView { get; private set; } = "editor";
+
+    public event EventHandler? SurfaceSelectionChanged;
 
     public string StatusDisplay => DetachedWorkbenchStatusText.Text;
 
@@ -48,6 +71,8 @@ public partial class WorkbenchDetachedWindow : Window
     public int RelationshipMapCanvasElementCount => _relationshipMapView?.CanvasElementCount ?? 0;
 
     public bool RelationshipMapVisible => DetachedRelationshipMapHost.Visibility == Visibility.Visible;
+
+    public bool HtmlWorkbenchVisible => DetachedHtmlWorkbenchBrowser.Visibility == Visibility.Visible;
 
     public string RelationshipMapSummary => _relationshipMapView?.SummaryText ?? "";
 
@@ -74,6 +99,7 @@ public partial class WorkbenchDetachedWindow : Window
         DetachedWorkbenchStatusText.Text = $"{surfaceName} 작업대 선택됨";
         await ShowSelectedSurfaceAsync(surfaceId);
         await RefreshAvailabilityAsync();
+        SurfaceSelectionChanged?.Invoke(this, EventArgs.Empty);
         return true;
     }
 
@@ -89,6 +115,21 @@ public partial class WorkbenchDetachedWindow : Window
     {
         DetachedBlankSurface.Visibility = Visibility.Visible;
         DetachedRelationshipMapHost.Visibility = Visibility.Collapsed;
+        DetachedHtmlWorkbenchBrowser.Visibility = Visibility.Collapsed;
+
+        if (TryGetHtmlActiveView(surfaceId, out var htmlActiveView) && _htmlPayloadFactory is not null)
+        {
+            HtmlActiveView = htmlActiveView;
+            DetachedBlankSurface.Visibility = Visibility.Collapsed;
+            DetachedHtmlWorkbenchBrowser.Visibility = Visibility.Visible;
+            if (IsLoaded)
+            {
+                await EnsureHtmlWorkbenchAsync();
+                await PushHtmlStateAsync();
+            }
+
+            return;
+        }
 
         if (!string.Equals(surfaceId, AppSessionState.RelationshipMapSurface, StringComparison.OrdinalIgnoreCase))
         {
@@ -107,6 +148,79 @@ public partial class WorkbenchDetachedWindow : Window
         DetachedRelationshipMapHost.Visibility = Visibility.Visible;
         await _relationshipMapView.LoadAsync(_storyStructureStore, CancellationToken.None);
         await SetStatusAsync("관계도 로드됨");
+    }
+
+    public async Task PushHtmlStateAsync()
+    {
+        if (_htmlPayloadFactory is null ||
+            !_htmlWorkbenchInitialized ||
+            DetachedHtmlWorkbenchBrowser.CoreWebView2 is null)
+        {
+            return;
+        }
+
+        var payload = await _htmlPayloadFactory(HtmlActiveView);
+        var message = JsonSerializer.Serialize(new
+        {
+            type = "state",
+            payload
+        });
+        DetachedHtmlWorkbenchBrowser.CoreWebView2.PostWebMessageAsJson(message);
+    }
+
+    public void RefreshSurfaceAvailability()
+    {
+        RefreshAvailability();
+    }
+
+    private async void DetachedWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        if (DetachedHtmlWorkbenchBrowser.Visibility == Visibility.Visible)
+        {
+            await EnsureHtmlWorkbenchAsync();
+            await PushHtmlStateAsync();
+        }
+    }
+
+    private async Task EnsureHtmlWorkbenchAsync()
+    {
+        if (_htmlWorkbenchInitialized)
+        {
+            return;
+        }
+
+        var indexPath = Path.Combine(AppContext.BaseDirectory, "WebWorkbench", "index.html");
+        if (!File.Exists(indexPath))
+        {
+            throw new InvalidOperationException($"HTML 작업대 파일이 없습니다: {indexPath}");
+        }
+
+        await DetachedHtmlWorkbenchBrowser.EnsureCoreWebView2Async();
+        DetachedHtmlWorkbenchBrowser.CoreWebView2.WebMessageReceived += async (_, e) =>
+        {
+            if (_htmlMessageHandler is not null)
+            {
+                await _htmlMessageHandler(e.WebMessageAsJson);
+                await PushHtmlStateAsync();
+            }
+        };
+        DetachedHtmlWorkbenchBrowser.NavigationCompleted += async (_, _) => await PushHtmlStateAsync();
+        DetachedHtmlWorkbenchBrowser.Source = new Uri(indexPath);
+        _htmlWorkbenchInitialized = true;
+    }
+
+    private static bool TryGetHtmlActiveView(string surfaceId, out string activeView)
+    {
+        activeView = surfaceId switch
+        {
+            AppSessionState.EditorSurface => "editor",
+            AppSessionState.HtmlWorkbenchSurface => "editor",
+            AppSessionState.PreviewSurface => "preview",
+            AppSessionState.RelationshipMapSurface => "relationship-map",
+            _ => ""
+        };
+
+        return activeView.Length > 0;
     }
 
     private Task RefreshAvailabilityAsync()
@@ -162,6 +276,7 @@ public partial class WorkbenchDetachedWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _surfaceClaims.ReleaseOwner(_ownerId);
+        SurfaceSelectionChanged?.Invoke(this, EventArgs.Empty);
         base.OnClosed(e);
     }
 }

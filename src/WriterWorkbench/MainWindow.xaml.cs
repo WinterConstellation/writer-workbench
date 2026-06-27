@@ -46,6 +46,7 @@ public partial class MainWindow : Window
     private readonly CommandRegistry _commandRegistry = AppCommandCatalog.CreateDefaultRegistry();
     private readonly WorkbenchSurfaceClaimRegistry _surfaceClaims = new();
     private readonly Dictionary<string, Func<Task>> _commandHandlers = [];
+    private readonly List<WorkbenchDetachedWindow> _detachedWorkbenchWindows = [];
     private readonly AppSessionStateService _sessionStateService = new(AppSessionStateService.DefaultPath);
     private ShortcutManager _shortcutManager = ShortcutProfileService.CreateDefaultManager();
     private WorkspacePresetService _workspacePresets;
@@ -1907,7 +1908,12 @@ public partial class MainWindow : Window
 
     private Task DetachWorkbenchAsync()
     {
-        var window = new WorkbenchDetachedWindow(_surfaceClaims, $"detached-{Guid.NewGuid():N}", _storyStructureStore)
+        var window = new WorkbenchDetachedWindow(
+            _surfaceClaims,
+            $"detached-{Guid.NewGuid():N}",
+            _storyStructureStore,
+            CreateHtmlWorkbenchPayloadAsync,
+            ProcessHtmlWorkbenchMessageAsync)
         {
             WindowStartupLocation = WindowStartupLocation.Manual,
             Left = Left + 48,
@@ -1916,6 +1922,13 @@ public partial class MainWindow : Window
             ShowActivated = true
         };
 
+        _detachedWorkbenchWindows.Add(window);
+        window.SurfaceSelectionChanged += (_, _) => RefreshDetachedSurfaceAvailability();
+        window.Closed += (_, _) =>
+        {
+            _detachedWorkbenchWindows.Remove(window);
+            RefreshDetachedSurfaceAvailability();
+        };
         window.Show();
         window.Activate();
         StatusText.Text = "분리 작업대 열림 - 화면을 선택하세요";
@@ -2212,21 +2225,31 @@ public partial class MainWindow : Window
         await OpenHtmlWorkbenchViewAsync("editor", "작품 수정 화면");
     }
 
-    private async Task OpenHtmlWorkbenchSurfaceAsync()
+    private async Task<bool> OpenHtmlWorkbenchSurfaceAsync(string claimedSurfaceId = AppSessionState.HtmlWorkbenchSurface)
     {
-        ShowHtmlWorkbenchSurface();
+        if (!ShowHtmlWorkbenchSurfaceForClaim(claimedSurfaceId))
+        {
+            return false;
+        }
+
         if (IsLoaded)
         {
             _ = InitializeHtmlWorkbenchSurfaceAsync();
         }
 
         await PersistSessionStateAsync();
+        return true;
     }
 
     private async Task OpenHtmlWorkbenchViewAsync(string activeView, string status)
     {
-        _htmlActiveView = NormalizeHtmlActiveView(activeView);
-        await OpenHtmlWorkbenchSurfaceAsync();
+        var normalizedView = NormalizeHtmlActiveView(activeView);
+        if (!await OpenHtmlWorkbenchSurfaceAsync(GetSurfaceIdForHtmlActiveView(normalizedView)))
+        {
+            return;
+        }
+
+        _htmlActiveView = normalizedView;
         StatusText.Text = status;
         await PushHtmlWorkbenchStateAsync();
     }
@@ -2243,6 +2266,17 @@ public partial class MainWindow : Window
             "help"
             ? normalized
             : "editor";
+    }
+
+    private static string GetSurfaceIdForHtmlActiveView(string activeView)
+    {
+        return activeView switch
+        {
+            "editor" => AppSessionState.EditorSurface,
+            "preview" => AppSessionState.PreviewSurface,
+            "relationship-map" => AppSessionState.RelationshipMapSurface,
+            _ => AppSessionState.HtmlWorkbenchSurface
+        };
     }
 
     private async Task InitializeHtmlWorkbenchSurfaceAsync()
@@ -2287,9 +2321,14 @@ public partial class MainWindow : Window
         object? sender,
         Microsoft.Web.WebView2.Core.CoreWebView2WebMessageReceivedEventArgs e)
     {
+        await ProcessHtmlWorkbenchMessageAsync(e.WebMessageAsJson);
+    }
+
+    private async Task ProcessHtmlWorkbenchMessageAsync(string webMessageAsJson)
+    {
         try
         {
-            using var document = JsonDocument.Parse(e.WebMessageAsJson);
+            using var document = JsonDocument.Parse(webMessageAsJson);
             var root = document.RootElement;
             if (!root.TryGetProperty("type", out var type))
             {
@@ -2827,11 +2866,26 @@ public partial class MainWindow : Window
 
     private async Task PushHtmlWorkbenchStateAsync()
     {
-        if (!_htmlWorkbenchInitialized || HtmlWorkbenchBrowser.CoreWebView2 is null)
+        if (_htmlWorkbenchInitialized && HtmlWorkbenchBrowser.CoreWebView2 is not null)
         {
-            return;
+            var payload = await CreateHtmlWorkbenchPayloadAsync(_htmlActiveView);
+            var message = JsonSerializer.Serialize(new
+            {
+                type = "state",
+                payload
+            }, WebWorkbenchJsonOptions);
+
+            HtmlWorkbenchBrowser.CoreWebView2.PostWebMessageAsJson(message);
         }
 
+        foreach (var window in _detachedWorkbenchWindows.ToList())
+        {
+            await window.PushHtmlStateAsync();
+        }
+    }
+
+    private async Task<WebWorkbenchPayload> CreateHtmlWorkbenchPayloadAsync(string activeView)
+    {
         var manifest = _currentManifest ?? new ProjectManifest(
             1,
             Path.GetFileNameWithoutExtension(_projectRoot),
@@ -2842,7 +2896,7 @@ public partial class MainWindow : Window
             _commandRegistry);
         var story = await CreateHtmlStoryPayloadAsync();
         var trash = await CreateHtmlTrashPayloadAsync();
-        var payload = WebWorkbenchPayloadFactory.Create(
+        return WebWorkbenchPayloadFactory.Create(
             manifest,
             _projectRoot,
             _activeDocument,
@@ -2854,19 +2908,11 @@ public partial class MainWindow : Window
             _graphicPreset.Name,
             _autosaveEnabled,
             _widgetRegistry,
-            _htmlActiveView,
+            NormalizeHtmlActiveView(activeView),
             CreateHtmlPreviewText(),
             _shortcutManager.Bindings,
             story,
             trash);
-        var message = JsonSerializer.Serialize(new
-        {
-            type = "state",
-            payload
-        }, WebWorkbenchJsonOptions);
-
-        HtmlWorkbenchBrowser.CoreWebView2.PostWebMessageAsJson(message);
-        await Task.CompletedTask;
     }
 
     private async Task<WebWorkbenchStory> CreateHtmlStoryPayloadAsync()
@@ -3186,11 +3232,16 @@ public partial class MainWindow : Window
         StatusText.Text = "메인 화면";
     }
 
-    private void ShowHtmlWorkbenchSurface()
+    private bool ShowHtmlWorkbenchSurface()
     {
-        if (!TryClaimMainSurface(AppSessionState.HtmlWorkbenchSurface))
+        return ShowHtmlWorkbenchSurfaceForClaim(AppSessionState.HtmlWorkbenchSurface);
+    }
+
+    private bool ShowHtmlWorkbenchSurfaceForClaim(string claimedSurfaceId)
+    {
+        if (!TryClaimMainSurface(claimedSurfaceId))
         {
-            return;
+            return false;
         }
 
         HideNativeWorkbenchChrome();
@@ -3200,8 +3251,9 @@ public partial class MainWindow : Window
         PreviewSurface.Visibility = Visibility.Collapsed;
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
-        RememberSessionState(AppSessionState.HtmlWorkbenchSurface);
+        RememberSessionState(claimedSurfaceId);
         StatusText.Text = "메인 화면";
+        return true;
     }
 
     private void ShowRelationshipMapSurface()
@@ -3240,12 +3292,21 @@ public partial class MainWindow : Window
     {
         if (_surfaceClaims.TryClaim(WorkbenchSurfaceClaimRegistry.MainOwnerId, surfaceId, out var occupiedBy))
         {
+            RefreshDetachedSurfaceAvailability();
             return true;
         }
 
         var surfaceName = WorkbenchSurfaceCatalog.GetName(surfaceId);
         StatusText.Text = $"{surfaceName} 화면은 이미 다른 분리 작업대에서 사용 중입니다. ({occupiedBy})";
         return false;
+    }
+
+    private void RefreshDetachedSurfaceAvailability()
+    {
+        foreach (var window in _detachedWorkbenchWindows.ToList())
+        {
+            window.RefreshSurfaceAvailability();
+        }
     }
 
     private async void ReturnToEditorButton_Click(object sender, RoutedEventArgs e)

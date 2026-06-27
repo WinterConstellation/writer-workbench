@@ -1745,6 +1745,59 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-27 KST feature implementation update: Detached HTML workbench surfaces and duplicate guard
+
+Feature(s) implemented:
+- Detached workbench windows can now host the HTML workbench for `작품 수정`, `메인`, `미리보기`, and `관계도` surfaces when opened from MainWindow.
+- Detached HTML workbench messages reuse the same MainWindow bridge for commands, active scene edits, binder commands, relationship map edits, trash restore, shortcut edits, and remote settings.
+- MainWindow now sends HTML state to both the main WebView and detached HTML workbench windows.
+- MainWindow HTML views now claim their actual logical surface: editor, preview, relationship-map, or general HTML workbench.
+- Duplicate surface guard now prevents MainWindow from switching HTML view when a detached workbench already owns the target surface.
+- Detached windows refresh surface button availability when MainWindow changes surfaces, another detached window claims a surface, or a detached window closes.
+- Local executable refreshed at `dist/WriterWorkbench-html-workbench/WriterWorkbench.exe`.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WorkbenchDetachedWindow.xaml`
+- `src/WriterWorkbench/WorkbenchDetachedWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchDetachedWindowTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Detached workbench HTML surfaces use the embedded HTML host and map editor/preview/main to the right active view.
+- MainWindow HTML editor view claims the editor surface so detached windows cannot duplicate it.
+- MainWindow does not switch HTML active view when a detached window owns the requested target surface.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DetachedWorkbenchHtmlSurfacesUseEmbeddedHtmlHost|MainWindowHtmlEditorViewClaimsEditorSurfaceForDetachedDuplicateGuard"` -> failed before implementation with missing constructor/properties, then passed after implementation.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowDoesNotSwitchHtmlViewWhenDetachedSurfaceOwnsTarget"` -> failed before duplicate guard fix because `_htmlActiveView` changed to `preview`, then passed after claim-first change.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WorkbenchDetachedWindowTests|WorkbenchSurfaceClaimRegistryTests|MainWindowClaimedEditorSurfaceDisablesEditorInDetachedWorkbench|MainWindowHtmlEditorViewClaimsEditorSurfaceForDetachedDuplicateGuard|MainWindowDoesNotSwitchHtmlViewWhenDetachedSurfaceOwnsTarget|MainWindowHtmlViewCommandsStayInsideHtmlWorkbench"` -> 11 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowSmokeTests|WorkbenchDetachedWindowTests|WorkbenchSurfaceClaimRegistryTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests"` -> failed once due the changed private `ShowHtmlWorkbenchSurface` reflection signature, then passed 51 tests after restoring a no-argument wrapper.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 200 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~Large|FullyQualifiedName~EditorInputPerformancePolicy|FullyQualifiedName~EditorLargeTextSmoke"` -> 19 passed.
+- `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8'))"` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 200 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~Large|FullyQualifiedName~EditorInputPerformancePolicy|FullyQualifiedName~EditorLargeTextSmoke"` -> 19 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save paths were not functionally changed.
+- HTML state push now avoids creating the main WebView payload when the main HTML WebView is not initialized.
+- Large/editor guardrail filter passed 19 tests.
+
+Remaining problems:
+- Detached HTML WebView was verified by unit/smoke structure tests, not by a live screenshot/browser interaction pass.
+- Detached relationship map now uses the HTML host when opened from MainWindow, but the older WPF relationship map fallback remains for constructor paths without HTML delegates.
+- Surface presets still need to place multiple detached windows on monitors automatically.
+- Detached window HTML editing shares active scene state through MainWindow; true independent per-window document editing is not implemented.
+
+Separate data artifact 여부:
+- 별도 샘플/fixture 프로젝트 데이터 산출물 없음.
+- Local executable artifact generated at `dist/WriterWorkbench-html-workbench/WriterWorkbench.exe`.
+
 ## 2026-06-27 KST feature implementation update: HTML workbench relationship/trash/shortcut restoration pass
 
 Feature(s) implemented:

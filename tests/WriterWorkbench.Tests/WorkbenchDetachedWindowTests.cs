@@ -129,6 +129,56 @@ public sealed class WorkbenchDetachedWindowTests
     }
 
     [Fact]
+    public void DetachedWorkbenchHtmlSurfacesUseEmbeddedHtmlHost()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var registry = new WorkbenchSurfaceClaimRegistry();
+                var window = new WorkbenchDetachedWindow(
+                    registry,
+                    "detached-html-test",
+                    null,
+                    _ => Task.FromResult(TestPayload("editor")),
+                    _ => Task.CompletedTask);
+
+                Assert.True(window.TrySelectSurface(AppSessionState.EditorSurface));
+                Assert.Equal(AppSessionState.EditorSurface, window.AssignedSurfaceId);
+                Assert.True(window.HtmlWorkbenchVisible);
+                Assert.Equal("editor", window.HtmlActiveView);
+
+                Assert.True(window.TrySelectSurface(AppSessionState.PreviewSurface));
+                Assert.Equal(AppSessionState.PreviewSurface, window.AssignedSurfaceId);
+                Assert.True(window.HtmlWorkbenchVisible);
+                Assert.Equal("preview", window.HtmlActiveView);
+
+                Assert.True(window.TrySelectSurface(AppSessionState.HtmlWorkbenchSurface));
+                Assert.Equal(AppSessionState.HtmlWorkbenchSurface, window.AssignedSurfaceId);
+                Assert.True(window.HtmlWorkbenchVisible);
+                Assert.Equal("editor", window.HtmlActiveView);
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine(ex.ToString());
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public async Task DetachedRelationshipMapSurfaceLoadsStoryDataIntoCanvas()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
@@ -186,6 +236,27 @@ public sealed class WorkbenchDetachedWindowTests
         {
             throw failure;
         }
+    }
+
+    private static Core.WebWorkbench.WebWorkbenchPayload TestPayload(string activeView)
+    {
+        var registry = Core.Commands.AppCommandCatalog.CreateDefaultRegistry();
+        var profile = Core.Customization.WorkbenchCustomizationProfileFactory.CreateDefault(
+            "profile-detached-test",
+            "테스트",
+            registry);
+        return Core.WebWorkbench.WebWorkbenchPayloadFactory.Create(
+            new ProjectManifest(1, "테스트", []),
+            @"C:\WriterWorkbench\Tests",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "테스트",
+            "기본",
+            true,
+            activeView: activeView);
     }
 
 #pragma warning disable xUnit1031

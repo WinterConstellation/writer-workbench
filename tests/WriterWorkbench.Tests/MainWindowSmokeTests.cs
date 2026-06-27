@@ -27,7 +27,7 @@ public sealed class MainWindowSmokeTests
     [Fact]
     public void MainWindowConstructsOnStaThread()
     {
-        Exception? failure = null;
+        string? failure = null;
         var thread = new Thread(() =>
         {
             try
@@ -38,7 +38,7 @@ public sealed class MainWindowSmokeTests
             }
             catch (Exception ex)
             {
-                failure = ex;
+                failure = ex.ToString();
             }
         });
 
@@ -48,7 +48,7 @@ public sealed class MainWindowSmokeTests
 
         if (failure is not null)
         {
-            throw failure;
+            Assert.Fail(failure);
         }
     }
 
@@ -1027,6 +1027,85 @@ public sealed class MainWindowSmokeTests
         if (failure is not null)
         {
             throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlEditorViewClaimsEditorSurfaceForDetachedDuplicateGuard()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var registry = GetPrivateField<WorkbenchSurfaceClaimRegistry>(window, "_surfaceClaims");
+
+                InvokeCommand(window, AppCommandIds.ViewEditorOpen);
+                var detached = new WorkbenchDetachedWindow(registry, "detached-editor-claim-test");
+                var editorButton = Assert.IsType<Button>(detached.FindName("DetachedEditorSurfaceButton"));
+                var previewButton = Assert.IsType<Button>(detached.FindName("DetachedPreviewSurfaceButton"));
+
+                Assert.True(registry.IsClaimedBy(WorkbenchSurfaceClaimRegistry.MainOwnerId, AppSessionState.EditorSurface));
+                Assert.False(editorButton.IsEnabled);
+                Assert.True(previewButton.IsEnabled);
+
+                detached.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
+    public void MainWindowDoesNotSwitchHtmlViewWhenDetachedSurfaceOwnsTarget()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var registry = GetPrivateField<WorkbenchSurfaceClaimRegistry>(window, "_surfaceClaims");
+                var detached = new WorkbenchDetachedWindow(registry, "detached-preview-owner-test");
+
+                Assert.True(detached.TrySelectSurface(AppSessionState.PreviewSurface));
+                InvokeCommand(window, AppCommandIds.ViewPreviewToggle);
+
+                Assert.True(registry.IsClaimedBy("detached-preview-owner-test", AppSessionState.PreviewSurface));
+                Assert.Equal("editor", GetPrivateField<string>(window, "_htmlActiveView"));
+                Assert.Contains("이미 다른 분리 작업대", GetStatusText(window));
+
+                detached.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
         }
     }
 
