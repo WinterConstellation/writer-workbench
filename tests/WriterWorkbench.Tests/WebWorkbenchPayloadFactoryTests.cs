@@ -226,6 +226,46 @@ public sealed class WebWorkbenchPayloadFactoryTests
     }
 
     [Fact]
+    public void PayloadUsesProfileRemotePlacementsBeforeWidgetFallback()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var now = DateTimeOffset.Parse("2026-06-27T01:00:00+09:00");
+        var profile = new WorkbenchCustomizationProfile(
+            "profile-remote-edited",
+            "리모컨 편집됨",
+            [
+                new CommandPlacement("remote", "main", "remote-01", AppCommandIds.HelpOpen, "도움말", 1, new Dictionary<string, string>()),
+                new CommandPlacement("remote", "main", "remote-02", AppCommandIds.ProjectSave, "저장", 2, new Dictionary<string, string>())
+            ],
+            [],
+            [],
+            now,
+            now);
+        var widgetRegistry = new WorkbenchWidgetRegistry(
+            "widget-registry",
+            [
+                new WidgetInstance("w-remote", "command-button", "remote", "floating", "registry-focus", 1, AppCommandIds.WritingFocusToggle, "집중", new Dictionary<string, string>())
+            ]);
+        var manifest = new ProjectManifest(1, "리모컨", []);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "대기",
+            "기본",
+            autosaveEnabled: true,
+            widgetRegistry);
+
+        Assert.Equal([AppCommandIds.HelpOpen, AppCommandIds.ProjectSave], payload.RemoteCommands.Select(command => command.CommandId));
+        Assert.Equal(["remote-01", "remote-02"], payload.RemoteCommands.Select(command => command.SlotKey));
+    }
+
+    [Fact]
     public void PayloadExposesCatalogCommandsForHtmlRemoteSettingsEvenWhenToolbarProfileIsSparse()
     {
         var registry = AppCommandCatalog.CreateDefaultRegistry();

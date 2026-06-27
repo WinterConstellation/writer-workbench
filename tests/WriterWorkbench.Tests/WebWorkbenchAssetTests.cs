@@ -181,6 +181,21 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
+    public async Task WebWorkbenchRemoteSettingsKeepsDraftDuringEditorRerender()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+
+        Assert.Contains("remoteSettingsDirty", script);
+        Assert.Contains("syncRemoteDraftFromPayload", script);
+        Assert.Contains("state.remoteSettingsDirty = true", script);
+        Assert.Contains("state.remoteSettingsDirty = false", script);
+        Assert.Contains("activeView === \"remote-settings\"", script);
+    }
+
+    [Fact]
     public async Task WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
@@ -220,5 +235,19 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
         Assert.Contains(".relationship-workbench", css);
         Assert.Contains(".relationship-map-canvas", css);
+    }
+
+    [Fact]
+    public async Task WebWorkbenchRemoteSettingsRowsDoNotUseMoveCursor()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var cssPath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
+
+        var css = await File.ReadAllTextAsync(cssPath, CancellationToken.None);
+
+        Assert.Contains(".remote-settings-row", css);
+        Assert.Contains("cursor: default", css);
+        Assert.Contains(".remote-settings-actions button", css);
+        Assert.Contains("cursor: pointer", css);
     }
 }

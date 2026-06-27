@@ -12,6 +12,7 @@ const state = {
   selectedDocumentId: "",
   binderContextDocumentId: "",
   remoteDraftCommandIds: [],
+  remoteSettingsDirty: false,
   availableCommands: [],
   shortcutBindings: [],
   storyModel: { entities: [], relationships: [] },
@@ -75,7 +76,7 @@ function render(payload) {
   const trash = readPayloadValue(payload, "trash", "Trash", []) || [];
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
-  state.remoteDraftCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
+  syncRemoteDraftFromPayload(remoteCommands, activeView);
   state.selectedDocumentId = readPayloadValue(active, "id", "Id", state.selectedDocumentId || "");
 
   $("project-title").textContent = readPayloadValue(project, "title", "Title", "원고 작업대");
@@ -99,6 +100,27 @@ function render(payload) {
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   setActiveView(activeView);
   state.isRendering = false;
+}
+
+function syncRemoteDraftFromPayload(remoteCommands, activeView) {
+  const incomingCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
+  if (activeView === "remote-settings" && state.remoteSettingsDirty) {
+    if (sameCommandIds(state.remoteDraftCommandIds, incomingCommandIds)) {
+      state.remoteSettingsDirty = false;
+    }
+
+    return;
+  }
+
+  state.remoteDraftCommandIds = incomingCommandIds;
+  state.remoteSettingsDirty = false;
+}
+
+function sameCommandIds(left, right) {
+  if (left.length !== right.length) return false;
+
+  return left.every((commandId, index) =>
+    commandId.toLowerCase() === right[index].toLowerCase());
 }
 
 function normalizeCommand(command) {
@@ -704,6 +726,7 @@ function handleRemoteSettingsAction(button) {
       [state.remoteDraftCommandIds[index + 1], state.remoteDraftCommandIds[index]];
   }
 
+  state.remoteSettingsDirty = true;
   renderRemoteSettings([], state.availableCommands);
 }
 

@@ -2994,6 +2994,57 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
 
+## 2026-06-28 KST bugfix update: Remote control editor state and cursor
+
+Bug fixed:
+- HTML remote control editor could appear to reset even after the remote control itself reflected the updated buttons.
+- Root cause 1: `WebWorkbenchPayloadFactory` preferred `WorkbenchWidgetRegistry` remote widgets over saved profile remote placements. Remote settings writes update the profile, so stale widget remote commands could overwrite the editor payload.
+- Root cause 2: HTML `render(payload)` always reassigned `state.remoteDraftCommandIds` from incoming payload, so a rerender during remote editing could discard the draft list.
+- UI issue: remote settings rows did not explicitly set cursor behavior, making editing hover affordances look like movable/crosshair UI instead of normal edit controls.
+
+Feature(s) implemented:
+- Remote command payload now uses saved profile placements first, falling back to widget remote commands only when no profile remote placement exists.
+- HTML remote settings keeps its draft command list during the remote settings view while dirty.
+- Remote settings rows use default cursor; remote settings action buttons use pointer cursor.
+
+Files changed:
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- `PayloadUsesProfileRemotePlacementsBeforeWidgetFallback`
+- `WebWorkbenchRemoteSettingsKeepsDraftDuringEditorRerender`
+- `WebWorkbenchRemoteSettingsRowsDoNotUseMoveCursor`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "PayloadUsesProfileRemotePlacementsBeforeWidgetFallback|WebWorkbenchRemoteSettingsKeepsDraftDuringEditorRerender|WebWorkbenchRemoteSettingsRowsDoNotUseMoveCursor"` -> failed before implementation, then 3 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile"` -> 20 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 217 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable and WebWorkbench assets.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "PayloadUsesProfileRemotePlacementsBeforeWidgetFallback|WebWorkbenchRemoteSettingsKeepsDraftDuringEditorRerender|WebWorkbenchRemoteSettingsRowsDoNotUseMoveCursor"` -> 3 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile"` -> 20 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 217 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript code path was not changed.
+- Guardrail tests `Large|Performance|Stress` passed: 22 tests.
+
+Remaining problems:
+- Remote settings still needs better visual editing controls, but the reset/stale source bug and wrong hover cursor are fixed.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
 ## 2026-06-28 KST bugfix update: Large manuscript text visibility
 
 Bug fixed:

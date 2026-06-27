@@ -73,11 +73,14 @@ public static class WebWorkbenchPayloadFactory
                     .ToList(),
                 commandRegistry);
         EnsureRequiredMenuCommand(menuCommands, commandRegistry, AppCommandIds.ViewEditorOpen, "top.view", "view.editor", "작품 수정");
-        var remoteCommands = CreateCommandsFromWidgets(widgetRegistry, "remote", commandRegistry)
-            ?? CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
+        var remoteCommands = CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
         if (remoteCommands.Count == 0)
         {
             remoteCommands = CreateCommands(resolver.GetPlacements("remote", "floating"), commandRegistry);
+        }
+        if (remoteCommands.Count == 0)
+        {
+            remoteCommands = CreateCommandsFromWidgets(widgetRegistry, "remote", commandRegistry) ?? [];
         }
         var availableCommands = CreateAvailableCommands(commandRegistry);
         var htmlShortcutBindings = CreateShortcutBindings(shortcutBindings, profile, commandRegistry);

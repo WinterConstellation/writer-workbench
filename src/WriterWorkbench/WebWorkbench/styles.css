@@ -660,6 +660,10 @@ h2 {
   padding: 8px;
 }
 
+.remote-settings-row {
+  cursor: default;
+}
+
 .remote-settings-body,
 .shortcut-command,
 .shortcut-keys {
@@ -696,6 +700,7 @@ h2 {
 .remote-settings-row-candidate > button {
   min-height: 26px;
   padding: 0 7px;
+  cursor: pointer;
   font-size: 11px;
 }
 
