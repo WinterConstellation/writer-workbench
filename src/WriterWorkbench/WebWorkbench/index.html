@@ -241,7 +241,10 @@
       <div class="remote-header">
         <strong>리모컨</strong>
         <button id="remote-drag-handle" class="remote-drag-handle" type="button" aria-label="리모컨 이동">
-          <span id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true">✥</span>
+          <svg id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path class="remote-drag-arrow-line" d="M12 3v18M3 12h18"></path>
+            <path class="remote-drag-arrow-head" d="M12 0l-3.5 4h7L12 0zM12 24l-3.5-4h7L12 24zM0 12l4-3.5v7L0 12zM24 12l-4-3.5v7L24 12z"></path>
+          </svg>
         </button>
         <button id="remote-density-toggle" type="button">아이콘</button>
       </div>

@@ -59,6 +59,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("floating-remote", html);
         Assert.Contains("remote-drag-handle", html);
         Assert.Contains("remote-drag-icon", html);
+        Assert.Contains("remote-drag-arrow-line", html);
+        Assert.Contains("remote-drag-arrow-head", html);
+        Assert.DoesNotContain(">✥<", html);
         Assert.Contains("binder-action-bar", html);
         Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);

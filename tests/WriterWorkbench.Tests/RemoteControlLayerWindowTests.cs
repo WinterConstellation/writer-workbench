@@ -21,7 +21,7 @@ public sealed class RemoteControlLayerWindowTests
                 layer.Render(CreateProfile(), registry);
 
                 var handle = Assert.IsType<Border>(layer.FindName("RemoteLayerDragHandle"));
-                var moveGlyph = Assert.IsType<TextBlock>(layer.FindName("RemoteLayerMoveGlyph"));
+                var moveIcon = Assert.IsType<Viewbox>(layer.FindName("RemoteLayerMoveIcon"));
                 var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
                 var buttons = panel.Children.OfType<Button>().ToList();
 
@@ -33,7 +33,9 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.Equal(450d, layer.Height);
                 Assert.NotNull(layer.FindName("RemoteLayerResizeGrip"));
                 Assert.Equal(System.Windows.Input.Cursors.SizeAll, handle.Cursor);
-                Assert.Equal("↕↔", moveGlyph.Text);
+                var moveIconCanvas = Assert.IsType<Canvas>(moveIcon.Child);
+                Assert.True(moveIconCanvas.Children.OfType<System.Windows.Shapes.Path>().Count() >= 2);
+                Assert.Null(layer.FindName("RemoteLayerMoveGlyph"));
                 Assert.Equal(["project.save", "document.detachCurrent"], buttons.Select(button => button.Tag as string));
                 layer.Left = -900;
                 layer.Top = -400;

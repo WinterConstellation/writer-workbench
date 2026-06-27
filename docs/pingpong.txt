@@ -3376,6 +3376,12 @@ Commands run:
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
 - `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `rg -n "↕↔|>✥<|RemoteLayerMoveGlyph" src` -> no source matches.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements|WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchAssetTests"` -> 13 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
 - Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions|RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements"` -> 2 passed.
 - Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
@@ -3389,6 +3395,50 @@ Large manuscript regression check:
 Remaining problems:
 - Next product work should continue with settings/reference work surfaces and trash restore UX.
 - PowerShell text output can still display BOM-less UTF-8 Korean as mojibake; file bytes were checked through UTF-8-aware reads.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST correction update: Remote move icon matches requested cross-arrow control
+
+Root cause:
+- The previous pass changed only the native remote-control glyph and left the HTML remote-control handle as `✥`.
+- The replacement `↕↔` was still text, not an actual cross-arrow move icon.
+
+Feature(s) implemented:
+- Replaced the native remote-control move glyph with a drawn four-direction arrow icon.
+- Replaced the HTML remote-control move glyph with an inline SVG four-direction arrow icon.
+- Added checks that the old text glyph is not used for the HTML handle and that the native handle exposes the drawn icon.
+
+Files changed:
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated `RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements`.
+- Updated `WebWorkbenchHtmlContainsFullWorkbenchShellAnchors`.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements` -> failed before implementation, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchHtmlContainsFullWorkbenchShellAnchors` -> failed before implementation, then passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements|WebWorkbenchHtmlContainsFullWorkbenchShellAnchors|WebWorkbenchAssetTests"` -> 13 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+
+Large manuscript regression check:
+- Large manuscript edit/load path was not touched.
+- Guardrail tests `DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests` passed: 13 tests.
+
+Remaining problems:
+- This corrects the remote move-icon mismatch only.
+- Settings/reference work surfaces and trash restore UX remain the next product tasks.
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.

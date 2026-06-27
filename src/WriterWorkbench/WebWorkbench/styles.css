@@ -985,8 +985,19 @@ h2 {
 
 .remote-drag-icon {
   display: block;
-  font-size: 16px;
-  line-height: 1;
+  width: 18px;
+  height: 18px;
+}
+
+.remote-drag-arrow-line {
+  fill: none;
+  stroke: #475569;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.remote-drag-arrow-head {
+  fill: #475569;
 }
 
 .remote-command-list {
