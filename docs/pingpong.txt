@@ -3289,64 +3289,34 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
 
-## 2026-06-28 KST bugfix update: Full manuscript editor invariant
+## 2026-06-28 KST bugfix update: repair UTF-8 damage and reapply full manuscript editor invariant
 
-Code review loop:
-- Review pass 1 found the old split-editor path still protected by tests and sample HTML payload fields.
-- Fix pass removed the split/remainder editor contract from document editor service, web payload, HTML shell, JS metrics, and related tests.
-- Review pass 2 searched for split/remainder markers in `src` and `tests`; remaining matches are only negative regression assertions.
+Root cause:
+- A previous pass read BOM-less UTF-8 source through PowerShell text defaults, then wrote it back as UTF-8.
+- That converted valid Korean strings into mojibake in committed files.
+- Fix approach changed to patch-only edits plus `rg`/`node --check`; no broad `Get-Content` -> `Set-Content` recoding for source files.
 
 Feature(s) implemented:
-- Manuscript edit surfaces now treat the editor text as the full active scene body.
-- Large scenes are no longer split into visible text plus hidden remainder text.
-- HTML workbench local metrics now read the current full editor text directly.
-- Web workbench preview/sample data no longer carries segment/remainder fields.
-
-Files changed:
-- `src/WriterWorkbench/Core/Documents/DocumentEditorTextService.cs`
-- `src/WriterWorkbench/Core/Documents/DocumentEditorTextView.cs`
-- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
-- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
-- `src/WriterWorkbench/MainWindow.xaml.cs`
-- `src/WriterWorkbench/WebWorkbench/index.html`
-- `src/WriterWorkbench/WebWorkbench/app.js`
-- `src/WriterWorkbench/WebWorkbench/styles.css`
-- `src/WriterWorkbench/Core/Help/HelpCatalog.cs`
-- `tests/WriterWorkbench.Tests/DocumentEditorTextServiceTests.cs`
-- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
-- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
-- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
-- `docs/pingpong.txt`
-
-Tests added/updated:
-- `OpensLargeDocumentAsFullEditableText`
-- `DoesNotSplitLargeDocument`
-- `KeepsFullLargeDocumentInEditorEvenWhenLong`
-- `UpdatesWholeLargeDocumentFromEditorText`
-- `PayloadCarriesFullLargeDocumentTextInEditor`
-- `WebWorkbenchDoesNotSplitManuscriptIntoRemainderPanel`
-- `WebWorkbenchLocalMetricUpdateUsesWholeEditorText`
+- Reverted the broken text rewrite from commit `afc9f79` in the working tree.
+- Reapplied the full-manuscript editor invariant from clean UTF-8 source.
+- Removed split/remainder editor fields, HTML remainder panel, JS hidden-remainder metrics, and tests that protected the old split design.
 
 Commands run:
 - `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `rg` split/remainder scan -> remaining matches only negative regression assertions.
+- `rg` mojibake scan for known damaged markers -> no matches.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|MainWindowSmokeTests"` -> 61 passed.
 - `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
 
-Large manuscript regression check, if touched:
-- Large manuscript edit contract was touched deliberately.
-- Guardrail confirms large documents stay in full editor text and append/load paths still pass.
+Large manuscript regression check:
+- Large manuscript edit path touched deliberately.
+- Guardrail confirms large documents remain full editor text and large append/load paths still pass.
 
 Remaining problems:
-- This removes the hidden remainder workaround. Further performance work must optimize full-text editing instead of hiding manuscript text.
+- Further performance work must optimize full-text editing instead of hiding manuscript text.
+- Avoid PowerShell full-file recoding on BOM-less UTF-8 source files.
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
-
-Public repo sync verification for 2026-06-28 full manuscript editor invariant:
-- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
-- Public repo split/remainder marker scan -> remaining matches only negative regression assertions in `WebWorkbenchAssetTests`.
-- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
-- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
-- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.

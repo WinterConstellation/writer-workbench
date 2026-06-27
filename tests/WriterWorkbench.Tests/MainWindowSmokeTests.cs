@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -266,11 +266,11 @@ public sealed class MainWindowSmokeTests
                 var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
                 var profile = new WorkbenchCustomizationProfile(
                     "profile-remote-test",
-                    "Remote Test",
+                    "리모콘 테스트",
                     [
-                        new CommandPlacement("remote", "main", "second", AppCommandIds.ProjectSave, "???怨좎젙", 20, new Dictionary<string, string>()),
-                        new CommandPlacement("remote", "main", "first", AppCommandIds.DocumentDetachCurrent, "遺꾨━ 怨좎젙", 10, new Dictionary<string, string>()),
-                        new CommandPlacement("toolbar", "main", "ignored", AppCommandIds.HelpOpen, "臾댁떆", 30, new Dictionary<string, string>())
+                        new CommandPlacement("remote", "main", "second", AppCommandIds.ProjectSave, "저장 고정", 20, new Dictionary<string, string>()),
+                        new CommandPlacement("remote", "main", "first", AppCommandIds.DocumentDetachCurrent, "분리 고정", 10, new Dictionary<string, string>()),
+                        new CommandPlacement("toolbar", "main", "ignored", AppCommandIds.HelpOpen, "무시", 30, new Dictionary<string, string>())
                     ],
                     [],
                     [],
@@ -297,7 +297,7 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(layer.FindName("RemoteLayerDragHandle"));
                 Assert.Equal(["document.detachCurrent", "project.save"], buttons.Select(button => button.Tag as string));
                 Assert.Equal(
-                    ["遺꾨━ 怨좎젙", "???怨좎젙"],
+                    ["분리 고정", "저장 고정"],
                     buttons.Select(button => ((StackPanel)button.Content).Children.OfType<TextBlock>().Last().Text));
                 layer.Left = -500;
                 layer.Top = -300;
@@ -388,7 +388,7 @@ public sealed class MainWindowSmokeTests
 
                 Assert.True(File.Exists(paths.AppSettingsPath), paths.AppSettingsPath);
                 Assert.True(File.Exists(paths.WidgetRegistryPath), paths.WidgetRegistryPath);
-                Assert.Contains("LastWorkspace", File.ReadAllText(paths.AppSettingsPath));
+                Assert.Contains("마지막 작업", File.ReadAllText(paths.AppSettingsPath));
                 Assert.Contains("widget-registry", File.ReadAllText(paths.WidgetRegistryPath));
                 Assert.Equal(
                     Visibility.Visible,
@@ -593,7 +593,7 @@ public sealed class MainWindowSmokeTests
                 var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<ProjectStore>(window, "_store");
-                var manifest = WaitForTaskOnDispatcher(store.CreateProjectAsync("?먭퀬 ?붾㈃", CancellationToken.None));
+                var manifest = WaitForTaskOnDispatcher(store.CreateProjectAsync("원고 화면", CancellationToken.None));
                 InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
                 typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .SetValue(window, null);
@@ -773,8 +773,8 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<ProjectStore>(window, "_store");
 
-                WaitForTaskOnDispatcher(store.CreateProjectAsync("HTML Binder", CancellationToken.None));
-                var second = WaitForTaskOnDispatcher(store.CreateDocumentAsync("??踰덉㎏", CancellationToken.None));
+                WaitForTaskOnDispatcher(store.CreateProjectAsync("HTML 바인더", CancellationToken.None));
+                var second = WaitForTaskOnDispatcher(store.CreateDocumentAsync("두 번째", CancellationToken.None));
                 var manifest = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
                 InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
                 typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -862,8 +862,8 @@ public sealed class MainWindowSmokeTests
                 var window = new MainWindow();
                 var original = new WriterDocument(
                     "scene-html",
-                    "HTML ?λ㈃",
-                    [new WriterParagraph("p-0001", "泥섏쓬 蹂몃Ц", "body", [], [])]);
+                    "HTML 장면",
+                    [new WriterParagraph("p-0001", "처음 본문", "body", [], [])]);
                 var editor = Assert.IsType<TextBox>(window.FindName("EditorBox"));
                 var title = Assert.IsType<TextBox>(window.FindName("TitleBox"));
 
@@ -873,9 +873,9 @@ public sealed class MainWindowSmokeTests
                     window,
                     DocumentEditorTextService.CreateView(original));
                 title.Text = original.Title;
-                editor.Text = "泥섏쓬 蹂몃Ц";
+                editor.Text = "처음 본문";
 
-                InvokePrivate(window, "ApplyHtmlActiveSceneUpdate", "HTML ?섏젙", "諛붾?蹂몃Ц\n\n?섏㎏ 臾몃떒");
+                InvokePrivate(window, "ApplyHtmlActiveSceneUpdate", "HTML 수정", "바뀐 본문\n\n둘째 문단");
 
                 var updated = Assert.IsType<WriterDocument>(
                     typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
@@ -883,10 +883,10 @@ public sealed class MainWindowSmokeTests
                     typeof(MainWindow).GetField("_dirty", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
 
                 Assert.True(dirty);
-                Assert.Equal("HTML ?섏젙", updated.Title);
-                Assert.Equal(["諛붾?蹂몃Ц", "?섏㎏ 臾몃떒"], updated.Paragraphs.Select(paragraph => paragraph.Text));
-                Assert.Equal("HTML ?섏젙", title.Text);
-                Assert.Equal("諛붾?蹂몃Ц\n\n?섏㎏ 臾몃떒", editor.Text.Replace("\r\n", "\n", StringComparison.Ordinal));
+                Assert.Equal("HTML 수정", updated.Title);
+                Assert.Equal(["바뀐 본문", "둘째 문단"], updated.Paragraphs.Select(paragraph => paragraph.Text));
+                Assert.Equal("HTML 수정", title.Text);
+                Assert.Equal("바뀐 본문\n\n둘째 문단", editor.Text.Replace("\r\n", "\n", StringComparison.Ordinal));
                 window.Close();
             }
             catch (Exception ex)
@@ -991,11 +991,11 @@ public sealed class MainWindowSmokeTests
                 var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
                 var profile = new WorkbenchCustomizationProfile(
                     "profile-ui-test",
-                    "?뚯뒪???묒뾽?",
+                    "테스트 작업대",
                     [
-                        new CommandPlacement("toolbar", "main", "second", AppCommandIds.ViewMainOpen, "Main", 20, new Dictionary<string, string>()),
-                        new CommandPlacement("toolbar", "main", "first", AppCommandIds.ProjectSave, "Save", 10, new Dictionary<string, string>()),
-                        new CommandPlacement("panel", "right", "ignored", AppCommandIds.HelpOpen, "Help", 30, new Dictionary<string, string>())
+                        new CommandPlacement("toolbar", "main", "second", AppCommandIds.ViewMainOpen, "메인", 20, new Dictionary<string, string>()),
+                        new CommandPlacement("toolbar", "main", "first", AppCommandIds.ProjectSave, "저장", 10, new Dictionary<string, string>()),
+                        new CommandPlacement("panel", "right", "ignored", AppCommandIds.HelpOpen, "도움말", 30, new Dictionary<string, string>())
                     ],
                     [],
                     [],
@@ -1014,7 +1014,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(2, grid.Columns);
                 Assert.Equal(1, grid.Rows);
                 Assert.Equal(["project.save", "view.main.open"], buttons.Select(button => button.Tag as string));
-                Assert.Equal(["Save", "Main"], buttons.Select(button => button.Content as string));
+                Assert.Equal(["저장", "메인"], buttons.Select(button => button.Content as string));
                 window.Close();
             }
             catch (Exception ex)
@@ -1331,11 +1331,11 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("RelationshipMapSurface")).Visibility);
                 Assert.Equal("relationship-map", GetPrivateField<string>(window, "_htmlActiveView"));
 
-                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "?ㅼ꽌";
-                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "二쇱뿰";
+                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "윤서";
+                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "주연";
                 InvokeCommand(window, AppCommandIds.StoryAddNode);
-                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "?꾪쁽";
-                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "Support";
+                ((TextBox)window.FindName("RelationshipEntityNameBox")).Text = "도현";
+                ((TextBox)window.FindName("RelationshipEntityRoleBox")).Text = "조력자";
                 InvokeCommand(window, AppCommandIds.StoryAddNode);
 
                 var entityList = (ListBox)window.FindName("RelationshipEntityList");
@@ -1349,11 +1349,11 @@ public sealed class MainWindowSmokeTests
 
                 sourceBox.SelectedIndex = 0;
                 targetBox.SelectedIndex = 1;
-                ((TextBox)window.FindName("RelationshipLabelBox")).Text = "?숇㏏";
+                ((TextBox)window.FindName("RelationshipLabelBox")).Text = "동맹";
                 InvokeCommand(window, AppCommandIds.StoryAddRelationship);
 
                 Assert.Contains(canvas.Children.OfType<System.Windows.Shapes.Line>(), line => line.X2 > line.X1);
-                Assert.Contains(canvas.Children.OfType<TextBlock>(), label => label.Text == "?숇㏏");
+                Assert.Contains(canvas.Children.OfType<TextBlock>(), label => label.Text == "동맹");
                 window.Close();
             }
             catch (Exception ex)
@@ -1386,21 +1386,21 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
 
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Lead", "Main");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Ally", "Support");
-                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "Companion", "");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "");
                 InvokePrivateAsync(window, "ApplyHtmlStoryLayoutUpdateAsync", "entity-0002", 333d, 144d);
 
                 var entities = WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None));
                 var relationships = WaitForTaskOnDispatcher(store.LoadRelationshipsAsync(CancellationToken.None));
                 var layout = WaitForTaskOnDispatcher(store.LoadRelationLayoutAsync(CancellationToken.None));
 
-                Assert.Equal(["Lead", "Ally"], entities.Select(entity => entity.Name));
-                Assert.Equal("Companion", Assert.Single(relationships).Label);
+                Assert.Equal(["윤서", "도현"], entities.Select(entity => entity.Name));
+                Assert.Equal("동맹", Assert.Single(relationships).Label);
                 var node = Assert.Single(layout, item => item.EntityId == "entity-0002");
                 Assert.Equal(333d, node.X);
                 Assert.Equal(144d, node.Y);
-                Assert.False(string.IsNullOrWhiteSpace(((TextBlock)window.FindName("StatusText")).Text));
+                Assert.Contains("관계도 위치 저장됨", ((TextBlock)window.FindName("StatusText")).Text);
                 window.Close();
             }
             catch (Exception ex)
@@ -1433,21 +1433,21 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
 
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Lead", "Main");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Ally", "Support");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityUpdateAsync", "entity-0001", "Lead Updated", "Hero");
-                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "Companion", "Knows each other");
-                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipUpdateAsync", "rel-0001", "entity-0001", "entity-0002", "Tension", "Cannot trust");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityUpdateAsync", "entity-0001", "윤서 수정", "화자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "서로 돕는다");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipUpdateAsync", "rel-0001", "entity-0001", "entity-0002", "긴장", "믿지 못한다");
                 InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipDeleteAsync", "rel-0001");
                 InvokePrivateAsync(window, "ApplyHtmlStoryEntityDeleteAsync", "entity-0002");
 
                 var entities = WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None));
                 var relationships = WaitForTaskOnDispatcher(store.LoadRelationshipsAsync(CancellationToken.None));
 
-                Assert.Equal("Lead Updated", Assert.Single(entities).Name);
-                Assert.Equal("Hero", Assert.Single(entities).Role);
+                Assert.Equal("윤서 수정", Assert.Single(entities).Name);
+                Assert.Equal("화자", Assert.Single(entities).Role);
                 Assert.Empty(relationships);
-                Assert.False(string.IsNullOrWhiteSpace(((TextBlock)window.FindName("StatusText")).Text));
+                Assert.Contains("관계도 캐릭터 삭제됨", ((TextBlock)window.FindName("StatusText")).Text);
                 window.Close();
             }
             catch (Exception ex)

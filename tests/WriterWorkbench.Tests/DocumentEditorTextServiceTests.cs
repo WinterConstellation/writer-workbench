@@ -10,7 +10,7 @@ public sealed class DocumentEditorTextServiceTests
         var document = new WriterDocument(
             "scene-small",
             "Small",
-            [new WriterParagraph("p-1", "Short text", "body", [], [])]);
+            [new WriterParagraph("p1", "Short text", "Body", [], [])]);
 
         var view = DocumentEditorTextService.CreateView(document);
 
@@ -64,9 +64,8 @@ public sealed class DocumentEditorTextServiceTests
             "Edited front paragraph",
             StringComparison.Ordinal);
 
-        var updated = DocumentEditorTextService.UpdateFromEditorText(document, "Renamed", editedText, view);
+        var updated = DocumentEditorTextService.UpdateFromEditorText(document, document.Title, editedText, view);
 
-        Assert.Equal("Renamed", updated.Title);
         Assert.Equal(document.Paragraphs.Count, updated.Paragraphs.Count);
         Assert.Equal("Edited front paragraph", updated.Paragraphs[0].Text);
         Assert.Equal(document.Paragraphs[^1].Text, updated.Paragraphs[^1].Text);

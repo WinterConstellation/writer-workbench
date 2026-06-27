@@ -1,4 +1,4 @@
-﻿using WriterWorkbench.Core.WebWorkbench;
+using WriterWorkbench.Core.WebWorkbench;
 
 namespace WriterWorkbench.Tests;
 

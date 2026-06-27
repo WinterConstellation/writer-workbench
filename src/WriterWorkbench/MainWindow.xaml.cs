@@ -3264,12 +3264,13 @@ public partial class MainWindow : Window
             EditorBox.Text,
             _editorTextView);
 
-        _activeDocument = document;
         _editorTextView = _editorTextView with
         {
             Text = EditorBox.Text,
             ParagraphCount = DocumentEditorTextService.CountEditorParagraphs(EditorBox.Text)
         };
+
+        _activeDocument = document;
         return document;
     }
 

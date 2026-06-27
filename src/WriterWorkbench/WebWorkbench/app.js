@@ -1,4 +1,4 @@
-﻿const state = {
+const state = {
   payload: null,
   remoteIconOnly: false,
   railMode: "binder",
@@ -185,7 +185,7 @@ function renderBinder(items) {
   for (const item of items) {
     const id = readPayloadValue(item, "id", "Id", "");
     const title = readPayloadValue(item, "title", "Title", id);
-    const status = readPayloadValue(item, "status", "Status", "珥덇퀬");
+    const status = readPayloadValue(item, "status", "Status", "초고");
     const sceneType = readPayloadValue(item, "sceneType", "SceneType", "Scene");
     const length = readPayloadValue(item, "contentLength", "ContentLength", 0);
     const isActive = readPayloadValue(item, "isActive", "IsActive", false);
@@ -272,7 +272,7 @@ function renderActiveScene(active) {
 
   const id = readPayloadValue(active, "id", "Id", "");
   const title = readPayloadValue(active, "title", "Title", id);
-  const status = readPayloadValue(active, "status", "Status", "珥덇퀬");
+  const status = readPayloadValue(active, "status", "Status", "초고");
   const sceneType = readPayloadValue(active, "sceneType", "SceneType", "Scene");
   const summary = readPayloadValue(active, "summary", "Summary", "");
   const tags = readPayloadValue(active, "tags", "Tags", []);
@@ -299,7 +299,7 @@ function renderActiveScene(active) {
   $("active-type").textContent = sceneType;
   $("active-editor-metrics").textContent = formatEditorMetrics(visibleMetrics);
   $("active-summary").textContent = summary || " ";
-  $("status-active-scene").textContent = `${id} 쨌 ${title}`;
+  $("status-active-scene").textContent = `${id} · ${title}`;
 
   const tagRow = $("active-tags");
   tagRow.textContent = "";
@@ -414,11 +414,11 @@ function renderReferencePanel(project, active, trashItems) {
     const title = document.createElement("strong");
     title.textContent = item.title || item.documentId || item.trashId;
     const meta = document.createElement("span");
-    meta.textContent = `${item.documentId} 쨌 ${formatDate(item.deletedAt)}`;
+    meta.textContent = `${item.documentId} · ${formatDate(item.deletedAt)}`;
     const restore = document.createElement("button");
     restore.type = "button";
     restore.dataset.trashRestore = item.trashId;
-    restore.textContent = "蹂듭썝";
+    restore.textContent = "복원";
     row.append(title, meta, restore);
     trashList.appendChild(row);
   }
@@ -483,7 +483,7 @@ function renderStoryLists(model) {
     const title = document.createElement("strong");
     title.textContent = entity.name || entity.id;
     const meta = document.createElement("span");
-    meta.textContent = `${entity.role || entity.type} 쨌 ${entity.id}`;
+    meta.textContent = `${entity.role || entity.type} · ${entity.id}`;
     const actions = document.createElement("div");
     actions.className = "story-item-actions";
     actions.append(
@@ -503,7 +503,7 @@ function renderStoryLists(model) {
     const title = document.createElement("strong");
     title.textContent = relationship.label || "관계";
     const meta = document.createElement("span");
-    meta.textContent = `${source?.name || relationship.sourceEntityId} -> ${target?.name || relationship.targetEntityId}`;
+    meta.textContent = `${source?.name || relationship.sourceEntityId} → ${target?.name || relationship.targetEntityId}`;
     const actions = document.createElement("div");
     actions.className = "story-item-actions";
     actions.append(
@@ -648,7 +648,7 @@ function createRemoteSettingsRow(command, index) {
   const title = document.createElement("strong");
   title.textContent = command.label || command.commandId;
   const meta = document.createElement("span");
-  meta.textContent = `${command.category || "紐낅졊"} 쨌 ${command.commandId}`;
+  meta.textContent = `${command.category || "명령"} · ${command.commandId}`;
   body.append(title, meta);
 
   const actions = document.createElement("div");
@@ -669,7 +669,7 @@ function createRemoteSettingsCandidate(command) {
   const title = document.createElement("strong");
   title.textContent = command.label || command.commandId;
   const meta = document.createElement("span");
-  meta.textContent = `${command.category || "紐낅졊"} 쨌 ${command.commandId}`;
+  meta.textContent = `${command.category || "명령"} · ${command.commandId}`;
   body.append(title, meta);
   row.append(body, createRemoteSettingsButton("add", command.commandId, "추가", false));
   return row;
@@ -735,7 +735,7 @@ function renderShortcutSettings(shortcuts) {
     const title = document.createElement("strong");
     title.textContent = shortcut.commandName || shortcut.commandId;
     const meta = document.createElement("span");
-    meta.textContent = `${shortcut.category || "紐낅졊"} 쨌 ${shortcut.commandId}`;
+    meta.textContent = `${shortcut.category || "명령"} · ${shortcut.commandId}`;
     left.append(title, meta);
     const right = document.createElement("div");
     right.className = "shortcut-keys";
@@ -810,7 +810,7 @@ function saveShortcutBinding(button) {
   const input = document.querySelector(`.shortcut-editor[data-shortcut-command="${cssEscape(commandId)}"][data-shortcut-scope="${cssEscape(scope)}"]`);
   const gesture = input?.value?.trim() || "";
   if (!commandId || !gesture) {
-    $("status-text").textContent = "단축키를 입력하세요";
+    $("status-text").textContent = "단축키를 입력하세요.";
     return;
   }
 
@@ -1094,7 +1094,7 @@ function addStoryEntity() {
   const name = $("story-entity-name").value.trim();
   const role = $("story-entity-role").value.trim();
   if (!name) {
-    $("status-text").textContent = "관계도 캐릭터 이름을 입력하세요";
+    $("status-text").textContent = "관계도 캐릭터 이름을 입력하세요.";
     return;
   }
 
@@ -1113,7 +1113,7 @@ function addStoryRelationship() {
   const label = $("story-relationship-label").value.trim() || "관계";
   const notes = $("story-relationship-notes").value.trim();
   if (!sourceEntityId || !targetEntityId || sourceEntityId === targetEntityId) {
-    $("status-text").textContent = "서로 다른 캐릭터 두 명을 선택하세요";
+    $("status-text").textContent = "서로 다른 캐릭터 두 명을 선택하세요.";
     return;
   }
 
@@ -1313,13 +1313,13 @@ if (window.chrome && window.chrome.webview) {
       id: "scene-0001",
       title: "첫 장면",
       status: "초고",
-      summary: "현재 장면의 요약과 작업 정보가 표시됩니다.",
+      summary: "여기에 현재 장면의 요약과 작업 정보가 표시됩니다.",
       tags: ["주인공", "도입"],
       contentLength: 1200,
       contentLengthWithSpaces: 1360,
       sceneType: "Scene",
       updatedAt: new Date().toISOString(),
-      editorText: "여기에 원고를 씁니다.\n\n메인에서 현재 장면 본문을 바로 수정할 수 있습니다.",
+      editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."
     },
     binder: [
       { id: "scene-0001", title: "첫 장면", status: "초고", sceneType: "Scene", contentLength: 1200, isActive: true },
@@ -1355,6 +1355,6 @@ if (window.chrome && window.chrome.webview) {
     graphicPresetName: "기본",
     autosaveEnabled: true,
     activeView: "editor",
-    previewText: "여기에 원고를 씁니다.\n\n메인에서 현재 장면 본문을 바로 수정할 수 있습니다."
+    previewText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."
   });
 }
