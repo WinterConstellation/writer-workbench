@@ -57,6 +57,7 @@ function readPayloadValue(source, camel, pascal, fallback) {
 function render(payload) {
   state.isRendering = true;
   state.payload = payload;
+  normalizeCharacterCountLabels();
   const project = readPayloadValue(payload, "project", "Project", {});
   const active = readPayloadValue(payload, "activeScene", "ActiveScene", null);
   const binder = readPayloadValue(payload, "binder", "Binder", []);
@@ -183,7 +184,7 @@ function renderBinder(items) {
     row.querySelector(".state-pill").textContent = status;
     const meta = row.querySelectorAll(".scene-meta span");
     meta[0].textContent = id;
-    meta[1].textContent = `${sceneType} · ${formatNumber(length)}`;
+    meta[1].textContent = `${sceneType} · 공백 제외 ${formatNumber(length)}`;
     row.addEventListener("click", () => selectBinderDocument(id));
     row.addEventListener("dblclick", () => selectBinderDocument(id));
     row.addEventListener("contextmenu", (event) => showBinderContextMenu(event, id));
@@ -292,6 +293,18 @@ function renderActiveScene(active) {
     span.className = "tag";
     span.textContent = tag;
     tagRow.appendChild(span);
+  }
+}
+
+function normalizeCharacterCountLabels() {
+  const withoutSpaces = $("active-length")?.previousElementSibling;
+  const withSpaces = $("active-length-spaces")?.previousElementSibling;
+  if (withoutSpaces) {
+    withoutSpaces.textContent = "전체 공백 제외";
+  }
+
+  if (withSpaces) {
+    withSpaces.textContent = "전체 공백 포함";
   }
 }
 

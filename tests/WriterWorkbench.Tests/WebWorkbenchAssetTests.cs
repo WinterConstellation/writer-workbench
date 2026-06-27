@@ -62,6 +62,20 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
+    public async Task WebWorkbenchUsesExplicitCharacterCountLabels()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+
+        Assert.Contains("normalizeCharacterCountLabels", script);
+        Assert.Contains("전체 공백 제외", script);
+        Assert.Contains("전체 공백 포함", script);
+        Assert.Contains("공백 제외 ${formatNumber(length)}", script);
+    }
+
+    [Fact]
     public async Task WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;

@@ -94,6 +94,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        NormalizeInspectorCharacterCountLabels();
 
         var projectPaths = ProjectPaths.ForRoot(_projectRoot);
         _store = new ProjectStore(projectPaths);
@@ -147,6 +148,45 @@ public partial class MainWindow : Window
 
         _focusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _focusTimer.Tick += (_, _) => UpdateFocusCountdown();
+    }
+
+    private void NormalizeInspectorCharacterCountLabels()
+    {
+        SetInspectorGridLabel(4, "목표 글자");
+        SetInspectorGridLabel(5, "편집 구간");
+        SetInspectorGridLabel(6, "전체 공백 제외");
+        SetInspectorGridLabel(7, "전체 공백 포함");
+    }
+
+    private void SetInspectorGridLabel(int row, string text)
+    {
+        if (FindLogicalChildren<TextBlock>(InspectorPanel)
+            .FirstOrDefault(textBlock =>
+                Grid.GetRow(textBlock) == row &&
+                Grid.GetColumn(textBlock) == 0) is { } label)
+        {
+            label.Text = text;
+        }
+    }
+
+    private static IEnumerable<T> FindLogicalChildren<T>(DependencyObject parent)
+        where T : DependencyObject
+    {
+        foreach (var child in LogicalTreeHelper.GetChildren(parent))
+        {
+            if (child is T typed)
+            {
+                yield return typed;
+            }
+
+            if (child is DependencyObject dependencyObject)
+            {
+                foreach (var nested in FindLogicalChildren<T>(dependencyObject))
+                {
+                    yield return nested;
+                }
+            }
+        }
     }
 
     private async Task InitializeProjectAsync()
@@ -3323,9 +3363,10 @@ public partial class MainWindow : Window
     private void UpdateMetrics(WriterDocument document)
     {
         var metrics = DocumentMetricsService.Measure(document);
+        var editorMetrics = DocumentMetricsService.MeasurePlainText(EditorBox.Text);
         MetricsText.Text =
-            $"{document.Id} | 문단 {metrics.ParagraphCount:N0} | 글자 {metrics.CharacterCount:N0} | UTF-8 {metrics.PlainTextUtf8Bytes / 1024.0:N1} KB";
-        InspectorCurrentCountText.Text = metrics.CharacterCount.ToString("N0");
+            $"{document.Id} | 문단 {metrics.ParagraphCount:N0} | 전체 공백 포함 {metrics.CharacterCount:N0} | UTF-8 {metrics.PlainTextUtf8Bytes / 1024.0:N1} KB";
+        InspectorCurrentCountText.Text = editorMetrics.CharacterCount.ToString("N0");
     }
 
     private void BeginLongOperation(string operationName)

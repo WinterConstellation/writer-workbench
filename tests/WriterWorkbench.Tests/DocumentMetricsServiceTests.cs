@@ -21,4 +21,13 @@ public sealed class DocumentMetricsServiceTests
         Assert.Equal(10, metrics.CharacterCount);
         Assert.True(metrics.PlainTextUtf8Bytes >= 13);
     }
+
+    [Fact]
+    public void MeasuresPlainTextWithEditorParagraphRules()
+    {
+        var metrics = DocumentMetricsService.MeasurePlainText("  Alpha  \n\nA B\n\n\n");
+
+        Assert.Equal(2, metrics.ParagraphCount);
+        Assert.Equal(8, metrics.CharacterCount);
+    }
 }

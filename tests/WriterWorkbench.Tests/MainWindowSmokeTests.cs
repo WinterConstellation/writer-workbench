@@ -1506,6 +1506,40 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowUsesExplicitCharacterCountLabels()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var labels = FindLogicalChildren<TextBlock>(window)
+                    .Select(textBlock => textBlock.Text)
+                    .ToList();
+
+                Assert.Contains("편집 구간", labels);
+                Assert.Contains("전체 공백 제외", labels);
+                Assert.Contains("전체 공백 포함", labels);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void EditingTextDoesNotRefreshPreviewAutomatically()
     {
         Exception? failure = null;
