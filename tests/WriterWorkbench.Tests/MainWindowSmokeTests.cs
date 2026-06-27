@@ -1188,6 +1188,90 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlStoryCommandsUpdateAndDeleteRelationshipMapData()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
+
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityUpdateAsync", "entity-0001", "윤서 수정", "화자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "서로 돕는다");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipUpdateAsync", "rel-0001", "entity-0001", "entity-0002", "긴장", "믿지 못한다");
+                InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipDeleteAsync", "rel-0001");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityDeleteAsync", "entity-0002");
+
+                var entities = WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None));
+                var relationships = WaitForTaskOnDispatcher(store.LoadRelationshipsAsync(CancellationToken.None));
+
+                Assert.Equal("윤서 수정", Assert.Single(entities).Name);
+                Assert.Equal("화자", Assert.Single(entities).Role);
+                Assert.Empty(relationships);
+                Assert.Contains("관계도 캐릭터 삭제됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlShortcutCommandPersistsBinding()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+
+                InvokePrivateAsync(window, "ApplyHtmlShortcutUpdateAsync", AppCommandIds.HelpOpen, "Workbench", "Ctrl+Alt+H");
+
+                var shortcuts = GetPrivateField<ShortcutManager>(window, "_shortcutManager");
+                Assert.Equal(AppCommandIds.HelpOpen, shortcuts.FindCommand("Ctrl+Alt+H", CommandScope.Workbench));
+                Assert.True(File.Exists(ProjectPaths.ForRoot(root).ShortcutsPath));
+                Assert.Contains("단축키 저장됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
     public void MainWindowContainsSceneInspectorSurface()
     {
         Exception? failure = null;

@@ -14,6 +14,9 @@ const state = {
   remoteDraftCommandIds: [],
   availableCommands: [],
   shortcutBindings: [],
+  storyModel: { entities: [], relationships: [] },
+  editingEntityId: "",
+  editingRelationshipId: "",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -67,6 +70,7 @@ function render(payload) {
   const activeView = readPayloadValue(payload, "activeView", "ActiveView", "editor");
   const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
   const story = readPayloadValue(payload, "story", "Story", null);
+  const trash = readPayloadValue(payload, "trash", "Trash", []) || [];
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   state.remoteDraftCommandIds = remoteCommands.map(normalizeCommand).map((command) => command.commandId);
@@ -86,7 +90,7 @@ function render(payload) {
   renderInspector(active);
   renderPipeline(binder);
   renderSettingsPanel(menuCommands);
-  renderReferencePanel(project, active);
+  renderReferencePanel(project, active, trash);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
   renderShortcutSettings(state.shortcutBindings);
@@ -284,6 +288,19 @@ function renderSettingsPanel(menuCommands) {
   const commands = (menuCommands || [])
     .map(normalizeCommand)
     .filter((command) => command.area === "top.story" || command.area === "top.tools");
+  const quickCommands = [
+    findAvailableCommand("story.relationshipMap.open", "관계도", "구조"),
+    findAvailableCommand("shortcuts.openSettings", "단축키", "작업공간"),
+    findAvailableCommand("remote.openSettings", "리모컨 편집", "작업공간"),
+    findAvailableCommand("help.open", "도움말", "도움말"),
+  ];
+  const seen = new Set(commands.map((command) => command.commandId.toLowerCase()));
+  for (const command of quickCommands) {
+    if (command.commandId && !seen.has(command.commandId.toLowerCase())) {
+      commands.push(command);
+      seen.add(command.commandId.toLowerCase());
+    }
+  }
   list.textContent = "";
   $("settings-count").textContent = formatNumber(commands.length);
 
@@ -297,13 +314,36 @@ function renderSettingsPanel(menuCommands) {
   }
 }
 
-function renderReferencePanel(project, active) {
+function findAvailableCommand(commandId, label, category) {
+  return state.availableCommands.find((command) => command.commandId === commandId) || {
+    commandId,
+    label,
+    category,
+    surface: "catalog",
+    area: "catalog",
+    slotKey: commandId,
+    order: 0,
+  };
+}
+
+function normalizeTrashItem(item) {
+  return {
+    trashId: readPayloadValue(item, "trashId", "TrashId", ""),
+    documentId: readPayloadValue(item, "documentId", "DocumentId", ""),
+    title: readPayloadValue(item, "title", "Title", ""),
+    deletedAt: readPayloadValue(item, "deletedAt", "DeletedAt", ""),
+  };
+}
+
+function renderReferencePanel(project, active, trashItems) {
   const list = $("reference-list");
   list.textContent = "";
+  const trash = (trashItems || []).map(normalizeTrashItem);
   const references = [
     ["프로젝트", readPayloadValue(project, "rootPath", "RootPath", "")],
     ["현재 장면", active ? `${readPayloadValue(active, "id", "Id", "")} · ${readPayloadValue(active, "title", "Title", "")}` : "-"],
     ["요약", active ? readPayloadValue(active, "summary", "Summary", "-") || "-" : "-"],
+    ["휴지통", `${formatNumber(trash.length)}개`],
   ];
   $("reference-count").textContent = formatNumber(references.length);
 
@@ -316,6 +356,31 @@ function renderReferencePanel(project, active) {
     span.textContent = value;
     item.append(strong, span);
     list.appendChild(item);
+  }
+
+  const trashList = $("trash-list");
+  trashList.textContent = "";
+  if (trash.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "reference-item";
+    empty.innerHTML = "<strong>휴지통</strong><span>삭제 대기 장면 없음</span>";
+    trashList.appendChild(empty);
+    return;
+  }
+
+  for (const item of trash) {
+    const row = document.createElement("article");
+    row.className = "reference-item trash-item";
+    const title = document.createElement("strong");
+    title.textContent = item.title || item.documentId || item.trashId;
+    const meta = document.createElement("span");
+    meta.textContent = `${item.documentId} · ${formatDate(item.deletedAt)}`;
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.dataset.trashRestore = item.trashId;
+    restore.textContent = "복원";
+    row.append(title, meta, restore);
+    trashList.appendChild(row);
   }
 }
 
@@ -351,10 +416,18 @@ function normalizeStory(story) {
 
 function renderRelationshipMap(story) {
   const model = normalizeStory(story);
+  state.storyModel = model;
+  if (state.editingEntityId && !model.entities.some((entity) => entity.id === state.editingEntityId)) {
+    state.editingEntityId = "";
+  }
+  if (state.editingRelationshipId && !model.relationships.some((relationship) => relationship.id === state.editingRelationshipId)) {
+    state.editingRelationshipId = "";
+  }
   $("relationship-counts").textContent = `${formatNumber(model.entities.length)}명 / 관계 ${formatNumber(model.relationships.length)}개`;
   renderStoryLists(model);
   renderStorySelectors(model.entities);
   renderStoryCanvas(model);
+  syncStoryEditForms(model);
 }
 
 function renderStoryLists(model) {
@@ -366,11 +439,17 @@ function renderStoryLists(model) {
   for (const entity of model.entities) {
     const item = document.createElement("article");
     item.className = "story-list-item";
+    item.classList.toggle("editing", entity.id === state.editingEntityId);
     const title = document.createElement("strong");
     title.textContent = entity.name || entity.id;
     const meta = document.createElement("span");
     meta.textContent = `${entity.role || entity.type} · ${entity.id}`;
-    item.append(title, meta);
+    const actions = document.createElement("div");
+    actions.className = "story-item-actions";
+    actions.append(
+      createStoryActionButton("entityEdit", entity.id, "수정"),
+      createStoryActionButton("entityDelete", entity.id, "삭제"));
+    item.append(title, meta, actions);
     entityList.appendChild(item);
   }
 
@@ -380,13 +459,28 @@ function renderStoryLists(model) {
     const target = entityById.get(relationship.targetEntityId);
     const item = document.createElement("article");
     item.className = "story-list-item";
+    item.classList.toggle("editing", relationship.id === state.editingRelationshipId);
     const title = document.createElement("strong");
     title.textContent = relationship.label || "관계";
     const meta = document.createElement("span");
     meta.textContent = `${source?.name || relationship.sourceEntityId} → ${target?.name || relationship.targetEntityId}`;
-    item.append(title, meta);
+    const actions = document.createElement("div");
+    actions.className = "story-item-actions";
+    actions.append(
+      createStoryActionButton("relationshipEdit", relationship.id, "수정"),
+      createStoryActionButton("relationshipDelete", relationship.id, "삭제"));
+    item.append(title, meta, actions);
     relationshipList.appendChild(item);
   }
+}
+
+function createStoryActionButton(action, id, label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.storyAction = action;
+  button.dataset.storyId = id;
+  button.textContent = label;
+  return button;
 }
 
 function renderStorySelectors(entities) {
@@ -604,11 +698,21 @@ function renderShortcutSettings(shortcuts) {
     left.append(title, meta);
     const right = document.createElement("div");
     right.className = "shortcut-keys";
-    const gesture = document.createElement("strong");
-    gesture.textContent = shortcut.gesture || "-";
+    const gesture = document.createElement("input");
+    gesture.type = "text";
+    gesture.className = "shortcut-editor";
+    gesture.value = shortcut.gesture || "";
+    gesture.dataset.shortcutCommand = shortcut.commandId;
+    gesture.dataset.shortcutScope = shortcut.scope || "Workbench";
+    gesture.setAttribute("aria-label", `${shortcut.commandName || shortcut.commandId} 단축키`);
     const scope = document.createElement("span");
     scope.textContent = shortcut.scope || "Workbench";
-    right.append(gesture, scope);
+    const save = document.createElement("button");
+    save.type = "button";
+    save.dataset.shortcutSave = shortcut.commandId;
+    save.dataset.shortcutScope = shortcut.scope || "Workbench";
+    save.textContent = "저장";
+    right.append(gesture, scope, save);
     row.append(left, right);
     list.appendChild(row);
   }
@@ -622,6 +726,68 @@ function filterShortcutSettings() {
   document.querySelectorAll(".shortcut-row").forEach((row) => {
     row.hidden = query.length > 0 && !row.dataset.searchText.includes(query);
   });
+}
+
+function captureShortcutGesture(event) {
+  const input = event.target.closest(".shortcut-editor");
+  if (!input) return;
+
+  const key = event.key;
+  if (["Control", "Shift", "Alt", "Meta"].includes(key)) {
+    event.preventDefault();
+    return;
+  }
+
+  const parts = [];
+  if (event.ctrlKey) parts.push("Ctrl");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+  const normalizedKey = normalizeShortcutKey(key);
+  if (!normalizedKey) return;
+  parts.push(normalizedKey);
+  input.value = parts.join("+");
+  event.preventDefault();
+}
+
+function normalizeShortcutKey(key) {
+  if (!key) return "";
+  if (key.length === 1) return key.toUpperCase();
+  const aliases = new Map([
+    ["Escape", "Esc"],
+    [" ", "Space"],
+    ["ArrowUp", "Up"],
+    ["ArrowDown", "Down"],
+    ["ArrowLeft", "Left"],
+    ["ArrowRight", "Right"],
+  ]);
+  return aliases.get(key) || key;
+}
+
+function saveShortcutBinding(button) {
+  const commandId = button.dataset.shortcutSave;
+  const scope = button.dataset.shortcutScope || "Workbench";
+  const input = document.querySelector(`.shortcut-editor[data-shortcut-command="${cssEscape(commandId)}"][data-shortcut-scope="${cssEscape(scope)}"]`);
+  const gesture = input?.value?.trim() || "";
+  if (!commandId || !gesture) {
+    $("status-text").textContent = "단축키를 입력하세요.";
+    return;
+  }
+
+  postWebMessage({
+    type: "shortcut.update",
+    commandId,
+    scope,
+    gesture,
+  });
+  $("status-text").textContent = `${gesture} 저장 요청`;
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(value || "");
+  }
+
+  return String(value || "").replace(/["\\]/g, "\\$&");
 }
 
 function renderInspector(active) {
@@ -734,15 +900,47 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const storyAction = event.target.closest("[data-story-action]");
+  if (storyAction) {
+    handleStoryAction(storyAction);
+    return;
+  }
+
   const addEntity = event.target.closest("#story-add-entity");
   if (addEntity) {
     addStoryEntity();
     return;
   }
 
+  const cancelEntityEdit = event.target.closest("#story-cancel-entity-edit");
+  if (cancelEntityEdit) {
+    clearStoryEntityForm();
+    return;
+  }
+
   const addRelationship = event.target.closest("#story-add-relationship");
   if (addRelationship) {
     addStoryRelationship();
+    return;
+  }
+
+  const cancelRelationshipEdit = event.target.closest("#story-cancel-relationship-edit");
+  if (cancelRelationshipEdit) {
+    clearStoryRelationshipForm();
+    return;
+  }
+
+  const trashRestore = event.target.closest("[data-trash-restore]");
+  if (trashRestore) {
+    if (window.confirm("삭제 대기 장면을 바인더로 복원할까요?")) {
+      postWebMessage({ type: "trash.restore", trashId: trashRestore.dataset.trashRestore });
+    }
+    return;
+  }
+
+  const shortcutSave = event.target.closest("[data-shortcut-save]");
+  if (shortcutSave) {
+    saveShortcutBinding(shortcutSave);
     return;
   }
 
@@ -755,6 +953,7 @@ document.addEventListener("click", (event) => {
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
+document.addEventListener("keydown", captureShortcutGesture);
 
 $("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);
 document.addEventListener("pointermove", moveRemoteDrag);
@@ -832,28 +1031,128 @@ function addStoryEntity() {
     return;
   }
 
-  postWebMessage({ type: "story.entity.add", name, role });
-  $("story-entity-name").value = "";
-  $("story-entity-role").value = "";
+  if (state.editingEntityId) {
+    postWebMessage({ type: "story.entity.update", entityId: state.editingEntityId, name, role });
+  } else {
+    postWebMessage({ type: "story.entity.add", name, role });
+  }
+
+  clearStoryEntityForm();
 }
 
 function addStoryRelationship() {
   const sourceEntityId = $("story-relationship-source").value;
   const targetEntityId = $("story-relationship-target").value;
   const label = $("story-relationship-label").value.trim() || "관계";
+  const notes = $("story-relationship-notes").value.trim();
   if (!sourceEntityId || !targetEntityId || sourceEntityId === targetEntityId) {
     $("status-text").textContent = "서로 다른 캐릭터 두 명을 선택하세요.";
     return;
   }
 
-  postWebMessage({
-    type: "story.relationship.add",
-    sourceEntityId,
-    targetEntityId,
-    label,
-    notes: "",
-  });
+  if (state.editingRelationshipId) {
+    postWebMessage({
+      type: "story.relationship.update",
+      relationshipId: state.editingRelationshipId,
+      sourceEntityId,
+      targetEntityId,
+      label,
+      notes,
+    });
+  } else {
+    postWebMessage({
+      type: "story.relationship.add",
+      sourceEntityId,
+      targetEntityId,
+      label,
+      notes,
+    });
+  }
+
+  clearStoryRelationshipForm();
+}
+
+function syncStoryEditForms(model) {
+  const entity = model.entities.find((item) => item.id === state.editingEntityId);
+  const entityButton = $("story-add-entity");
+  const entityCancel = $("story-cancel-entity-edit");
+  if (entity) {
+    $("story-entity-name").value = entity.name || "";
+    $("story-entity-role").value = entity.role || "";
+    entityButton.textContent = "저장";
+    entityCancel.hidden = false;
+  } else {
+    entityButton.textContent = "추가";
+    entityCancel.hidden = true;
+  }
+
+  const relationship = model.relationships.find((item) => item.id === state.editingRelationshipId);
+  const relationshipButton = $("story-add-relationship");
+  const relationshipCancel = $("story-cancel-relationship-edit");
+  if (relationship) {
+    $("story-relationship-source").value = relationship.sourceEntityId;
+    $("story-relationship-target").value = relationship.targetEntityId;
+    $("story-relationship-label").value = relationship.label || "";
+    $("story-relationship-notes").value = relationship.notes || "";
+    relationshipButton.textContent = "저장";
+    relationshipCancel.hidden = false;
+  } else {
+    relationshipButton.textContent = "연결";
+    relationshipCancel.hidden = true;
+  }
+}
+
+function clearStoryEntityForm() {
+  state.editingEntityId = "";
+  $("story-entity-name").value = "";
+  $("story-entity-role").value = "";
+  $("story-add-entity").textContent = "추가";
+  $("story-cancel-entity-edit").hidden = true;
+}
+
+function clearStoryRelationshipForm() {
+  state.editingRelationshipId = "";
   $("story-relationship-label").value = "";
+  $("story-relationship-notes").value = "";
+  $("story-add-relationship").textContent = "연결";
+  $("story-cancel-relationship-edit").hidden = true;
+}
+
+function handleStoryAction(button) {
+  const action = button.dataset.storyAction;
+  const id = button.dataset.storyId;
+  if (!action || !id) return;
+
+  if (action === "entityEdit") {
+    const entity = state.storyModel.entities.find((item) => item.id === id);
+    if (!entity) return;
+    state.editingEntityId = id;
+    $("story-entity-name").value = entity.name || "";
+    $("story-entity-role").value = entity.role || "";
+    syncStoryEditForms(state.storyModel);
+    return;
+  }
+
+  if (action === "entityDelete") {
+    const entity = state.storyModel.entities.find((item) => item.id === id);
+    if (!window.confirm(`${entity?.name || id} 삭제? 연결된 관계도 같이 삭제됩니다.`)) return;
+    postWebMessage({ type: "story.entity.delete", entityId: id });
+    return;
+  }
+
+  if (action === "relationshipEdit") {
+    const relationship = state.storyModel.relationships.find((item) => item.id === id);
+    if (!relationship) return;
+    state.editingRelationshipId = id;
+    syncStoryEditForms(state.storyModel);
+    return;
+  }
+
+  if (action === "relationshipDelete") {
+    const relationship = state.storyModel.relationships.find((item) => item.id === id);
+    if (!window.confirm(`${relationship?.label || id} 관계 삭제?`)) return;
+    postWebMessage({ type: "story.relationship.delete", relationshipId: id });
+  }
 }
 
 function startRemoteDrag(event) {

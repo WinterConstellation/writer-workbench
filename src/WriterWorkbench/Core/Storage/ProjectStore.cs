@@ -6,6 +6,16 @@ using WriterWorkbench.Core.Documents;
 
 namespace WriterWorkbench.Core.Storage;
 
+public sealed record TrashedDocumentInfo(
+    string TrashId,
+    string State,
+    DateTimeOffset DeletedAt,
+    string Id,
+    string Title,
+    string JsonPath,
+    string TextPath,
+    DateTimeOffset UpdatedAt);
+
 public sealed class ProjectStore(ProjectPaths paths)
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -164,6 +174,91 @@ public sealed class ProjectStore(ProjectPaths paths)
         await indexStore.DeleteDocumentAsync(documentId, token);
 
         return updatedManifest;
+    }
+
+    public async Task<IReadOnlyList<TrashedDocumentInfo>> ListTrashedDocumentsAsync(CancellationToken token)
+    {
+        if (!Directory.Exists(paths.TrashPath))
+        {
+            return [];
+        }
+
+        var items = new List<TrashedDocumentInfo>();
+        foreach (var folder in Directory.EnumerateDirectories(paths.TrashPath))
+        {
+            var infoPath = Path.Combine(folder, "trash.info.json");
+            if (!File.Exists(infoPath))
+            {
+                continue;
+            }
+
+            try
+            {
+                var info = await ReadDeletedDocumentInfoAsync(infoPath, token);
+                if (info is null)
+                {
+                    continue;
+                }
+
+                items.Add(new TrashedDocumentInfo(
+                    Path.GetFileName(folder),
+                    info.State,
+                    info.DeletedAt,
+                    info.Id,
+                    info.Title,
+                    info.JsonPath,
+                    info.TextPath,
+                    info.UpdatedAt));
+            }
+            catch (JsonException)
+            {
+                continue;
+            }
+            catch (IOException)
+            {
+                continue;
+            }
+        }
+
+        return items
+            .OrderByDescending(item => item.DeletedAt)
+            .ThenBy(item => item.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public async Task<WriterDocument> RestoreTrashedDocumentAsync(string trashId, CancellationToken token)
+    {
+        var trashFolder = ResolveTrashFolder(trashId);
+        var infoPath = Path.Combine(trashFolder, "trash.info.json");
+        var info = await ReadDeletedDocumentInfoAsync(infoPath, token)
+                   ?? throw new InvalidDataException($"Trash info is empty: {trashId}");
+        var manifest = await LoadManifestOrDefaultAsync(token);
+        if (FindDocumentIndex(manifest, info.Id) >= 0)
+        {
+            throw new InvalidOperationException($"Document already exists in binder: {info.Id}");
+        }
+
+        var documentJsonPath = Path.Combine(trashFolder, $"{info.Id}.wwdoc.json");
+        if (!File.Exists(documentJsonPath))
+        {
+            throw new FileNotFoundException($"Trashed document body is missing: {info.Id}", documentJsonPath);
+        }
+
+        WriterDocument document;
+        await using (var stream = File.OpenRead(documentJsonPath))
+        {
+            document = StarterDocumentRepairService.RepairIfEmpty(
+                await JsonSerializer.DeserializeAsync<WriterDocument>(stream, JsonOptions, token)
+                ?? throw new InvalidDataException($"Trashed document body is empty: {info.Id}"));
+        }
+
+        Directory.CreateDirectory(paths.DocumentsPath);
+        var metadataPath = Path.Combine(trashFolder, $"{info.Id}.meta.json");
+        CopyFileIfExists(metadataPath, paths.SceneMetadataPath(info.Id));
+
+        await SaveDocumentAsync(document, token);
+        Directory.Delete(trashFolder, recursive: true);
+        return document;
     }
 
     private async Task StageDocumentForDeletionAsync(
@@ -344,6 +439,30 @@ public sealed class ProjectStore(ProjectPaths paths)
         {
             File.Copy(sourcePath, targetPath, overwrite: true);
         }
+    }
+
+    private string ResolveTrashFolder(string trashId)
+    {
+        var normalizedTrashId = Path.GetFileName((trashId ?? "").Trim());
+        if (string.IsNullOrWhiteSpace(normalizedTrashId))
+        {
+            throw new ArgumentException("Trash id cannot be empty.", nameof(trashId));
+        }
+
+        var root = Path.GetFullPath(paths.TrashPath);
+        var folder = Path.GetFullPath(Path.Combine(paths.TrashPath, normalizedTrashId));
+        if (!folder.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !Directory.Exists(folder))
+        {
+            throw new KeyNotFoundException($"Trash item not found: {trashId}");
+        }
+
+        return folder;
+    }
+
+    private static async Task<DeletedDocumentInfo?> ReadDeletedDocumentInfoAsync(string infoPath, CancellationToken token)
+    {
+        await using var stream = File.OpenRead(infoPath);
+        return await JsonSerializer.DeserializeAsync<DeletedDocumentInfo>(stream, JsonOptions, token);
     }
 
     private async Task UpdateMetadataForDocumentAsync(WriterDocument document, DateTimeOffset updatedAt, CancellationToken token)

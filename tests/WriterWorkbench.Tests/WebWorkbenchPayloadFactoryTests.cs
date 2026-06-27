@@ -263,4 +263,39 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal(80, payload.Story.Entities[0].X);
         Assert.Equal(160, payload.Story.Entities[1].Y);
     }
+
+    [Fact]
+    public void PayloadCarriesTrashItemsForHtmlReferencePanel()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-trash", "휴지통", registry);
+        var now = DateTimeOffset.Parse("2026-06-27T01:00:00+09:00");
+        var manifest = new ProjectManifest(
+            1,
+            "휴지통 테스트",
+            [
+                new ProjectDocumentInfo("scene-0001", "첫 장면", "scene-0001.wwdoc.json", "scene-0001.txt", now)
+            ]);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "대기",
+            "기본",
+            autosaveEnabled: true,
+            trash:
+            [
+                new WebWorkbenchTrashItem("scene-0002-20260627010000000", "scene-0002", "삭제된 장면", now)
+            ]);
+
+        Assert.NotNull(payload.Trash);
+        var item = Assert.Single(payload.Trash!);
+        Assert.Equal("scene-0002-20260627010000000", item.TrashId);
+        Assert.Equal("삭제된 장면", item.Title);
+    }
 }

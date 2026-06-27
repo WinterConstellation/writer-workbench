@@ -254,9 +254,12 @@ h1 {
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-#rail-panel-settings,
-#rail-panel-reference {
+#rail-panel-settings {
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+#rail-panel-reference {
+  grid-template-rows: auto minmax(0, 0.8fr) minmax(0, 1fr);
 }
 
 .binder-action-bar {
@@ -483,6 +486,24 @@ h2 {
   font-size: 11px;
 }
 
+.story-list-item.editing {
+  border-color: var(--blue);
+  background: #edf4ff;
+}
+
+.story-item-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.story-item-actions button {
+  flex: 1 1 0;
+  min-height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
 .relationship-map-wrap {
   overflow: hidden;
 }
@@ -679,9 +700,26 @@ h2 {
 }
 
 .shortcut-keys {
-  flex: 0 0 auto;
-  min-width: 120px;
+  flex: 0 0 210px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 4px;
   text-align: right;
+}
+
+.shortcut-editor {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 8px;
+  font: inherit;
+}
+
+.shortcut-keys span {
+  grid-column: 1 / -1;
 }
 
 .title-editor {
@@ -840,6 +878,17 @@ h2 {
   display: block;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.trash-list {
+  border-top: 1px solid var(--line);
+}
+
+.trash-item button {
+  width: 100%;
+  min-height: 26px;
+  margin-top: 8px;
+  font-size: 11px;
 }
 
 .pipeline-list > div {

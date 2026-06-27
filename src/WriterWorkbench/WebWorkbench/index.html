@@ -61,6 +61,7 @@
             <span id="reference-count">0</span>
           </div>
           <div id="reference-list" class="reference-list"></div>
+          <div id="trash-list" class="reference-list trash-list"></div>
         </div>
       </aside>
 
@@ -118,6 +119,7 @@
                   <input id="story-entity-name" type="text" placeholder="이름">
                   <input id="story-entity-role" type="text" placeholder="역할">
                   <button id="story-add-entity" type="button">추가</button>
+                  <button id="story-cancel-entity-edit" type="button" hidden>취소</button>
                 </div>
                 <div id="story-entity-list" class="story-list"></div>
               </section>
@@ -133,7 +135,9 @@
                   <select id="story-relationship-source" aria-label="시작 캐릭터"></select>
                   <select id="story-relationship-target" aria-label="도착 캐릭터"></select>
                   <input id="story-relationship-label" type="text" placeholder="관계명">
+                  <input id="story-relationship-notes" type="text" placeholder="메모">
                   <button id="story-add-relationship" type="button">연결</button>
+                  <button id="story-cancel-relationship-edit" type="button" hidden>취소</button>
                 </div>
                 <div id="story-relationship-list" class="story-list"></div>
               </section>

@@ -2366,12 +2366,59 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "story.entity.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryEntityUpdateAsync(
+                    ReadJsonString(root, "entityId"),
+                    ReadJsonString(root, "name"),
+                    ReadJsonString(root, "role"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.entity.delete", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryEntityDeleteAsync(ReadJsonString(root, "entityId"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.relationship.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryRelationshipUpdateAsync(
+                    ReadJsonString(root, "relationshipId"),
+                    ReadJsonString(root, "sourceEntityId"),
+                    ReadJsonString(root, "targetEntityId"),
+                    ReadJsonString(root, "label"),
+                    ReadJsonString(root, "notes"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.relationship.delete", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlStoryRelationshipDeleteAsync(ReadJsonString(root, "relationshipId"));
+                return;
+            }
+
             if (string.Equals(messageType, "story.layout.update", StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyHtmlStoryLayoutUpdateAsync(
                     ReadJsonString(root, "entityId"),
                     ReadJsonDouble(root, "x"),
                     ReadJsonDouble(root, "y"));
+                return;
+            }
+
+            if (string.Equals(messageType, "trash.restore", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlTrashRestoreAsync(ReadJsonString(root, "trashId"));
+                return;
+            }
+
+            if (string.Equals(messageType, "shortcut.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlShortcutUpdateAsync(
+                    ReadJsonString(root, "commandId"),
+                    ReadJsonString(root, "scope"),
+                    ReadJsonString(root, "gesture"));
                 return;
             }
 
@@ -2526,6 +2573,127 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ApplyHtmlStoryEntityUpdateAsync(string entityId, string name, string role)
+    {
+        if (string.IsNullOrWhiteSpace(entityId) || string.IsNullOrWhiteSpace(name))
+        {
+            StatusText.Text = "관계도 캐릭터 수정 실패 - 대상과 이름을 확인하세요.";
+            return;
+        }
+
+        try
+        {
+            var entities = await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None);
+            var existing = entities.FirstOrDefault(entity =>
+                string.Equals(entity.Id, entityId.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                throw new KeyNotFoundException($"Story entity not found: {entityId}");
+            }
+
+            var updated = await _storyStructureStore.UpdateEntityAsync(
+                existing with
+                {
+                    Name = name.Trim(),
+                    Role = role.Trim()
+                },
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 캐릭터 수정됨 {updated.Id} - {updated.Name}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계도 캐릭터 수정 실패 {entityId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryEntityDeleteAsync(string entityId)
+    {
+        if (string.IsNullOrWhiteSpace(entityId))
+        {
+            StatusText.Text = "관계도 캐릭터 삭제 실패 - 대상이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.DeleteEntityAsync(entityId.Trim(), CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 캐릭터 삭제됨 {entityId.Trim()}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계도 캐릭터 삭제 실패 {entityId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryRelationshipUpdateAsync(
+        string relationshipId,
+        string sourceEntityId,
+        string targetEntityId,
+        string label,
+        string notes)
+    {
+        if (string.IsNullOrWhiteSpace(relationshipId) ||
+            string.IsNullOrWhiteSpace(sourceEntityId) ||
+            string.IsNullOrWhiteSpace(targetEntityId))
+        {
+            StatusText.Text = "관계도 관계 수정 실패 - 관계와 캐릭터를 확인하세요.";
+            return;
+        }
+
+        try
+        {
+            var relationships = await _storyStructureStore.LoadRelationshipsAsync(CancellationToken.None);
+            var existing = relationships.FirstOrDefault(relationship =>
+                string.Equals(relationship.Id, relationshipId.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                throw new KeyNotFoundException($"Story relationship not found: {relationshipId}");
+            }
+
+            var updated = await _storyStructureStore.UpdateRelationshipAsync(
+                existing with
+                {
+                    SourceEntityId = sourceEntityId.Trim(),
+                    TargetEntityId = targetEntityId.Trim(),
+                    Label = string.IsNullOrWhiteSpace(label) ? "관계" : label.Trim(),
+                    Notes = notes.Trim()
+                },
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 관계 수정됨 {updated.Id} - {updated.Label}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            StatusText.Text = $"관계도 관계 수정 실패 {relationshipId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryRelationshipDeleteAsync(string relationshipId)
+    {
+        if (string.IsNullOrWhiteSpace(relationshipId))
+        {
+            StatusText.Text = "관계도 관계 삭제 실패 - 대상이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.DeleteRelationshipAsync(relationshipId.Trim(), CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 관계 삭제됨 {relationshipId.Trim()}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"관계도 관계 삭제 실패 {relationshipId} - {ex.Message}";
+        }
+    }
+
     private async Task ApplyHtmlStoryLayoutUpdateAsync(string entityId, double x, double y)
     {
         if (string.IsNullOrWhiteSpace(entityId))
@@ -2600,6 +2768,63 @@ public partial class MainWindow : Window
         await PushHtmlWorkbenchStateAsync();
     }
 
+    private async Task ApplyHtmlTrashRestoreAsync(string trashId)
+    {
+        if (string.IsNullOrWhiteSpace(trashId))
+        {
+            StatusText.Text = "휴지통 복원 실패 - 대상이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            var restored = await _store.RestoreTrashedDocumentAsync(trashId.Trim(), CancellationToken.None);
+            var manifest = await _store.LoadManifestAsync(CancellationToken.None);
+            await RefreshBinderAsync(manifest);
+            await SelectDocumentAsync(restored.Id);
+            StatusText.Text = $"휴지통 복원됨 {restored.Id} - {restored.Title}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            StatusText.Text = $"휴지통 복원 실패 {trashId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlShortcutUpdateAsync(string commandId, string scope, string gesture)
+    {
+        commandId = AppCommandIds.NormalizeLegacyId(commandId);
+        if (string.IsNullOrWhiteSpace(commandId) || string.IsNullOrWhiteSpace(gesture))
+        {
+            StatusText.Text = "단축키 저장 실패 - 명령과 단축키를 확인하세요.";
+            return;
+        }
+
+        if (!Enum.TryParse<CommandScope>(scope, ignoreCase: true, out var parsedScope))
+        {
+            parsedScope = CommandScope.Workbench;
+        }
+
+        try
+        {
+            var command = _commandRegistry.Get(commandId);
+            var binding = new ShortcutBinding(command.Id, gesture.Trim(), parsedScope);
+            if (!_shortcutManager.TryBind(binding, out var conflictCommandId))
+            {
+                StatusText.Text = $"단축키 충돌 {binding.Gesture} - {conflictCommandId}";
+                return;
+            }
+
+            await _shortcuts.SaveAsync(_shortcutManager, CancellationToken.None);
+            StatusText.Text = $"단축키 저장됨 {command.Name} - {ShortcutManager.NormalizeGesture(gesture)}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"단축키 저장 실패 {commandId} - {ex.Message}";
+        }
+    }
+
     private async Task PushHtmlWorkbenchStateAsync()
     {
         if (!_htmlWorkbenchInitialized || HtmlWorkbenchBrowser.CoreWebView2 is null)
@@ -2616,6 +2841,7 @@ public partial class MainWindow : Window
             "메인",
             _commandRegistry);
         var story = await CreateHtmlStoryPayloadAsync();
+        var trash = await CreateHtmlTrashPayloadAsync();
         var payload = WebWorkbenchPayloadFactory.Create(
             manifest,
             _projectRoot,
@@ -2631,7 +2857,8 @@ public partial class MainWindow : Window
             _htmlActiveView,
             CreateHtmlPreviewText(),
             _shortcutManager.Bindings,
-            story);
+            story,
+            trash);
         var message = JsonSerializer.Serialize(new
         {
             type = "state",
@@ -2681,6 +2908,26 @@ public partial class MainWindow : Window
         {
             StatusText.Text = $"관계도 상태 생성 실패 - {ex.Message}";
             return new WebWorkbenchStory([], []);
+        }
+    }
+
+    private async Task<IReadOnlyList<WebWorkbenchTrashItem>> CreateHtmlTrashPayloadAsync()
+    {
+        try
+        {
+            var trash = await _store.ListTrashedDocumentsAsync(CancellationToken.None);
+            return trash
+                .Select(item => new WebWorkbenchTrashItem(
+                    item.TrashId,
+                    item.Id,
+                    item.Title,
+                    item.DeletedAt))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"휴지통 상태 생성 실패 - {ex.Message}";
+            return [];
         }
     }
 

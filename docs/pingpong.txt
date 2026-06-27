@@ -1745,6 +1745,67 @@ Remaining problems:
 Separate data artifact 여부:
 - 별도 데이터 산출물 없음. Tests create only temporary JSON profile data.
 
+## 2026-06-27 KST feature implementation update: HTML workbench relationship/trash/shortcut restoration pass
+
+Feature(s) implemented:
+- HTML relationship map now supports entity update/delete and relationship update/delete, not just add/drag.
+- Relationship edit state reuses the existing left/right forms and marks the edited list item.
+- HTML relationship delete actions ask for browser confirmation before posting to the local bridge.
+- Deleted scenes can be listed from project `trash/` and restored back into the binder from the HTML reference panel.
+- ProjectStore now exposes trash list/restore APIs and restores document JSON/TXT, metadata, manifest entry, and search index.
+- HTML shortcut rows now have editable key fields and a save button; keydown capture formats common Ctrl/Alt/Shift gestures.
+- Settings rail now exposes practical shortcuts to relationship map, shortcut settings, remote editor, and help.
+- Reference rail now shows project/current-scene references plus trash restore entries.
+- Published local test executable to `dist/WriterWorkbench-html-workbench/WriterWorkbench.exe`.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/ProjectStore.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Trash restore recreates document files, metadata, manifest entry, and search index.
+- HTML payload carries trash items for the reference panel.
+- HTML asset tests cover relationship edit/delete messages, trash restore, and shortcut update/capture wiring.
+- MainWindow smoke tests cover HTML story update/delete bridge methods.
+- MainWindow smoke test covers HTML shortcut update persistence.
+
+Commands run:
+- `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8'))"` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~ProjectStoreTests|FullyQualifiedName~WebWorkbenchAssetTests|FullyQualifiedName~WebWorkbenchPayloadFactoryTests|FullyQualifiedName~MainWindowSmokeTests"` -> failed once on trash restore file lock, then passed 58 tests after stream disposal fix.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 197 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~Large|FullyQualifiedName~EditorInputPerformancePolicy|FullyQualifiedName~EditorLargeTextSmoke"` -> 19 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `node -e "new Function(require('fs').readFileSync('src/WriterWorkbench/WebWorkbench/app.js','utf8'))"` -> passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors after nullable test assertion cleanup.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 197 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript input/render/save behavior was kept as a guardrail only.
+- This pass did not add export, trash restore, relationship save, or shortcut save work into the editor input loop.
+- Large/editor guardrail filter passed 19 tests.
+
+Remaining problems:
+- HTML relationship map is still functional MVP styling, not final visual design.
+- Trash restore currently appends restored scenes to the binder instead of restoring the original binder position.
+- Shortcut editing supports typed/captured gestures, but no explicit "clear shortcut" UI yet.
+- Settings book and reference surfaces are still shallow work surfaces; they now respond, but they are not a full settings/reference system.
+- No live visual/browser screenshot pass was run in this heartbeat.
+
+Separate data artifact 여부:
+- 별도 샘플/fixture 프로젝트 데이터 산출물 없음.
+- Local executable artifact generated at `dist/WriterWorkbench-html-workbench/WriterWorkbench.exe`.
+
 ## 2026-06-27 KST feature repair update: HTML metrics, trash delete, relationship map MVP, reference usage
 
 Feature(s) implemented:

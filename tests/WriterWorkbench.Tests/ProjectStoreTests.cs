@@ -347,6 +347,44 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
+    public async Task RestoreTrashedDocumentRecreatesFilesManifestMetadataAndSearchIndex()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var first = await store.CreateDocumentAsync("First", CancellationToken.None);
+        var second = new WriterDocument(
+            "scene-0002",
+            "Second",
+            [new WriterParagraph("p-0001", "복원할 한글 본문 needle", "body", [], [])]);
+        await store.SaveDocumentAsync(second, CancellationToken.None);
+        await new SceneMetadataStore(paths).SaveAsync(
+            new SceneMetadata(1, second.Id, "휴지통 복원 메타", SceneStatus.Revising, ["복원"], 900, DateTimeOffset.UtcNow),
+            CancellationToken.None);
+        await store.DeleteDocumentAsync(second.Id, CancellationToken.None);
+
+        var trashItem = Assert.Single(await store.ListTrashedDocumentsAsync(CancellationToken.None));
+        var restored = await store.RestoreTrashedDocumentAsync(trashItem.TrashId, CancellationToken.None);
+        var manifest = await store.LoadManifestAsync(CancellationToken.None);
+        var loaded = await store.LoadDocumentAsync(second.Id, CancellationToken.None);
+        var metadata = await new SceneMetadataStore(paths).LoadAsync(second.Id, CancellationToken.None);
+        var results = await store.SearchAsync("needle", CancellationToken.None);
+
+        Assert.Equal(second.Id, restored.Id);
+        Assert.Equal([first.Id, second.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal("복원할 한글 본문 needle", loaded.Paragraphs[0].Text);
+        Assert.Equal("휴지통 복원 메타", metadata.Synopsis);
+        Assert.Equal(SceneStatus.Revising, metadata.Status);
+        Assert.Equal(["복원"], metadata.Tags);
+        Assert.True(File.Exists(paths.DocumentJsonPath(second.Id)));
+        Assert.True(File.Exists(paths.DocumentTextPath(second.Id)));
+        Assert.True(File.Exists(paths.SceneMetadataPath(second.Id)));
+        Assert.Empty(await store.ListTrashedDocumentsAsync(CancellationToken.None));
+        Assert.Single(results);
+        Assert.Equal(second.Id, results[0].DocumentId);
+    }
+
+    [Fact]
     public async Task DeleteDocumentKeepsAtLeastOneScene()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));

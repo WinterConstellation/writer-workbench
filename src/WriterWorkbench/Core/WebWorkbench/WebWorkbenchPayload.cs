@@ -14,7 +14,8 @@ public sealed record WebWorkbenchPayload(
     bool AutosaveEnabled,
     string ActiveView = "editor",
     string PreviewText = "",
-    WebWorkbenchStory? Story = null);
+    WebWorkbenchStory? Story = null,
+    IReadOnlyList<WebWorkbenchTrashItem>? Trash = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -74,3 +75,9 @@ public sealed record WebWorkbenchStoryRelationship(
     string Label,
     string Notes,
     bool IsDirectional);
+
+public sealed record WebWorkbenchTrashItem(
+    string TrashId,
+    string DocumentId,
+    string Title,
+    DateTimeOffset DeletedAt);

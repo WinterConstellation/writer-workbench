@@ -23,7 +23,8 @@ public static class WebWorkbenchPayloadFactory
         string activeView = "editor",
         string previewText = "",
         IReadOnlyList<ShortcutBinding>? shortcutBindings = null,
-        WebWorkbenchStory? story = null)
+        WebWorkbenchStory? story = null,
+        IReadOnlyList<WebWorkbenchTrashItem>? trash = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -93,7 +94,8 @@ public static class WebWorkbenchPayloadFactory
             autosaveEnabled,
             NormalizeActiveView(activeView),
             previewText ?? "",
-            story);
+            story,
+            trash ?? []);
     }
 
     private static string NormalizeActiveView(string? activeView)

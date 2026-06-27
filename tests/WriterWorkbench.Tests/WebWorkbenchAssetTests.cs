@@ -41,10 +41,14 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("story-relationship-source", html);
         Assert.Contains("story-relationship-target", html);
         Assert.Contains("story-relationship-label", html);
+        Assert.Contains("story-relationship-notes", html);
         Assert.Contains("story-add-relationship", html);
+        Assert.Contains("story-cancel-entity-edit", html);
+        Assert.Contains("story-cancel-relationship-edit", html);
         Assert.Contains("relationship-map-canvas", html);
         Assert.Contains("story-entity-list", html);
         Assert.Contains("story-relationship-list", html);
+        Assert.Contains("trash-list", html);
         Assert.Contains("html-view-shortcuts", html);
         Assert.Contains("html-view-remote-settings", html);
         Assert.Contains("html-view-help", html);
@@ -84,8 +88,15 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("1000", script);
         Assert.Contains("renderRelationshipMap", script);
         Assert.Contains("story.entity.add", script);
+        Assert.Contains("story.entity.update", script);
+        Assert.Contains("story.entity.delete", script);
         Assert.Contains("story.relationship.add", script);
+        Assert.Contains("story.relationship.update", script);
+        Assert.Contains("story.relationship.delete", script);
         Assert.Contains("story.layout.update", script);
+        Assert.Contains("trash.restore", script);
+        Assert.Contains("shortcut.update", script);
+        Assert.Contains("captureShortcutGesture", script);
     }
 
     [Fact]
