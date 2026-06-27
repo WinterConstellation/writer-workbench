@@ -2895,6 +2895,52 @@ Remaining problems:
 - Presets do not yet persist every remote-control layer visual setting in the same bundle.
 - Detached HTML views still depend on WebView2 availability at runtime.
 
+## 2026-06-27 KST bugfix update: HTML workbench character count no longer jumps between full scene and editor segment
+
+Root cause:
+- HTML workbench rendered full-scene metadata counts from the backend.
+- After local typing, `updateActiveEditorMetrics` overwrote the same count fields using only the textarea text.
+- Large scenes are edited through a bounded segment, so the local textarea count could be far smaller than the full scene count.
+
+Feature(s) implemented:
+- HTML workbench now stores the backend full-scene counts plus the original visible editor-segment counts.
+- Local typing updates use a full-scene delta: full count - original visible segment + current visible segment.
+- Small non-segment scenes still update directly from the editor text.
+- JS local counting now mirrors the backend paragraph parser by splitting blank-line paragraphs, trimming, and counting paragraph text only.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added regression coverage that local metric updates keep full-scene delta logic for segment mode and no longer write raw textarea length into full-scene count fields.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateUsesFullSceneDeltaForSegmentMode` -> failed before implementation, then 1 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 5 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 206 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 5 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 206 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript editor behavior was indirectly touched through HTML local metric display.
+- Guardrail tests `Large|Performance|Stress` passed: 19 tests.
+
+Remaining problems:
+- The WPF inspector still has separate labels for current / whitespace-excluded / whitespace-included counts; wording may need cleanup so the user always knows which basis is shown.
+- HTML local metric updates are still approximate until save when paragraph boundaries are changed heavily inside a segment, but they no longer collapse to the visible segment total.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary preset JSON data.
 

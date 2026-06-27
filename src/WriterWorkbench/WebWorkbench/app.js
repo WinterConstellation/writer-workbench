@@ -17,6 +17,7 @@ const state = {
   storyModel: { entities: [], relationships: [] },
   editingEntityId: "",
   editingRelationshipId: "",
+  activeSceneMetrics: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -237,6 +238,7 @@ function renderActiveScene(active) {
     $("active-status").textContent = "-";
     $("active-length").textContent = "0";
     $("active-length-spaces").textContent = "0";
+    state.activeSceneMetrics = null;
     $("active-type").textContent = "Scene";
     $("active-segment-status").textContent = "";
     $("active-summary").textContent = "";
@@ -254,6 +256,16 @@ function renderActiveScene(active) {
   const editorText = readPayloadValue(active, "editorText", "EditorText", "");
   const isSegmentMode = readPayloadValue(active, "isSegmentMode", "IsSegmentMode", false);
   const visibleParagraphCount = readPayloadValue(active, "visibleParagraphCount", "VisibleParagraphCount", 0);
+  const contentLength = readPayloadValue(active, "contentLength", "ContentLength", 0);
+  const contentLengthWithSpaces = readPayloadValue(active, "contentLengthWithSpaces", "ContentLengthWithSpaces", 0);
+  const visibleMetrics = measureEditorText(editorText);
+  state.activeSceneMetrics = {
+    contentLength,
+    contentLengthWithSpaces,
+    visibleContentLength: visibleMetrics.contentLength,
+    visibleContentLengthWithSpaces: visibleMetrics.contentLengthWithSpaces,
+    isSegmentMode,
+  };
 
   $("active-title").textContent = title;
   if (document.activeElement !== $("active-title-editor")) {
@@ -264,8 +276,8 @@ function renderActiveScene(active) {
   }
   $("active-body-editor").disabled = false;
   $("active-status").textContent = status;
-  $("active-length").textContent = formatNumber(readPayloadValue(active, "contentLength", "ContentLength", 0));
-  $("active-length-spaces").textContent = formatNumber(readPayloadValue(active, "contentLengthWithSpaces", "ContentLengthWithSpaces", 0));
+  $("active-length").textContent = formatNumber(contentLength);
+  $("active-length-spaces").textContent = formatNumber(contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
   $("active-segment-status").textContent = isSegmentMode
     ? `대형 장면 편집 구간 · ${formatNumber(visibleParagraphCount)}문단`
@@ -1017,10 +1029,39 @@ function scheduleLocalMetricUpdate() {
   state.metricUpdateTimer = window.setTimeout(updateActiveEditorMetrics, 1000);
 }
 
+function measureEditorText(editorText) {
+  const paragraphs = (editorText || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n\n")
+    .map((part) => part.trim())
+    .filter((part) => part);
+  let contentLength = 0;
+  let contentLengthWithSpaces = 0;
+
+  for (const paragraph of paragraphs) {
+    contentLengthWithSpaces += paragraph.length;
+    for (let index = 0; index < paragraph.length; index += 1) {
+      if (!/\s/.test(paragraph[index])) {
+        contentLength += 1;
+      }
+    }
+  }
+
+  return { contentLength, contentLengthWithSpaces };
+}
+
 function updateActiveEditorMetrics() {
-  const text = $("active-body-editor").value || "";
-  $("active-length").textContent = formatNumber(text.replace(/\s/g, "").length);
-  $("active-length-spaces").textContent = formatNumber(text.length);
+  const current = measureEditorText($("active-body-editor").value || "");
+  const metrics = state.activeSceneMetrics;
+  const contentLength = metrics?.isSegmentMode
+    ? Math.max(0, metrics.contentLength - metrics.visibleContentLength + current.contentLength)
+    : current.contentLength;
+  const contentLengthWithSpaces = metrics?.isSegmentMode
+    ? Math.max(0, metrics.contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces)
+    : current.contentLengthWithSpaces;
+
+  $("active-length").textContent = formatNumber(contentLength);
+  $("active-length-spaces").textContent = formatNumber(contentLengthWithSpaces);
 }
 
 function addStoryEntity() {

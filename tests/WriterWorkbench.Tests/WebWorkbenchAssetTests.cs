@@ -100,6 +100,22 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
+    public async Task WebWorkbenchLocalMetricUpdateUsesFullSceneDeltaForSegmentMode()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+
+        Assert.Contains("activeSceneMetrics", script);
+        Assert.Contains("function measureEditorText", script);
+        Assert.Contains("contentLength - metrics.visibleContentLength + current.contentLength", script);
+        Assert.Contains("contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces", script);
+        Assert.DoesNotContain("text.replace(/\\s/g, \"\").length", script);
+        Assert.DoesNotContain("text.length", script);
+    }
+
+    [Fact]
     public async Task WebWorkbenchCssKeepsInWindowRemoteSecondary()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
