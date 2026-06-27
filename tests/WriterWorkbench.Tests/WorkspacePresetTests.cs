@@ -21,6 +21,30 @@ public sealed class WorkspacePresetTests
     }
 
     [Fact]
+    public void StoresDetachedWorkbenchWindowPlacements()
+    {
+        var preset = new WorkspacePreset(
+            Slot: 2,
+            Name: "Multi desk",
+            Region: MonitorRegion.Full,
+            AutoApplyOnStartup: false,
+            Placement: new WindowPlacement(10, 20, 1200, 800, "Normal"),
+            DetachedWindows:
+            [
+                new WorkspaceDetachedWindowPlacement(
+                    "preview",
+                    new WindowPlacement(1920, 0, 960, 1040, "Normal")),
+                new WorkspaceDetachedWindowPlacement(
+                    "relationship-map",
+                    new WindowPlacement(2880, 0, 960, 1040, "Maximized"))
+            ]);
+
+        Assert.Equal(2, preset.DetachedWindows?.Count);
+        Assert.Equal("preview", preset.DetachedWindows?[0].SurfaceId);
+        Assert.Equal(2880, preset.DetachedWindows?[1].Placement.Left);
+    }
+
+    [Fact]
     public async Task PersistsPresetToDisk()
     {
         var path = Path.Combine(Path.GetTempPath(), "WriterWorkbenchPresetTests", Guid.NewGuid().ToString("N"), "workspace.presets.json");
@@ -42,6 +66,74 @@ public sealed class WorkspacePresetTests
         Assert.Equal("Main desk", loaded.Name);
         Assert.Equal(1400, loaded.Placement?.Width);
         Assert.Equal("Maximized", loaded.Placement?.WindowState);
+    }
+
+    [Fact]
+    public async Task PersistsDetachedWorkbenchWindowsToDisk()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "WriterWorkbenchPresetTests", Guid.NewGuid().ToString("N"), "workspace.presets.json");
+        var service = new WorkspacePresetService(path);
+        var preset = new WorkspacePreset(
+            1,
+            "Three monitor desk",
+            MonitorRegion.Full,
+            false,
+            new WindowPlacement(0, 0, 1600, 900, "Normal"),
+            [
+                new WorkspaceDetachedWindowPlacement(
+                    "preview",
+                    new WindowPlacement(1600, 0, 960, 900, "Normal")),
+                new WorkspaceDetachedWindowPlacement(
+                    "relationship-map",
+                    new WindowPlacement(2560, 0, 960, 900, "Normal"))
+            ]);
+
+        await service.SaveAsync(preset, CancellationToken.None);
+
+        var loadedService = new WorkspacePresetService(path);
+        await loadedService.LoadAsync(CancellationToken.None);
+        var loaded = loadedService.Get(1);
+
+        Assert.NotNull(loaded);
+        Assert.Equal(2, loaded.DetachedWindows?.Count);
+        Assert.Equal("preview", loaded.DetachedWindows?[0].SurfaceId);
+        Assert.Equal(1600, loaded.DetachedWindows?[0].Placement.Left);
+        Assert.Equal("relationship-map", loaded.DetachedWindows?[1].SurfaceId);
+    }
+
+    [Fact]
+    public async Task LoadsLegacyPresetWithoutDetachedWindowsAsEmptyList()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "WriterWorkbenchPresetTests", Guid.NewGuid().ToString("N"), "workspace.presets.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(
+            path,
+            """
+            [
+              {
+                "Slot": 1,
+                "Name": "Legacy",
+                "Region": 0,
+                "AutoApplyOnStartup": false,
+                "Placement": {
+                  "Left": 10,
+                  "Top": 20,
+                  "Width": 1200,
+                  "Height": 800,
+                  "WindowState": "Normal"
+                }
+              }
+            ]
+            """);
+
+        var service = new WorkspacePresetService(path);
+        await service.LoadAsync(CancellationToken.None);
+
+        var loaded = service.Get(1);
+
+        Assert.NotNull(loaded);
+        Assert.NotNull(loaded.DetachedWindows);
+        Assert.Empty(loaded.DetachedWindows);
     }
 
     [Fact]

@@ -1110,6 +1110,111 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowCapturesDetachedWorkbenchWindowsInPreset()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var registry = GetPrivateField<WorkbenchSurfaceClaimRegistry>(window, "_surfaceClaims");
+                var detachedWindows = GetPrivateField<List<WorkbenchDetachedWindow>>(window, "_detachedWorkbenchWindows");
+                var detached = new WorkbenchDetachedWindow(registry, "detached-preset-capture-test")
+                {
+                    Left = 1700,
+                    Top = 40,
+                    Width = 620,
+                    Height = 720
+                };
+                Assert.True(detached.TrySelectSurface(AppSessionState.PreviewSurface));
+                detachedWindows.Add(detached);
+
+                var preset = InvokePrivate<WorkspacePreset>(window, "CapturePreset", 1);
+
+                var detachedPreset = Assert.Single(preset.DetachedWindows ?? []);
+                Assert.Equal(AppSessionState.PreviewSurface, detachedPreset.SurfaceId);
+                Assert.Equal(1700, detachedPreset.Placement.Left);
+                Assert.Equal(620, detachedPreset.Placement.Width);
+
+                detached.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
+    public void MainWindowAppliesDetachedWorkbenchWindowsFromPreset()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var preset = new WorkspacePreset(
+                    1,
+                    "Detached desk",
+                    MonitorRegion.Full,
+                    false,
+                    new WindowPlacement(10, 20, 1200, 800, "Normal"),
+                    [
+                        new WorkspaceDetachedWindowPlacement(
+                            AppSessionState.PreviewSurface,
+                            new WindowPlacement(1800, 30, 640, 720, "Normal")),
+                        new WorkspaceDetachedWindowPlacement(
+                            AppSessionState.RelationshipMapSurface,
+                            new WindowPlacement(2460, 30, 640, 720, "Normal"))
+                    ]);
+
+                InvokePrivate(window, "ApplyPreset", preset);
+
+                var detachedWindows = GetPrivateField<List<WorkbenchDetachedWindow>>(window, "_detachedWorkbenchWindows");
+                Assert.Equal(2, detachedWindows.Count);
+                Assert.Equal(AppSessionState.PreviewSurface, detachedWindows[0].AssignedSurfaceId);
+                Assert.Equal(1800, detachedWindows[0].Left);
+                Assert.Equal(640, detachedWindows[0].Width);
+                Assert.Equal(AppSessionState.RelationshipMapSurface, detachedWindows[1].AssignedSurfaceId);
+
+                foreach (var detached in detachedWindows.ToList())
+                {
+                    detached.Close();
+                }
+
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
     public void MainWindowContainsStoryStructureSurface()
     {
         Exception? failure = null;
@@ -1545,6 +1650,13 @@ public sealed class MainWindowSmokeTests
         var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
         method.Invoke(window, args);
+    }
+
+    private static T InvokePrivate<T>(MainWindow window, string methodName, params object[] args)
+    {
+        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        return Assert.IsType<T>(method.Invoke(window, args));
     }
 
     private static void InvokePrivateAsync(MainWindow window, string methodName, params object[] args)

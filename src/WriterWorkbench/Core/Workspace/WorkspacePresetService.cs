@@ -21,7 +21,7 @@ public sealed class WorkspacePresetService(string? filePath = null)
             throw new ArgumentOutOfRangeException(nameof(preset), "MVP supports preset slots 1, 2, and 3.");
         }
 
-        _presets[preset.Slot] = preset;
+        _presets[preset.Slot] = Normalize(preset);
     }
 
     public async Task SaveAsync(WorkspacePreset preset, CancellationToken token)
@@ -93,5 +93,12 @@ public sealed class WorkspacePresetService(string? filePath = null)
             JsonSerializer.Serialize(_presets.Values.OrderBy(preset => preset.Slot), JsonOptions),
             token);
         File.Move(tempPath, filePath, overwrite: true);
+    }
+
+    private static WorkspacePreset Normalize(WorkspacePreset preset)
+    {
+        return preset.DetachedWindows is null
+            ? preset with { DetachedWindows = [] }
+            : preset;
     }
 }

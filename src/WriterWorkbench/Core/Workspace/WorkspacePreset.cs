@@ -5,5 +5,6 @@ public sealed record WorkspacePreset(
     string Name,
     MonitorRegion Region,
     bool AutoApplyOnStartup,
-    WindowPlacement? Placement = null
+    WindowPlacement? Placement = null,
+    IReadOnlyList<WorkspaceDetachedWindowPlacement>? DetachedWindows = null
 );

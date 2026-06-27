@@ -1908,16 +1908,25 @@ public partial class MainWindow : Window
 
     private Task DetachWorkbenchAsync()
     {
+        var window = CreateDetachedWorkbenchWindow($"detached-{Guid.NewGuid():N}");
+        window.WindowStartupLocation = WindowStartupLocation.Manual;
+        window.Left = Left + 48;
+        window.Top = Top + 48;
+        window.Show();
+        window.Activate();
+        StatusText.Text = "분리 작업대 열림 - 화면을 선택하세요";
+        return Task.CompletedTask;
+    }
+
+    private WorkbenchDetachedWindow CreateDetachedWorkbenchWindow(string ownerId)
+    {
         var window = new WorkbenchDetachedWindow(
             _surfaceClaims,
-            $"detached-{Guid.NewGuid():N}",
+            ownerId,
             _storyStructureStore,
             CreateHtmlWorkbenchPayloadAsync,
             ProcessHtmlWorkbenchMessageAsync)
         {
-            WindowStartupLocation = WindowStartupLocation.Manual,
-            Left = Left + 48,
-            Top = Top + 48,
             Topmost = true,
             ShowActivated = true
         };
@@ -1929,10 +1938,7 @@ public partial class MainWindow : Window
             _detachedWorkbenchWindows.Remove(window);
             RefreshDetachedSurfaceAvailability();
         };
-        window.Show();
-        window.Activate();
-        StatusText.Text = "분리 작업대 열림 - 화면을 선택하세요";
-        return Task.CompletedTask;
+        return window;
     }
 
     private async Task DetachCurrentDocumentAsync()
@@ -3701,13 +3707,17 @@ public partial class MainWindow : Window
             $"프리셋 {slot}",
             MonitorRegion.Full,
             existing?.AutoApplyOnStartup ?? false,
-            new WindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState.ToString()));
+            new WindowPlacement(bounds.Left, bounds.Top, bounds.Width, bounds.Height, WindowState.ToString()),
+            CaptureDetachedWindowPlacements());
     }
 
     private void ApplyPreset(WorkspacePreset preset)
     {
         if (preset.Placement is null)
         {
+            ApplyDetachedWindowPlacements(preset.DetachedWindows);
+            _lastAppliedPresetSlot = preset.Slot;
+            RememberSessionState(_sessionState.Surface);
             return;
         }
 
@@ -3722,8 +3732,111 @@ public partial class MainWindow : Window
             WindowState = state;
         }
 
+        ApplyDetachedWindowPlacements(preset.DetachedWindows);
         _lastAppliedPresetSlot = preset.Slot;
         RememberSessionState(_sessionState.Surface);
+    }
+
+    private IReadOnlyList<WorkspaceDetachedWindowPlacement> CaptureDetachedWindowPlacements()
+    {
+        return _detachedWorkbenchWindows
+            .Where(window => !string.IsNullOrWhiteSpace(window.AssignedSurfaceId))
+            .GroupBy(window => window.AssignedSurfaceId!, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                var window = group.First();
+                return new WorkspaceDetachedWindowPlacement(
+                    window.AssignedSurfaceId!,
+                    CaptureWindowPlacement(window));
+            })
+            .ToList();
+    }
+
+    private void ApplyDetachedWindowPlacements(IReadOnlyList<WorkspaceDetachedWindowPlacement>? placements)
+    {
+        foreach (var window in _detachedWorkbenchWindows.ToList())
+        {
+            window.Close();
+        }
+
+        var seenSurfaces = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var placement in placements ?? [])
+        {
+            if (!IsKnownWorkbenchSurface(placement.SurfaceId) ||
+                !seenSurfaces.Add(placement.SurfaceId))
+            {
+                continue;
+            }
+
+            var window = CreateDetachedWorkbenchWindow($"detached-preset-{Guid.NewGuid():N}");
+            ApplyWindowPlacement(window, placement.Placement, 360, 320);
+            if (!window.TrySelectSurface(placement.SurfaceId))
+            {
+                window.Close();
+                continue;
+            }
+
+            if (IsVisible || IsLoaded)
+            {
+                window.Show();
+                window.Activate();
+            }
+        }
+
+        RefreshDetachedSurfaceAvailability();
+    }
+
+    private static bool IsKnownWorkbenchSurface(string surfaceId)
+    {
+        return WorkbenchSurfaceCatalog.All.Any(option =>
+            string.Equals(option.SurfaceId, surfaceId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static WindowPlacement CaptureWindowPlacement(Window window)
+    {
+        var bounds = window.WindowState == WindowState.Normal
+            ? new Rect(
+                window.Left,
+                window.Top,
+                ResolveWindowLength(window.ActualWidth, window.Width, 360),
+                ResolveWindowLength(window.ActualHeight, window.Height, 320))
+            : window.RestoreBounds;
+
+        return new WindowPlacement(
+            bounds.Left,
+            bounds.Top,
+            bounds.Width,
+            bounds.Height,
+            window.WindowState.ToString());
+    }
+
+    private static void ApplyWindowPlacement(Window window, WindowPlacement placement, double minWidth, double minHeight)
+    {
+        window.WindowState = WindowState.Normal;
+        window.Left = placement.Left;
+        window.Top = placement.Top;
+        window.Width = Math.Max(minWidth, placement.Width);
+        window.Height = Math.Max(minHeight, placement.Height);
+
+        if (Enum.TryParse<WindowState>(placement.WindowState, out var state))
+        {
+            window.WindowState = state;
+        }
+    }
+
+    private static double ResolveWindowLength(double actual, double configured, double fallback)
+    {
+        if (!double.IsNaN(actual) && actual > 0)
+        {
+            return actual;
+        }
+
+        if (!double.IsNaN(configured) && configured > 0)
+        {
+            return configured;
+        }
+
+        return fallback;
     }
 
     private void UpdateStartupPresetButton()
