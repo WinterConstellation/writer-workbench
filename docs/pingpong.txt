@@ -3222,6 +3222,12 @@ Commands run:
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
 - `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline` -> 1 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 11 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowHtmlEditorPayloadLoadsFirstDocumentWhenActiveDocumentIsMissing` -> 1 passed.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowHtmlEditorPayloadLoadsFirstDocumentWhenActiveDocumentIsMissing|MainWindowEditorCommandStaysInsideHtmlMainSurface|MainWindowMainCommandOpensHtmlMainSurface|WebWorkbenchPayloadFactoryTests"` -> 11 passed.
 - Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
@@ -3234,6 +3240,51 @@ Large manuscript regression check, if touched:
 
 Remaining problems:
 - This fixes an empty manuscript view caused by missing active document state. It does not yet address hidden-paragraph full-document recount before save.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST bugfix update: Live full-count estimate for large manuscript editor
+
+Bug fixed:
+- 대형 장면 편집 중 저장 전 전체 글자수 표시가 저장된 metadata 또는 편집 구간 값만 보여 사용자 눈에는 전체 원고 글자수가 불안정하게 보일 수 있었다.
+- 원고 화면의 1초 로컬 metric 갱신이 숨은 본문 기준값을 갖고 있지 않아, 저장 전에는 전체 원고 기준의 현재 추정치를 표시할 수 없었다.
+
+Feature(s) implemented:
+- HTML payload 렌더 시 전체 글자수와 최초 보이는 편집 구간 글자수를 함께 저장한다.
+- 입력 중 1초 로컬 metric 갱신에서 `숨은 본문 글자수 = 기존 전체 - 최초 편집 구간`으로 잡고, 여기에 현재 편집 구간 글자수를 더해 전체 글자수를 갱신한다.
+- `active-editor-metrics`는 계속 편집 구간 값을 보여주고, `active-length` / `active-length-spaces`는 전체 원고 추정값을 보여준다.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- `WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline` -> failed before implementation because `visibleContentLength` was missing, then 1 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 11 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline` -> 1 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 11 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 218 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript storage/merge path was not changed.
+- HTML large-scene display metric path was touched.
+- Guardrail tests `Large|Performance|Stress` passed: 22 tests.
+
+Remaining problems:
+- This is a display-side live estimate before save. Save still remains the authoritative full-document metadata recalculation path.
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.

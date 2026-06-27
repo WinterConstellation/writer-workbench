@@ -289,6 +289,8 @@ function renderActiveScene(active) {
   state.activeSceneMetrics = {
     contentLength,
     contentLengthWithSpaces,
+    visibleContentLength: visibleMetrics.contentLength,
+    visibleContentLengthWithSpaces: visibleMetrics.contentLengthWithSpaces,
     isSegmentMode,
   };
 
@@ -1107,9 +1109,26 @@ function formatEditorMetrics(metrics, isSegmentMode) {
   return `${label} · 공백 제외 ${formatNumber(metrics.contentLength)} · 공백 포함 ${formatNumber(metrics.contentLengthWithSpaces)}`;
 }
 
+function estimateFullSceneMetrics(current) {
+  const metrics = state.activeSceneMetrics;
+  if (!metrics || !metrics.isSegmentMode) {
+    return current;
+  }
+
+  const hiddenContentLength = Math.max(0, metrics.contentLength - metrics.visibleContentLength);
+  const hiddenContentLengthWithSpaces = Math.max(0, metrics.contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces);
+  return {
+    contentLength: hiddenContentLength + current.contentLength,
+    contentLengthWithSpaces: hiddenContentLengthWithSpaces + current.contentLengthWithSpaces,
+  };
+}
+
 function updateActiveEditorMetrics() {
   const current = measureEditorText($("active-body-editor").value || "");
+  const estimated = estimateFullSceneMetrics(current);
   $("active-editor-metrics").textContent = formatEditorMetrics(current, state.activeSceneMetrics?.isSegmentMode);
+  $("active-length").textContent = formatNumber(estimated.contentLength);
+  $("active-length-spaces").textContent = formatNumber(estimated.contentLengthWithSpaces);
 }
 
 function addStoryEntity() {

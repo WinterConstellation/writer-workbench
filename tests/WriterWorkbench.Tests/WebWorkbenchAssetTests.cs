@@ -196,7 +196,7 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable()
+    public async Task WebWorkbenchLocalMetricUpdateEstimatesFullSceneCountsFromHiddenBaseline()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
@@ -209,14 +209,16 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("function measureEditorText", script);
         Assert.Contains("updateActiveEditorMetrics", script);
         Assert.Contains("active-editor-metrics", script);
+        Assert.Contains("visibleContentLength", script);
+        Assert.Contains("visibleContentLengthWithSpaces", script);
+        Assert.Contains("estimateFullSceneMetrics", script);
         var updateFunctionStart = script.IndexOf("function updateActiveEditorMetrics()", StringComparison.Ordinal);
         var nextFunctionStart = script.IndexOf("\nfunction addStoryEntity", updateFunctionStart, StringComparison.Ordinal);
         var updateFunction = script[updateFunctionStart..nextFunctionStart];
 
-        Assert.DoesNotContain("active-length", updateFunction);
-        Assert.DoesNotContain("active-length-spaces", updateFunction);
-        Assert.DoesNotContain("contentLength - metrics.visibleContentLength + current.contentLength", updateFunction);
-        Assert.DoesNotContain("contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces", updateFunction);
+        Assert.Contains("const estimated = estimateFullSceneMetrics(current);", updateFunction);
+        Assert.Contains("$(\"active-length\").textContent = formatNumber(estimated.contentLength);", updateFunction);
+        Assert.Contains("$(\"active-length-spaces\").textContent = formatNumber(estimated.contentLengthWithSpaces);", updateFunction);
         Assert.DoesNotContain("text.replace(/\\s/g, \"\").length", script);
         Assert.DoesNotContain("text.length", script);
     }
