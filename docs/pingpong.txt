@@ -2970,6 +2970,12 @@ Commands run:
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
 - `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
 - Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable` -> 1 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 6 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 209 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
 - Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentMetricsServiceTests|MainWindowUsesExplicitCharacterCountLabels|WebWorkbenchUsesExplicitCharacterCountLabels"` -> 4 passed.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 6 passed.
@@ -2984,6 +2990,48 @@ Large manuscript regression check, if touched:
 Remaining problems:
 - Static XAML/HTML still contain some legacy mojibake labels; runtime normalization fixes the count labels, but broader UI text cleanup remains.
 - HTML local metric updates remain approximate until save when paragraph boundaries change heavily inside a segment.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-27 KST bugfix update: Stable HTML character count display
+
+Bug fixed:
+- HTML workbench full-scene character counts could alternate between saved full metadata and tiny visible-editor counts.
+- Root cause: `updateActiveEditorMetrics()` wrote local textarea metrics back into the same `active-length` / `active-length-spaces` elements used for full-scene metadata.
+- Large scenes only load an editable segment into the textarea, so this made full counts appear as values such as 7/9 after the 1 second local update.
+
+Feature(s) implemented:
+- Full scene counts now remain metadata-backed and stable in `전체 공백 제외` / `전체 공백 포함`.
+- Local 1 second metric refresh now writes only to a separate `active-editor-metrics` line.
+- Large scene editor shows segment-local counts as `편집 구간 · 공백 제외 ... · 공백 포함 ...`.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- `WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable` confirms local metric refresh does not write to full-scene count elements.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable` -> failed before implementation, then 1 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 6 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 209 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+
+Large manuscript regression check, if touched:
+- Large document input/storage path was not changed.
+- Large scene display path was touched to keep full metadata counts stable while showing segment-local counts separately.
+- Guardrail tests `Large|Performance|Stress` passed: 19 tests.
+
+Remaining problems:
+- This fixes the count-display conflict. It does not yet add full-document live recount before save for hidden large-scene paragraphs.
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.

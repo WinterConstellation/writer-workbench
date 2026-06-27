@@ -242,6 +242,7 @@ function renderActiveScene(active) {
     state.activeSceneMetrics = null;
     $("active-type").textContent = "Scene";
     $("active-segment-status").textContent = "";
+    $("active-editor-metrics").textContent = "";
     $("active-summary").textContent = "";
     $("active-tags").textContent = "";
     $("status-active-scene").textContent = "-";
@@ -263,8 +264,6 @@ function renderActiveScene(active) {
   state.activeSceneMetrics = {
     contentLength,
     contentLengthWithSpaces,
-    visibleContentLength: visibleMetrics.contentLength,
-    visibleContentLengthWithSpaces: visibleMetrics.contentLengthWithSpaces,
     isSegmentMode,
   };
 
@@ -283,6 +282,7 @@ function renderActiveScene(active) {
   $("active-segment-status").textContent = isSegmentMode
     ? `대형 장면 편집 구간 · ${formatNumber(visibleParagraphCount)}문단`
     : "";
+  $("active-editor-metrics").textContent = formatEditorMetrics(visibleMetrics, isSegmentMode);
   $("active-summary").textContent = summary || " ";
   $("status-active-scene").textContent = `${id} · ${title}`;
 
@@ -1063,18 +1063,14 @@ function measureEditorText(editorText) {
   return { contentLength, contentLengthWithSpaces };
 }
 
+function formatEditorMetrics(metrics, isSegmentMode) {
+  const label = isSegmentMode ? "편집 구간" : "현재 장면";
+  return `${label} · 공백 제외 ${formatNumber(metrics.contentLength)} · 공백 포함 ${formatNumber(metrics.contentLengthWithSpaces)}`;
+}
+
 function updateActiveEditorMetrics() {
   const current = measureEditorText($("active-body-editor").value || "");
-  const metrics = state.activeSceneMetrics;
-  const contentLength = metrics?.isSegmentMode
-    ? Math.max(0, metrics.contentLength - metrics.visibleContentLength + current.contentLength)
-    : current.contentLength;
-  const contentLengthWithSpaces = metrics?.isSegmentMode
-    ? Math.max(0, metrics.contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces)
-    : current.contentLengthWithSpaces;
-
-  $("active-length").textContent = formatNumber(contentLength);
-  $("active-length-spaces").textContent = formatNumber(contentLengthWithSpaces);
+  $("active-editor-metrics").textContent = formatEditorMetrics(current, state.activeSceneMetrics?.isSegmentMode);
 }
 
 function addStoryEntity() {

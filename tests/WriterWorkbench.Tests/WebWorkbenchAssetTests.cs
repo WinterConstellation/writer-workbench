@@ -114,17 +114,27 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchLocalMetricUpdateUsesFullSceneDeltaForSegmentMode()
+    public async Task WebWorkbenchLocalMetricUpdateKeepsFullSceneCountsStable()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+        var htmlPath = Path.Combine(appDirectory, "WebWorkbench", "index.html");
 
         var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+        var html = await File.ReadAllTextAsync(htmlPath, CancellationToken.None);
 
-        Assert.Contains("activeSceneMetrics", script);
+        Assert.Contains("active-editor-metrics", html);
         Assert.Contains("function measureEditorText", script);
-        Assert.Contains("contentLength - metrics.visibleContentLength + current.contentLength", script);
-        Assert.Contains("contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces", script);
+        Assert.Contains("updateActiveEditorMetrics", script);
+        Assert.Contains("active-editor-metrics", script);
+        var updateFunctionStart = script.IndexOf("function updateActiveEditorMetrics()", StringComparison.Ordinal);
+        var nextFunctionStart = script.IndexOf("\nfunction addStoryEntity", updateFunctionStart, StringComparison.Ordinal);
+        var updateFunction = script[updateFunctionStart..nextFunctionStart];
+
+        Assert.DoesNotContain("active-length", updateFunction);
+        Assert.DoesNotContain("active-length-spaces", updateFunction);
+        Assert.DoesNotContain("contentLength - metrics.visibleContentLength + current.contentLength", updateFunction);
+        Assert.DoesNotContain("contentLengthWithSpaces - metrics.visibleContentLengthWithSpaces + current.contentLengthWithSpaces", updateFunction);
         Assert.DoesNotContain("text.replace(/\\s/g, \"\").length", script);
         Assert.DoesNotContain("text.length", script);
     }
