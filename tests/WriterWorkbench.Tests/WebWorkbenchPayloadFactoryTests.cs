@@ -95,6 +95,44 @@ public sealed class WebWorkbenchPayloadFactoryTests
     }
 
     [Fact]
+    public void PayloadCarriesRemainingLargeDocumentTextForOnScreenReading()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-html", "메인", registry);
+        var now = DateTimeOffset.Parse("2026-06-26T01:00:00+09:00");
+        var activeDocument = LargeDocumentFactory.Create("scene-large", "대형 장면", 15_000);
+        var manifest = new ProjectManifest(
+            1,
+            "대형 원고",
+            [
+                new ProjectDocumentInfo(activeDocument.Id, activeDocument.Title, "scene-large.wwdoc.json", "scene-large.txt", now)
+            ]);
+        var metadata = SceneMetadata.CreateDefault(activeDocument.Id) with
+        {
+            ContentLength = 1_530_007,
+            ContentLengthWithSpaces = 1_755_009
+        };
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            activeDocument,
+            metadata,
+            new Dictionary<string, SceneMetadata> { [activeDocument.Id] = metadata },
+            profile,
+            registry,
+            "대기",
+            "기본",
+            autosaveEnabled: true);
+
+        Assert.True(payload.ActiveScene!.IsSegmentMode);
+        Assert.NotEmpty(payload.ActiveScene.RemainderText);
+        Assert.Equal(activeDocument.Paragraphs.Count, payload.ActiveScene.TotalParagraphCount);
+        Assert.Contains(activeDocument.Paragraphs[payload.ActiveScene.VisibleParagraphCount].Text, payload.ActiveScene.RemainderText);
+        Assert.Contains(activeDocument.Paragraphs[^1].Text, payload.ActiveScene.RemainderText);
+    }
+
+    [Fact]
     public void PayloadSeparatesTopMenuAndRemoteCommandsFromProfilePlacements()
     {
         var registry = AppCommandCatalog.CreateDefaultRegistry();

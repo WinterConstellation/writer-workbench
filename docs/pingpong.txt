@@ -2994,6 +2994,64 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
 
+## 2026-06-28 KST bugfix update: Large manuscript text visibility
+
+Bug fixed:
+- Large scene editor only displayed the bounded editable segment and did not put the remaining manuscript text on screen.
+- Root cause: `DocumentEditorTextView` only carried `Text`, `IsSegmentMode`, and `VisibleParagraphCount`; the hidden remainder stayed in storage but was absent from the HTML workbench payload.
+- For a manuscript editing program, retained-but-invisible body text is a product bug, not an acceptable performance optimization.
+
+Feature(s) implemented:
+- `DocumentEditorTextView` now carries `RemainderText` and `TotalParagraphCount`.
+- `WebWorkbenchScene` payload now carries `RemainderText` and `TotalParagraphCount`.
+- HTML workbench editor now shows a separate `전체 원고 보기` panel for the remaining large-scene text.
+- The bounded textarea remains for responsive segment editing, while the rest of the manuscript is visible below it as read-only text.
+
+Files changed:
+- `src/WriterWorkbench/Core/Documents/DocumentEditorTextView.cs`
+- `src/WriterWorkbench/Core/Documents/DocumentEditorTextService.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/DocumentEditorTextServiceTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- `ExposesRemainingLargeDocumentTextForOnScreenReading`
+- `PayloadCarriesRemainingLargeDocumentTextForOnScreenReading`
+- `WebWorkbenchShowsRemainingLargeManuscriptText`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ExposesRemainingLargeDocumentTextForOnScreenReading|PayloadCarriesRemainingLargeDocumentTextForOnScreenReading|WebWorkbenchShowsRemainingLargeManuscriptText"` -> failed before implementation, then 3 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests"` -> 21 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 214 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable and WebWorkbench assets.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "ExposesRemainingLargeDocumentTextForOnScreenReading|PayloadCarriesRemainingLargeDocumentTextForOnScreenReading|WebWorkbenchShowsRemainingLargeManuscriptText"` -> 3 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests"` -> 21 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 214 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 22 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript display path was touched.
+- Bounded edit segment remains small for typing responsiveness.
+- Remaining manuscript text is now visible in the workbench payload/UI.
+- Guardrail tests `Large|Performance|Stress` passed: 22 tests.
+
+Remaining problems:
+- The remaining text panel is read-only. Next required step is segment navigation/editing so a user can move the editable window to later paragraphs without switching to a separate preview.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
 ## 2026-06-28 KST bugfix update: WebWorkbench asset cache busting
 
 Bug fixed:

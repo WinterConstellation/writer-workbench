@@ -243,6 +243,7 @@ function renderActiveScene(active) {
     $("active-type").textContent = "Scene";
     $("active-segment-status").textContent = "";
     $("active-editor-metrics").textContent = "";
+    renderRemainderText("", 0, 0);
     $("active-summary").textContent = "";
     $("active-tags").textContent = "";
     $("status-active-scene").textContent = "-";
@@ -258,6 +259,8 @@ function renderActiveScene(active) {
   const editorText = readPayloadValue(active, "editorText", "EditorText", "");
   const isSegmentMode = readPayloadValue(active, "isSegmentMode", "IsSegmentMode", false);
   const visibleParagraphCount = readPayloadValue(active, "visibleParagraphCount", "VisibleParagraphCount", 0);
+  const totalParagraphCount = readPayloadValue(active, "totalParagraphCount", "TotalParagraphCount", visibleParagraphCount);
+  const remainderText = readPayloadValue(active, "remainderText", "RemainderText", "");
   const contentLength = readPayloadValue(active, "contentLength", "ContentLength", 0);
   const contentLengthWithSpaces = readPayloadValue(active, "contentLengthWithSpaces", "ContentLengthWithSpaces", 0);
   const visibleMetrics = measureEditorText(editorText);
@@ -280,9 +283,10 @@ function renderActiveScene(active) {
   $("active-length-spaces").textContent = formatNumber(contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
   $("active-segment-status").textContent = isSegmentMode
-    ? `대형 장면 편집 구간 · ${formatNumber(visibleParagraphCount)}문단`
+    ? `대형 장면 편집 구간 · ${formatNumber(visibleParagraphCount)} / ${formatNumber(totalParagraphCount)}문단`
     : "";
   $("active-editor-metrics").textContent = formatEditorMetrics(visibleMetrics, isSegmentMode);
+  renderRemainderText(remainderText, visibleParagraphCount, totalParagraphCount);
   $("active-summary").textContent = summary || " ";
   $("status-active-scene").textContent = `${id} · ${title}`;
 
@@ -294,6 +298,18 @@ function renderActiveScene(active) {
     span.textContent = tag;
     tagRow.appendChild(span);
   }
+}
+
+function renderRemainderText(remainderText, visibleParagraphCount, totalParagraphCount) {
+  const panel = $("active-remainder-panel");
+  const text = $("active-remainder-text");
+  const count = $("active-remainder-count");
+  const hasRemainder = Boolean((remainderText || "").trim());
+  panel.hidden = !hasRemainder;
+  text.textContent = hasRemainder ? remainderText : "";
+  count.textContent = hasRemainder
+    ? `${formatNumber(visibleParagraphCount + 1)}문단부터 ${formatNumber(totalParagraphCount)}문단까지`
+    : "";
 }
 
 function normalizeCharacterCountLabels() {
@@ -1304,7 +1320,9 @@ if (window.chrome && window.chrome.webview) {
       updatedAt: new Date().toISOString(),
       editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다.",
       isSegmentMode: false,
-      visibleParagraphCount: 2
+      visibleParagraphCount: 2,
+      remainderText: "",
+      totalParagraphCount: 2
     },
     binder: [
       { id: "scene-0001", title: "첫 장면", status: "초고", sceneType: "Scene", contentLength: 1200, isActive: true },

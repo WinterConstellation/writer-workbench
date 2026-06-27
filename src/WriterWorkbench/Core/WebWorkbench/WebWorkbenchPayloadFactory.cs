@@ -59,7 +59,9 @@ public static class WebWorkbenchPayloadFactory
                                   true,
                                   activeEditorView.Text,
                                   activeEditorView.IsSegmentMode,
-                                  activeEditorView.VisibleParagraphCount));
+                                  activeEditorView.VisibleParagraphCount,
+                                  activeEditorView.RemainderText,
+                                  activeEditorView.TotalParagraphCount));
 
         var resolver = new WorkbenchCustomizationResolver(profile);
         var commands = CreateCommands(resolver.GetPlacements("toolbar", "main"), commandRegistry);
@@ -265,7 +267,9 @@ public static class WebWorkbenchPayloadFactory
             isActive,
             isActive ? activeEditorView.Text : "",
             isActive && activeEditorView.IsSegmentMode,
-            isActive ? activeEditorView.VisibleParagraphCount : 0);
+            isActive ? activeEditorView.VisibleParagraphCount : 0,
+            isActive ? activeEditorView.RemainderText : "",
+            isActive ? activeEditorView.TotalParagraphCount : 0);
     }
 
     private static string FormatSceneStatus(SceneStatus status)

@@ -16,11 +16,16 @@ public static class DocumentEditorTextService
         var visibleParagraphs = TakeVisibleParagraphs(document, maxEditableCharacters);
         var visibleText = ToPlainText(visibleParagraphs);
         var isSegmentMode = visibleParagraphs.Count < document.Paragraphs.Count;
+        var remainderText = isSegmentMode
+            ? ToPlainText(document.Paragraphs.Skip(visibleParagraphs.Count))
+            : "";
 
         return new DocumentEditorTextView(
             visibleText,
             isSegmentMode,
-            visibleParagraphs.Count);
+            visibleParagraphs.Count,
+            remainderText,
+            document.Paragraphs.Count);
     }
 
     public static WriterDocument UpdateFromEditorText(

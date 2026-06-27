@@ -35,7 +35,9 @@ public sealed record WebWorkbenchScene(
     bool IsActive,
     string EditorText,
     bool IsSegmentMode,
-    int VisibleParagraphCount);
+    int VisibleParagraphCount,
+    string RemainderText,
+    int TotalParagraphCount);
 
 public sealed record WebWorkbenchCommand(
     string CommandId,

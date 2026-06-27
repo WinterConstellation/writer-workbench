@@ -34,6 +34,20 @@ public sealed class DocumentEditorTextServiceTests
     }
 
     [Fact]
+    public void ExposesRemainingLargeDocumentTextForOnScreenReading()
+    {
+        var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);
+
+        var view = DocumentEditorTextService.CreateView(document);
+
+        Assert.True(view.IsSegmentMode);
+        Assert.Equal(document.Paragraphs.Count, view.TotalParagraphCount);
+        Assert.Contains(document.Paragraphs[view.VisibleParagraphCount].Text, view.RemainderText);
+        Assert.Contains(document.Paragraphs[^1].Text, view.RemainderText);
+        Assert.DoesNotContain(document.Paragraphs[0].Text, view.RemainderText);
+    }
+
+    [Fact]
     public void KeepsDefaultLargeDocumentSegmentSmallEnoughForResponsiveTyping()
     {
         var document = LargeDocumentFactory.Create("scene-large", "Large", 15_000);

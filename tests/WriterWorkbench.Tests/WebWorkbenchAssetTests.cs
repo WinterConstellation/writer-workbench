@@ -62,6 +62,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("binder-action-bar", html);
         Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);
+        Assert.Contains("active-remainder-panel", html);
+        Assert.Contains("active-remainder-text", html);
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
         Assert.Contains("html-view-relationship", html);
@@ -120,6 +122,24 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("전체 공백 제외", script);
         Assert.Contains("전체 공백 포함", script);
         Assert.Contains("공백 제외 ${formatNumber(length)}", script);
+    }
+
+    [Fact]
+    public async Task WebWorkbenchShowsRemainingLargeManuscriptText()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+        var htmlPath = Path.Combine(appDirectory, "WebWorkbench", "index.html");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+        var html = await File.ReadAllTextAsync(htmlPath, CancellationToken.None);
+
+        Assert.Contains("active-remainder-panel", html);
+        Assert.Contains("active-remainder-text", html);
+        Assert.Contains("remainderText", script);
+        Assert.Contains("RemainderText", script);
+        Assert.Contains("active-remainder-text", script);
+        Assert.Contains("전체 원고 보기", html);
     }
 
     [Fact]
