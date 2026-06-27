@@ -587,10 +587,10 @@ function renderStoryCanvas(model) {
   }
 
   for (const entity of model.entities) {
-    const node = document.createElement("button");
-    node.type = "button";
+    const node = document.createElement("article");
     node.className = "story-map-node";
     node.dataset.entityId = entity.id;
+    node.tabIndex = 0;
     node.style.left = `${entity.x}px`;
     node.style.top = `${entity.y}px`;
     node.style.background = entity.color || "#2563EB";
@@ -598,7 +598,12 @@ function renderStoryCanvas(model) {
     title.textContent = entity.name || entity.id;
     const meta = document.createElement("span");
     meta.textContent = entity.role || entity.type;
-    node.append(title, meta);
+    const actions = document.createElement("div");
+    actions.className = "story-map-node-actions";
+    actions.append(
+      createStoryActionButton("entityEdit", entity.id, "수정"),
+      createStoryActionButton("entityDelete", entity.id, "삭제"));
+    node.append(title, meta, actions);
     node.addEventListener("pointerdown", startStoryNodeDrag);
     canvas.appendChild(node);
   }
@@ -1251,6 +1256,10 @@ function endRemoteDrag(event) {
 }
 
 function startStoryNodeDrag(event) {
+  if (event.target.closest("[data-story-action]")) {
+    return;
+  }
+
   const node = event.currentTarget;
   const rect = node.getBoundingClientRect();
   state.storyDrag = {

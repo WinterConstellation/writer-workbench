@@ -3349,3 +3349,46 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+## 2026-06-28 KST feature update: Relationship canvas actions and remote move glyph
+
+Feature(s) implemented:
+- Changed the native remote-control move glyph from a star-like mark to a visible up/down + left/right arrow mark.
+- Added edit/delete controls directly on relationship-map canvas character nodes.
+- Prevented canvas node action buttons from starting node drag.
+
+Files changed:
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+
+Tests added/updated:
+- Updated `RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements`.
+- Added `WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions`.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements` -> failed before implementation, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions` -> failed before implementation, then passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions|RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements"` -> 2 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions|RemoteControlLayerWindowTests.LayerIsTopmostDraggableAndRendersRemotePlacements"` -> 2 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+
+Large manuscript regression check:
+- Large manuscript edit/load path was not touched.
+- Guardrail tests `DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests` passed: 13 tests.
+
+Remaining problems:
+- Next product work should continue with settings/reference work surfaces and trash restore UX.
+- PowerShell text output can still display BOM-less UTF-8 Korean as mojibake; file bytes were checked through UTF-8-aware reads.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.

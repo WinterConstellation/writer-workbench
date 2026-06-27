@@ -195,6 +195,23 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
+    public async Task WebWorkbenchRelationshipCanvasNodesExposeEditAndDeleteActions()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var scriptPath = Path.Combine(appDirectory, "WebWorkbench", "app.js");
+        var stylePath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
+
+        var script = await File.ReadAllTextAsync(scriptPath, CancellationToken.None);
+        var css = await File.ReadAllTextAsync(stylePath, CancellationToken.None);
+
+        Assert.Contains("story-map-node-actions", script);
+        Assert.Contains("createStoryActionButton(\"entityEdit\"", script);
+        Assert.Contains("createStoryActionButton(\"entityDelete\"", script);
+        Assert.Contains("event.target.closest(\"[data-story-action]\")", script);
+        Assert.Contains(".story-map-node-actions", css);
+    }
+
+    [Fact]
     public async Task WebWorkbenchLocalMetricUpdateUsesWholeEditorText()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;

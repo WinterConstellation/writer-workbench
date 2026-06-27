@@ -33,7 +33,7 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.Equal(450d, layer.Height);
                 Assert.NotNull(layer.FindName("RemoteLayerResizeGrip"));
                 Assert.Equal(System.Windows.Input.Cursors.SizeAll, handle.Cursor);
-                Assert.Equal("✥", moveGlyph.Text);
+                Assert.Equal("↕↔", moveGlyph.Text);
                 Assert.Equal(["project.save", "document.detachCurrent"], buttons.Select(button => button.Tag as string));
                 layer.Left = -900;
                 layer.Top = -400;
