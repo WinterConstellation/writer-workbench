@@ -2359,7 +2359,7 @@ public partial class MainWindow : Window
         await HtmlWorkbenchBrowser.EnsureCoreWebView2Async();
         HtmlWorkbenchBrowser.CoreWebView2.WebMessageReceived += HtmlWorkbenchBrowser_WebMessageReceived;
         HtmlWorkbenchBrowser.NavigationCompleted += async (_, _) => await PushHtmlWorkbenchStateAsync();
-        HtmlWorkbenchBrowser.Source = new Uri(indexPath);
+        HtmlWorkbenchBrowser.Source = WebWorkbenchAssetVersion.CreateIndexUri(indexPath);
         _htmlWorkbenchInitialized = true;
     }
 

@@ -4,7 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>원고 작업대</title>
-  <link rel="stylesheet" href="styles.css">
+  <script>
+    function createWorkbenchAssetUrl(path) {
+      const version = new URLSearchParams(window.location.search).get("wwv") || Date.now().toString();
+      return `${path}?wwv=${encodeURIComponent(version)}`;
+    }
+
+    const workbenchStyle = document.createElement("link");
+    workbenchStyle.rel = "stylesheet";
+    workbenchStyle.href = createWorkbenchAssetUrl("styles.css");
+    document.head.appendChild(workbenchStyle);
+  </script>
 </head>
 <body>
   <main class="workbench-shell">
@@ -256,6 +266,10 @@
     </footer>
   </main>
 
-  <script src="app.js"></script>
+  <script>
+    const workbenchScript = document.createElement("script");
+    workbenchScript.src = createWorkbenchAssetUrl("app.js");
+    document.body.appendChild(workbenchScript);
+  </script>
 </body>
 </html>

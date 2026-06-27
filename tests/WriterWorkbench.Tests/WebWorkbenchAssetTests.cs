@@ -1,7 +1,38 @@
+using WriterWorkbench.Core.WebWorkbench;
+
 namespace WriterWorkbench.Tests;
 
 public sealed class WebWorkbenchAssetTests
 {
+    [Fact]
+    public void WebWorkbenchIndexUriUsesAssetVersionForCacheBusting()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var assetDirectory = Path.Combine(tempRoot, "WebWorkbench");
+        Directory.CreateDirectory(assetDirectory);
+        var indexPath = Path.Combine(assetDirectory, "index.html");
+        var scriptPath = Path.Combine(assetDirectory, "app.js");
+        var stylePath = Path.Combine(assetDirectory, "styles.css");
+        File.WriteAllText(indexPath, "<!doctype html>");
+        File.WriteAllText(scriptPath, "console.log('v1');");
+        File.WriteAllText(stylePath, "body{}");
+
+        try
+        {
+            var first = WebWorkbenchAssetVersion.CreateIndexUri(indexPath);
+            File.SetLastWriteTimeUtc(scriptPath, File.GetLastWriteTimeUtc(scriptPath).AddMinutes(1));
+            var second = WebWorkbenchAssetVersion.CreateIndexUri(indexPath);
+
+            Assert.Contains("?wwv=", first.AbsoluteUri);
+            Assert.Contains("?wwv=", second.AbsoluteUri);
+            Assert.NotEqual(first.AbsoluteUri, second.AbsoluteUri);
+        }
+        finally
+        {
+            Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     [Fact]
     public void WebWorkbenchAssetsAreCopiedNextToApplication()
     {
@@ -59,6 +90,22 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("rail-panel-settings", html);
         Assert.Contains("rail-panel-reference", html);
         Assert.Contains("bottom-status", html);
+    }
+
+    [Fact]
+    public async Task WebWorkbenchHtmlPropagatesAssetVersionToStylesAndScript()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var htmlPath = Path.Combine(appDirectory, "WebWorkbench", "index.html");
+
+        var html = await File.ReadAllTextAsync(htmlPath, CancellationToken.None);
+
+        Assert.Contains("createWorkbenchAssetUrl", html);
+        Assert.Contains("styles.css", html);
+        Assert.Contains("app.js", html);
+        Assert.Contains("wwv", html);
+        Assert.DoesNotContain("<link rel=\"stylesheet\" href=\"styles.css\">", html);
+        Assert.DoesNotContain("<script src=\"app.js\"></script>", html);
     }
 
     [Fact]

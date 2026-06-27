@@ -2994,6 +2994,57 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
 
+## 2026-06-28 KST bugfix update: WebWorkbench asset cache busting
+
+Bug fixed:
+- User reported the HTML character count fix still showed the same behavior.
+- Investigation found the code path was fixed in source/dist, but WebView2 was still loading `index.html` from a stable file URI and `index.html` loaded `app.js` / `styles.css` from stable URLs.
+- This allowed stale HTML/JS assets to remain plausible even after publish.
+
+Feature(s) implemented:
+- Added `WebWorkbenchAssetVersion.CreateIndexUri(indexPath)`.
+- `MainWindow` now navigates WebView2 to `index.html?wwv={asset-version}`.
+- `index.html` now propagates the same `wwv` value into `styles.css?wwv=...` and `app.js?wwv=...`.
+- Dist publish now contains cache-busted HTML asset loading.
+
+Files changed:
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchAssetVersion.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- `WebWorkbenchIndexUriUsesAssetVersionForCacheBusting`
+- `WebWorkbenchHtmlPropagatesAssetVersionToStylesAndScript`
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchIndexUriUsesAssetVersionForCacheBusting` -> failed before implementation, then 1 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchHtmlPropagatesAssetVersionToStylesAndScript` -> failed before implementation, then included in 2-test cache-busting pass.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchIndexUriUsesAssetVersionForCacheBusting|WebWorkbenchHtmlPropagatesAssetVersionToStylesAndScript"` -> 2 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 8 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 211 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable and WebWorkbench assets.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchIndexUriUsesAssetVersionForCacheBusting|WebWorkbenchHtmlPropagatesAssetVersionToStylesAndScript"` -> 2 passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchAssetTests` -> 8 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 211 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Stress"` -> 19 passed.
+
+Large manuscript regression check, if touched:
+- Large manuscript logic was not changed.
+- Guardrail tests `Large|Performance|Stress` passed: 19 tests.
+
+Remaining problems:
+- If the user starts an older executable from another folder, that older build can still show stale behavior. The tested current executable is under `dist/WriterWorkbench-html-workbench/WriterWorkbench.exe`.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
 ## 2026-06-27 KST bugfix update: Stable HTML character count display
 
 Bug fixed:
