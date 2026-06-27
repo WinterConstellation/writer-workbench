@@ -156,6 +156,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("activeScene.update", script);
         Assert.Contains("document.select", script);
         Assert.Contains("document.command", script);
+        Assert.Contains("dataset.binderDocument", script);
+        Assert.Contains("scene-actions", script);
         Assert.Contains("showBinderContextMenu", script);
         Assert.Contains("hideBinderContextMenu", script);
         Assert.Contains("sendBinderCommand", script);
@@ -250,9 +252,14 @@ public sealed class WebWorkbenchAssetTests
         var css = await File.ReadAllTextAsync(cssPath, CancellationToken.None);
 
         Assert.Contains(".floating-remote", css);
-        Assert.Contains("display: none", css);
+        var remoteBlockStart = css.IndexOf(".floating-remote", StringComparison.Ordinal);
+        var remoteBlockEnd = css.IndexOf("\n}", remoteBlockStart, StringComparison.Ordinal);
+        var remoteBlock = css[remoteBlockStart..remoteBlockEnd];
+        Assert.Contains("display: block", remoteBlock);
+        Assert.DoesNotContain("display: none", remoteBlock);
         Assert.Contains("#rail-panel-binder", css);
         Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
+        Assert.Contains(".scene-actions", css);
         Assert.Contains(".relationship-workbench", css);
         Assert.Contains(".relationship-map-canvas", css);
     }

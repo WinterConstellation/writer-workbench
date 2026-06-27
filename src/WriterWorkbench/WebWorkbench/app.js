@@ -201,17 +201,39 @@ function renderBinder(items) {
       <div class="scene-meta">
         <span></span>
         <span></span>
-      </div>`;
+      </div>
+      <div class="scene-actions"></div>`;
     row.querySelector(".scene-title").textContent = title;
     row.querySelector(".state-pill").textContent = status;
     const meta = row.querySelectorAll(".scene-meta span");
     meta[0].textContent = id;
     meta[1].textContent = `${sceneType} · 공백 제외 ${formatNumber(length)}`;
-    row.addEventListener("click", () => selectBinderDocument(id));
+    const actions = row.querySelector(".scene-actions");
+    actions.append(
+      createBinderActionButton("document.select", id, "열기"),
+      createBinderActionButton("document.renameScene", id, "이름"),
+      createBinderActionButton("document.duplicateScene", id, "복제"),
+      createBinderActionButton("document.deleteScene", id, "삭제"));
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("[data-binder-command]")) {
+        return;
+      }
+
+      selectBinderDocument(id);
+    });
     row.addEventListener("dblclick", () => selectBinderDocument(id));
     row.addEventListener("contextmenu", (event) => showBinderContextMenu(event, id));
     list.appendChild(row);
   }
+}
+
+function createBinderActionButton(commandId, documentId, label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.binderCommand = commandId;
+  button.dataset.binderDocument = documentId;
+  button.textContent = label;
+  return button;
 }
 
 function selectBinderDocument(documentId) {
@@ -912,7 +934,9 @@ document.addEventListener("click", (event) => {
 
   const binderCommand = event.target.closest("[data-binder-command]");
   if (binderCommand) {
-    sendBinderCommand(binderCommand.dataset.binderCommand);
+    sendBinderCommand(
+      binderCommand.dataset.binderCommand,
+      binderCommand.dataset.binderDocument || state.selectedDocumentId);
     return;
   }
 
