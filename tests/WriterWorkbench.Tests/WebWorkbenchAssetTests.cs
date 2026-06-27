@@ -161,6 +161,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("showBinderContextMenu", script);
         Assert.Contains("hideBinderContextMenu", script);
         Assert.Contains("sendBinderCommand", script);
+        Assert.Contains("document.addEventListener(\"contextmenu\"", script);
+        Assert.Contains("closest(\".scene-item[data-document-id]\")", script);
+        Assert.Contains("positionBinderContextMenu", script);
+        Assert.Contains("menu.dataset.documentId", script);
         Assert.Contains("setRailMode", script);
         Assert.Contains("setActiveView", script);
         Assert.Contains("renderPreview", script);

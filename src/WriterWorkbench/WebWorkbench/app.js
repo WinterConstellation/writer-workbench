@@ -222,7 +222,6 @@ function renderBinder(items) {
       selectBinderDocument(id);
     });
     row.addEventListener("dblclick", () => selectBinderDocument(id));
-    row.addEventListener("contextmenu", (event) => showBinderContextMenu(event, id));
     list.appendChild(row);
   }
 }
@@ -259,12 +258,26 @@ function sendBinderCommand(commandId, documentId = state.selectedDocumentId) {
 
 function showBinderContextMenu(event, documentId) {
   event.preventDefault();
+  if (!documentId) return;
+
   state.binderContextDocumentId = documentId;
   state.selectedDocumentId = documentId;
   const menu = $("binder-context-menu");
+  if (!menu) return;
+
+  menu.dataset.documentId = documentId;
   menu.hidden = false;
-  menu.style.left = `${event.clientX}px`;
-  menu.style.top = `${event.clientY}px`;
+  positionBinderContextMenu(menu, event.clientX, event.clientY);
+}
+
+function positionBinderContextMenu(menu, clientX, clientY) {
+  const padding = 8;
+  const maxLeft = Math.max(padding, window.innerWidth - menu.offsetWidth - padding);
+  const maxTop = Math.max(padding, window.innerHeight - menu.offsetHeight - padding);
+  const left = Math.min(Math.max(padding, clientX), maxLeft);
+  const top = Math.min(Math.max(padding, clientY), maxTop);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
 }
 
 function hideBinderContextMenu() {
@@ -272,6 +285,7 @@ function hideBinderContextMenu() {
   if (!menu) return;
 
   menu.hidden = true;
+  delete menu.dataset.documentId;
 }
 
 function renderActiveScene(active) {
@@ -928,7 +942,9 @@ function formatDate(value) {
 document.addEventListener("click", (event) => {
   const contextCommand = event.target.closest("[data-binder-context-command]");
   if (contextCommand) {
-    sendBinderCommand(contextCommand.dataset.binderContextCommand, state.binderContextDocumentId);
+    sendBinderCommand(
+      contextCommand.dataset.binderContextCommand,
+      state.binderContextDocumentId || $("binder-context-menu")?.dataset.documentId || state.selectedDocumentId);
     return;
   }
 
@@ -1018,6 +1034,13 @@ document.addEventListener("click", (event) => {
   if (button) {
     sendCommand(button.dataset.command);
   }
+});
+
+document.addEventListener("contextmenu", (event) => {
+  const row = event.target.closest(".scene-item[data-document-id]");
+  if (!row) return;
+
+  showBinderContextMenu(event, row.dataset.documentId);
 });
 
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);

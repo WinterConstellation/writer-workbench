@@ -3490,3 +3490,51 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST bugfix update: Binder right-click context menu
+
+Root cause:
+- The previous fix treated binder actions as row buttons, but the reported failure was specifically binder right-click.
+- Binder context menu opening depended on per-row event handlers and did not have a document-level delegated context-menu path.
+- The context menu position was not clamped, so it could be placed off-screen near viewport edges.
+
+Feature(s) implemented:
+- Added delegated `contextmenu` handling for `.scene-item[data-document-id]`.
+- Binder right-click now stores the target scene id on the menu and in state.
+- Binder context-menu commands use the stored right-click target scene id.
+- Context-menu placement is clamped inside the visible HTML viewport.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated `WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate` to require delegated binder context-menu handling and menu positioning.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate` -> failed before implementation, then 1 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `rg` check confirmed delegated `contextmenu`, `positionBinderContextMenu`, `menu.dataset.documentId`, and `.scene-item[data-document-id]`.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- `rg` check confirmed the packaged `dist` asset contains `contextmenu`, `.scene-item[data-document-id]`, `positionBinderContextMenu`, and `menu.dataset.documentId`.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate` -> 1 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 221 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+
+Large manuscript regression check:
+- Large manuscript edit/load path was not touched.
+- Guardrail tests `DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests` passed: 13 tests.
+
+Remaining problems:
+- Need visual click verification in the packaged app when available.
+- Binder right-click now has a stronger event path, but native WebView/browser context-menu behavior should still be watched during manual testing.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
