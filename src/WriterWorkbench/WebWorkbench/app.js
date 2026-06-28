@@ -1526,11 +1526,19 @@ function scheduleLocalMetricUpdate() {
 }
 
 function measureEditorText(editorText) {
-  const normalized = (editorText || "").replace(/\r\n/g, "\n");
+  const paragraphs = getEditorParagraphTexts(editorText);
   return {
-    contentLength: normalized.replace(/\s/g, "").length,
-    contentLengthWithSpaces: normalized.length,
+    contentLength: paragraphs.reduce((sum, paragraph) => sum + paragraph.replace(/\s/g, "").length, 0),
+    contentLengthWithSpaces: paragraphs.reduce((sum, paragraph) => sum + paragraph.length, 0),
   };
+}
+
+function getEditorParagraphTexts(editorText) {
+  return (editorText || "")
+    .replace(/\r\n/g, "\n")
+    .split(/\n\n+/)
+    .map((paragraph) => paragraph.trim())
+    .filter((paragraph) => paragraph.length > 0);
 }
 
 function formatEditorMetrics(metrics) {

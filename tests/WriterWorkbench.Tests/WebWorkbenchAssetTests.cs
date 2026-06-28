@@ -265,8 +265,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.DoesNotContain("visibleContentLength", script);
         Assert.DoesNotContain("visibleContentLengthWithSpaces", script);
         Assert.DoesNotContain("estimateFullSceneMetrics", script);
-        Assert.Contains("contentLength: normalized.replace(/\\s/g, \"\").length", script);
-        Assert.Contains("contentLengthWithSpaces: normalized.length", script);
+        Assert.Contains("function getEditorParagraphTexts", script);
+        Assert.Contains(".split(/\\n\\n+/)", script);
+        Assert.Contains("contentLength: paragraphs.reduce((sum, paragraph) => sum + paragraph.replace(/\\s/g, \"\").length, 0)", script);
+        Assert.Contains("contentLengthWithSpaces: paragraphs.reduce((sum, paragraph) => sum + paragraph.length, 0)", script);
         var updateFunctionStart = script.IndexOf("function updateActiveEditorMetrics()", StringComparison.Ordinal);
         var nextFunctionStart = script.IndexOf("\nfunction addStoryEntity", updateFunctionStart, StringComparison.Ordinal);
         var updateFunction = script[updateFunctionStart..nextFunctionStart];

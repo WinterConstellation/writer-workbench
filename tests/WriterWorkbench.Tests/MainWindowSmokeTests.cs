@@ -1749,6 +1749,51 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void Stress15kCommandCreatesFifteenThousandCharacterDocument()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"), "Stress15k.writerproj");
+                var paths = ProjectPaths.ForRoot(root);
+                var window = new MainWindow();
+                InvokePrivate(window, "ConfigureProject", root);
+
+                InvokeCommand(window, AppCommandIds.DocumentCreateStressLarge);
+
+                var manifest = WaitForTaskOnDispatcher(new ProjectStore(paths).LoadManifestAsync(CancellationToken.None));
+                var stressInfo = Assert.Single(manifest.Documents.Where(document => document.Id.StartsWith("stress-", StringComparison.Ordinal)));
+                var document = WaitForTaskOnDispatcher(new ProjectStore(paths).LoadDocumentAsync(stressInfo.Id, CancellationToken.None));
+                var metadata = WaitForTaskOnDispatcher(new SceneMetadataStore(paths).LoadAsync(stressInfo.Id, CancellationToken.None));
+                var metrics = DocumentMetricsService.Measure(document);
+
+                Assert.Equal("스트레스 15k", document.Title);
+                Assert.Equal(15_000, metrics.CharacterCount);
+                Assert.Equal(15_000, metadata.ContentLengthWithSpaces);
+                Assert.True(metadata.ContentLength <= metadata.ContentLengthWithSpaces);
+                Assert.InRange(document.Paragraphs.Count, 1, 200);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainEditorAcceptsLargeAppendWithinInputBudget()
     {
         Exception? failure = null;

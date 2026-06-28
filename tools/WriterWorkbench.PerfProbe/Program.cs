@@ -38,9 +38,9 @@ internal static class Program
 
         var document = Measure(
             metrics,
-            "1. stress 15k 생성",
+            "1. stress 15k paragraphs 생성",
             "LargeDocumentFactory.Create",
-            () => LargeDocumentFactory.Create("stress-15000", "Stress 15k", ParagraphCount),
+            () => LargeDocumentFactory.Create("stress-15000-paragraphs", "Stress 15k paragraphs", ParagraphCount),
             $"{ParagraphCount:N0} paragraphs");
 
         var fullText = Measure(
@@ -106,7 +106,7 @@ internal static class Program
             scope.InvokePrivate("ConfigureProject", commandRoot);
             Measure(
                 metrics,
-                "1. stress 15k 생성 비용",
+                "1. stress 15k characters command 생성 비용",
                 "MainWindow stress command total",
                 () =>
                 {

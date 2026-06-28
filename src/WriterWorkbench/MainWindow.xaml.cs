@@ -2014,12 +2014,12 @@ public partial class MainWindow : Window
         ReportLongOperation(tracker.Report(0, "준비 중"));
         var stopwatch = Stopwatch.StartNew();
         IProgress<LongOperationProgress> progress = new Progress<LongOperationProgress>(ReportLongOperation);
-        var paragraphProgress = new Progress<int>(completed =>
-            progress.Report(tracker.Report(completed, "문단 생성 중")));
+        var characterProgress = new Progress<int>(completed =>
+            progress.Report(tracker.Report(completed, "글자 생성 중")));
 
         var document = await Task.Run(async () =>
         {
-            var created = LargeDocumentFactory.Create(id, "스트레스 15k", 15_000, paragraphProgress);
+            var created = LargeDocumentFactory.CreateByCharacterCount(id, "스트레스 15k", 15_000, characterProgress);
             progress.Report(tracker.Report(15_001, "프로젝트 파일과 검색 색인 저장 중"));
             await _store.SaveDocumentAsync(created, CancellationToken.None);
             return created;

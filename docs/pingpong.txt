@@ -1,4 +1,4 @@
-# Writer Workbench Pingpong
+﻿# Writer Workbench Pingpong
 
 Updated: 2026-06-24
 Repository: WinterConstellation/writer-workbench
@@ -3936,6 +3936,59 @@ Large manuscript regression check:
 
 Remaining problems:
 - Need manual visual pass in the packaged app for the native topmost remote and the hidden HTML remote if it is re-enabled.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST bugfix update: Stress 15k means 15,000 characters and count rules match metadata
+
+Root cause:
+- `스트레스 15k` called `LargeDocumentFactory.Create(..., 15_000)`, but that factory argument was `paragraphCount`, so it generated 15,000 paragraphs and produced roughly 1.5M+ characters.
+- HTML live count measured the raw textarea string, so paragraph separator newlines were counted in `공백 포함`; backend metadata counts only paragraph text and does not count paragraph separators.
+
+Feature(s) implemented:
+- Added `LargeDocumentFactory.CreateByCharacterCount` for exact target-character stress documents.
+- Changed the user-facing `스트레스 15k` command to create a 15,000-character document, not a 15,000-paragraph fixture.
+- Kept the old paragraph-count factory for explicit large paragraph-count performance fixtures.
+- Renamed perf-probe wording to `15k paragraphs` where it still intentionally uses 15,000 paragraphs.
+- Changed HTML live metric calculation to split editor text into paragraphs, trim paragraph edges, and count only paragraph text, matching metadata rules.
+- Updated help text to say `15,000글자 테스트 문서`.
+
+Files changed:
+- `src/WriterWorkbench/Core/Documents/LargeDocumentFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/Core/Help/HelpCatalog.cs`
+- `tools/WriterWorkbench.PerfProbe/Program.cs`
+- `tests/WriterWorkbench.Tests/LargeDocumentFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `LargeDocumentFactoryTests.CreatesStressDocumentByCharacterCount`.
+- Added `MainWindowSmokeTests.Stress15kCommandCreatesFifteenThousandCharacterDocument`.
+- Updated `WebWorkbenchLocalMetricUpdateUsesWholeEditorText` to lock paragraph-text count rules.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "LargeDocumentFactoryTests|Stress15kCommandCreatesFifteenThousandCharacterDocument|WebWorkbenchLocalMetricUpdateUsesWholeEditorText|DocumentMetricsServiceTests|ProjectStoreTests"` -> 24 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 231 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- Dist asset check confirmed packaged HTML count uses `getEditorParagraphTexts` and paragraph split rules.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "LargeDocumentFactoryTests|Stress15kCommandCreatesFifteenThousandCharacterDocument|WebWorkbenchLocalMetricUpdateUsesWholeEditorText|DocumentMetricsServiceTests|ProjectStoreTests"` -> 24 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 231 passed.
+
+Large manuscript regression check:
+- User-facing stress 15k is now 15,000 characters.
+- Explicit 15,000-paragraph fixtures remain available only where the code says `15k paragraphs`.
+
+Remaining problems:
+- Need manual UI click pass on `스트레스 15k` to confirm the visible count reads 15,000-scale in the running app.
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.

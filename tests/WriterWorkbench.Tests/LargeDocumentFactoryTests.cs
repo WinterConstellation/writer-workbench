@@ -28,6 +28,21 @@ public sealed class LargeDocumentFactoryTests
         Assert.True(progress.Samples.Count >= 2);
     }
 
+    [Fact]
+    public void CreatesStressDocumentByCharacterCount()
+    {
+        var progress = new CapturingProgress();
+
+        var document = LargeDocumentFactory.CreateByCharacterCount("scene-15k", "Stress 15k", 15_000, progress);
+        var metrics = DocumentMetricsService.Measure(document);
+
+        Assert.Equal("scene-15k", document.Id);
+        Assert.Equal("Stress 15k", document.Title);
+        Assert.Equal(15_000, metrics.CharacterCount);
+        Assert.InRange(document.Paragraphs.Count, 1, 200);
+        Assert.Contains(15_000, progress.Samples);
+    }
+
     private sealed class CapturingProgress : IProgress<int>
     {
         public List<int> Samples { get; } = [];
