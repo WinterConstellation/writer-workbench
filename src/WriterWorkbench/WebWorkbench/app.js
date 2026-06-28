@@ -71,6 +71,7 @@ function render(payload) {
   const shortcutBindings = readPayloadValue(payload, "shortcutBindings", "ShortcutBindings", []);
   const statusText = readPayloadValue(payload, "statusText", "StatusText", "");
   const graphicPresetName = readPayloadValue(payload, "graphicPresetName", "GraphicPresetName", "기본");
+  const graphicPresetId = readPayloadValue(payload, "graphicPresetId", "GraphicPresetId", "");
   const autosaveEnabled = readPayloadValue(payload, "autosaveEnabled", "AutosaveEnabled", true);
   const activeView = readPayloadValue(payload, "activeView", "ActiveView", "editor");
   const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
@@ -81,6 +82,7 @@ function render(payload) {
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   syncRemoteDraftFromPayload(remoteCommands, activeView);
   state.selectedDocumentId = readPayloadValue(active, "id", "Id", state.selectedDocumentId || "");
+  applyGraphicPresetTheme(graphicPresetId, graphicPresetName);
 
   $("project-title").textContent = readPayloadValue(project, "title", "Title", "원고 작업대");
   $("project-path").textContent = readPayloadValue(project, "rootPath", "RootPath", "");
@@ -103,6 +105,26 @@ function render(payload) {
   renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   setActiveView(activeView);
   state.isRendering = false;
+}
+
+function applyGraphicPresetTheme(graphicPresetId, graphicPresetName) {
+  const preset = normalizeGraphicPresetId(graphicPresetId, graphicPresetName);
+  document.documentElement.dataset.graphicPreset = preset;
+}
+
+function normalizeGraphicPresetId(graphicPresetId, graphicPresetName) {
+  const normalized = String(graphicPresetId || "").trim().toLowerCase();
+  if (["default", "dark", "comfort-1", "comfort-2", "comfort-3", "lavender"].includes(normalized)) {
+    return normalized;
+  }
+
+  const name = String(graphicPresetName || "").toLowerCase();
+  if (name.includes("dark") || name.includes("검은")) return "dark";
+  if (name.includes("lavender") || name.includes("라벤더")) return "lavender";
+  if (name.includes("1")) return "comfort-1";
+  if (name.includes("2")) return "comfort-2";
+  if (name.includes("3")) return "comfort-3";
+  return "default";
 }
 
 function syncRemoteDraftFromPayload(remoteCommands, activeView) {
@@ -1607,6 +1629,7 @@ if (window.chrome && window.chrome.webview) {
     commands: [],
     statusText: "메인",
     graphicPresetName: "기본",
+    graphicPresetId: "default",
     autosaveEnabled: true,
     activeView: "editor",
     previewText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."

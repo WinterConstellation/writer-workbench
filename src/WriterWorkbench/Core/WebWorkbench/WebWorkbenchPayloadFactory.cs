@@ -25,7 +25,8 @@ public static class WebWorkbenchPayloadFactory
         IReadOnlyList<ShortcutBinding>? shortcutBindings = null,
         WebWorkbenchStory? story = null,
         IReadOnlyList<WebWorkbenchTrashItem>? trash = null,
-        IReadOnlyList<WebWorkbenchSettingsBookItem>? settingsBook = null)
+        IReadOnlyList<WebWorkbenchSettingsBookItem>? settingsBook = null,
+        string graphicPresetId = "default")
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -93,12 +94,27 @@ public static class WebWorkbenchPayloadFactory
             htmlShortcutBindings,
             statusText,
             graphicPresetName,
+            NormalizeGraphicPresetId(graphicPresetId),
             autosaveEnabled,
             NormalizeActiveView(activeView),
             previewText ?? "",
             story,
             trash ?? [],
             settingsBook ?? []);
+    }
+
+    private static string NormalizeGraphicPresetId(string? graphicPresetId)
+    {
+        var normalized = (graphicPresetId ?? "").Trim();
+        return normalized is
+            "default" or
+            "dark" or
+            "comfort-1" or
+            "comfort-2" or
+            "comfort-3" or
+            "lavender"
+            ? normalized
+            : "default";
     }
 
     private static string NormalizeActiveView(string? activeView)

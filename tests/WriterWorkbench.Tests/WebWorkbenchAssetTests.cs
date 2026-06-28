@@ -178,6 +178,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("saveRemoteSettings", script);
         Assert.Contains("remoteSettings.update", script);
         Assert.Contains("renderSettingsPanel(menuCommands, settingsBook)", script);
+        Assert.Contains("applyGraphicPresetTheme", script);
+        Assert.Contains("normalizeGraphicPresetId", script);
+        Assert.Contains("dataset.graphicPreset", script);
+        Assert.Contains("graphicPresetId", script);
         Assert.Contains("story.settingsBook.add", script);
         Assert.Contains("story.settingsBook.update", script);
         Assert.Contains("story.settingsBook.delete", script);
@@ -298,6 +302,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("--gild", css);
         Assert.Contains("--chrome: #28313a", css);
         Assert.Contains("--blue: #245c73", css);
+        Assert.Contains(":root[data-graphic-preset=\"dark\"]", css);
+        Assert.Contains(":root[data-graphic-preset=\"comfort-1\"]", css);
+        Assert.Contains(":root[data-graphic-preset=\"comfort-2\"]", css);
+        Assert.Contains(":root[data-graphic-preset=\"comfort-3\"]", css);
+        Assert.Contains(":root[data-graphic-preset=\"lavender\"]", css);
         Assert.Contains(".workbench-shell::before", css);
         Assert.Contains(".writing-sheet::before", css);
         Assert.Contains(".writing-sheet::after", css);

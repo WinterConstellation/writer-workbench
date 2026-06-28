@@ -3094,7 +3094,8 @@ public partial class MainWindow : Window
             _shortcutManager.Bindings,
             story,
             trash,
-            settingsBook);
+            settingsBook,
+            _graphicPreset.Id);
     }
 
     private async Task EnsureActiveDocumentForHtmlPayloadAsync()

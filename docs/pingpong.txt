@@ -3407,6 +3407,55 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음.
 
+## 2026-06-28 KST feature implementation update: HTML graphic preset theme binding
+
+Feature(s) implemented:
+- HTML workbench now receives a stable `GraphicPresetId` in addition to the display name.
+- MainWindow passes the active WPF graphic preset id into the HTML payload.
+- HTML render now applies the preset to `document.documentElement.dataset.graphicPreset`.
+- CSS now defines theme token overrides for `default`, `dark`, `comfort-1`, `comfort-2`, `comfort-3`, and `lavender`.
+- Fixed remaining hard-coded colors in the HTML workbench so the preset tokens actually affect the workbench shell, editor sheet, panels, cards, relationship map, and remote/context surfaces.
+
+Files changed:
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added payload test for carrying `GraphicPresetId`.
+- Updated web asset tests to require `applyGraphicPresetTheme`, `dataset.graphicPreset`, and all preset CSS selectors.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|GraphicPresetCatalogTests"` -> 25 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 229 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Metric"` -> 26 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> failed because running `WriterWorkbench (1820)` locked `dist\WriterWorkbench-html-workbench\WriterWorkbench.dll`.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench-next --no-restore` -> passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|GraphicPresetCatalogTests"` -> 25 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 229 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "Large|Performance|Metric"` -> 26 passed.
+
+Large manuscript regression check:
+- Editor input, save, metrics, export, relationship, settings-book, binder, and trash data loops were not changed.
+- Guardrail filter `Large|Performance|Metric` passed: 26 tests.
+
+Remaining problems:
+- The main dist folder could not be overwritten while the app was running; updated executable is available in `dist/WriterWorkbench-html-workbench-next`.
+- Need manual visual check for each preset in the running app.
+- Native WPF-only surfaces still use their existing graphic preset rendering path.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Alternate local executable artifact generated at `dist/WriterWorkbench-html-workbench-next/WriterWorkbench.exe`.
+
 ## 2026-06-28 KST feature implementation update: Settings Book MVP first pass
 
 Feature(s) implemented:

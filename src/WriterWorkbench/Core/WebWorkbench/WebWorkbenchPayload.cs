@@ -11,6 +11,7 @@ public sealed record WebWorkbenchPayload(
     IReadOnlyList<WebWorkbenchShortcut> ShortcutBindings,
     string StatusText,
     string GraphicPresetName,
+    string GraphicPresetId,
     bool AutosaveEnabled,
     string ActiveView = "editor",
     string PreviewText = "",

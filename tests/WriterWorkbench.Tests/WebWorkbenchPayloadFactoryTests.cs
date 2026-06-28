@@ -77,6 +77,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("한국어 장편", payload.Project.Title);
         Assert.Equal("scene-0001", payload.ActiveScene!.Id);
         Assert.Equal("editor", payload.ActiveView);
+        Assert.Equal("default", payload.GraphicPresetId);
         Assert.Equal("미리보기 본문", payload.PreviewText);
         Assert.Contains(payload.AvailableCommands, command => command.CommandId == AppCommandIds.ProjectSave && command.Area == "catalog");
         Assert.Contains(payload.ShortcutBindings, shortcut =>
@@ -415,5 +416,26 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("World", item.Category);
         Assert.Equal("동부 왕국", item.Title);
         Assert.Equal(["세계관", "도시"], item.Tags);
+    }
+
+    [Fact]
+    public void PayloadCarriesGraphicPresetIdForHtmlTheme()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-theme", "Theme", registry);
+        var payload = WebWorkbenchPayloadFactory.Create(
+            new ProjectManifest(1, "Theme", []),
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "Ready",
+            "검은색 계열",
+            autosaveEnabled: true,
+            graphicPresetId: "dark");
+
+        Assert.Equal("dark", payload.GraphicPresetId);
     }
 }
