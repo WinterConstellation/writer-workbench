@@ -3321,6 +3321,48 @@ Remaining problems:
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
 
+## 2026-06-28 KST design update: Medieval scribe workbench theme
+
+Feature(s) implemented:
+- Reworked the HTML workbench default visual theme toward a medieval European scribe desk / manuscript-copying feel.
+- Added parchment, ink, rubric red, gilded accent, wood, and muted blue-green palette tokens.
+- Restyled the top command zone as a darker carved-wood command strip.
+- Restyled the central writing sheet as a parchment page with subtle ruling, inner border, shadow, and red manuscript margin line.
+- Restyled binder rows, settings-book cards, relationship map panels, inspector cards, context menu, and status bar to match the scribe theme.
+- Kept layout structure and editor input logic unchanged.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `WebWorkbenchCssUsesScribeWorkbenchTheme` to lock the scribe theme tokens and parchment/ruling selectors.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|Large|Performance|Metric"` -> 38 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 228 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- Browser screenshot attempt via Playwright was not completed because Playwright's bundled Chromium executable is not installed on this machine. No browser install was performed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|Large|Performance|Metric"` -> 38 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 228 passed.
+
+Large manuscript regression check:
+- Editor input, save, metrics, export, relationship, and settings-book data loops were not changed.
+- Guardrail filter `WebWorkbenchAssetTests|Large|Performance|Metric` passed: 38 tests.
+
+Remaining problems:
+- Need manual visual check in the packaged app because automated browser screenshot could not run without installing a Playwright browser.
+- The theme is applied to the HTML workbench CSS; native WPF-only surfaces still use their existing graphic preset rendering.
+- This is a first pass visual direction, not final iconography/illustration work.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. No new sample project data or binary asset was created.
+
 ## 2026-06-28 KST feature implementation update: Settings Book MVP first pass
 
 Feature(s) implemented:

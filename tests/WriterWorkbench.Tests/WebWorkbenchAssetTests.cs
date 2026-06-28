@@ -286,6 +286,24 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
+    public async Task WebWorkbenchCssUsesScribeWorkbenchTheme()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var cssPath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
+
+        var css = await File.ReadAllTextAsync(cssPath, CancellationToken.None);
+
+        Assert.Contains("--parchment", css);
+        Assert.Contains("--rubric", css);
+        Assert.Contains("--gild", css);
+        Assert.Contains(".workbench-shell::before", css);
+        Assert.Contains(".writing-sheet::before", css);
+        Assert.Contains(".writing-sheet::after", css);
+        Assert.Contains("repeating-linear-gradient(0deg", css);
+        Assert.Contains("\"Palatino Linotype\"", css);
+    }
+
+    [Fact]
     public async Task WebWorkbenchRemoteSettingsRowsDoNotUseMoveCursor()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
