@@ -237,14 +237,19 @@ public sealed class WebWorkbenchAssetTests
         Assert.DoesNotContain("visibleContentLength", script);
         Assert.DoesNotContain("visibleContentLengthWithSpaces", script);
         Assert.DoesNotContain("estimateFullSceneMetrics", script);
+        Assert.Contains("contentLength: normalized.replace(/\\s/g, \"\").length", script);
+        Assert.Contains("contentLengthWithSpaces: normalized.length", script);
         var updateFunctionStart = script.IndexOf("function updateActiveEditorMetrics()", StringComparison.Ordinal);
         var nextFunctionStart = script.IndexOf("\nfunction addStoryEntity", updateFunctionStart, StringComparison.Ordinal);
         var updateFunction = script[updateFunctionStart..nextFunctionStart];
+        var renderFunctionStart = script.IndexOf("function renderActiveScene(active)", StringComparison.Ordinal);
+        var renderFunctionEnd = script.IndexOf("\nfunction normalizeCharacterCountLabels", renderFunctionStart, StringComparison.Ordinal);
+        var renderFunction = script[renderFunctionStart..renderFunctionEnd];
 
         Assert.Contains("$(\"active-length\").textContent = formatNumber(current.contentLength);", updateFunction);
         Assert.Contains("$(\"active-length-spaces\").textContent = formatNumber(current.contentLengthWithSpaces);", updateFunction);
-        Assert.DoesNotContain("text.replace(/\\s/g, \"\").length", script);
-        Assert.DoesNotContain("text.length", script);
+        Assert.Contains("$(\"active-length\").textContent = formatNumber(visibleMetrics.contentLength);", renderFunction);
+        Assert.Contains("$(\"active-length-spaces\").textContent = formatNumber(visibleMetrics.contentLengthWithSpaces);", renderFunction);
     }
 
     [Fact]

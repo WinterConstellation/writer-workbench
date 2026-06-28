@@ -6,8 +6,13 @@ Purpose: feature-first handoff for Codex after large manuscript baseline became 
 
 Read first:
 1. docs/pingpong.txt
-2. docs/superpowers/specs/2026-06-23-writer-workbench-wpf-design.md
-3. docs/superpowers/plans/2026-06-23-writer-workbench-wpf-mvp-core.md
+2. docs/reports/superpowers-process-impact-report-2026-06-28.md
+3. docs/null-evidence-and-reference-audit-2026-06-25.md
+
+Superpowers status:
+- The Superpowers Codex plugin, marketplace registration, hook trust entry, cache directory, and generated `docs/superpowers` handoff files were removed on 2026-06-28 KST.
+- Do not use Superpowers plans/specs as active implementation sources.
+- Use repo state, user-visible behavior, tests, and `docs/pingpong.txt` as the working source.
 
 Stack direction:
 - Use WPF/.NET.

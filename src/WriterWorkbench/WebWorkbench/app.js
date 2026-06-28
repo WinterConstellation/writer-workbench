@@ -313,13 +313,8 @@ function renderActiveScene(active) {
   const summary = readPayloadValue(active, "summary", "Summary", "");
   const tags = readPayloadValue(active, "tags", "Tags", []);
   const editorText = readPayloadValue(active, "editorText", "EditorText", "");
-  const contentLength = readPayloadValue(active, "contentLength", "ContentLength", 0);
-  const contentLengthWithSpaces = readPayloadValue(active, "contentLengthWithSpaces", "ContentLengthWithSpaces", 0);
   const visibleMetrics = measureEditorText(editorText);
-  state.activeSceneMetrics = {
-    contentLength,
-    contentLengthWithSpaces,
-  };
+  state.activeSceneMetrics = visibleMetrics;
 
   $("active-title").textContent = title;
   if (document.activeElement !== $("active-title-editor")) {
@@ -330,8 +325,8 @@ function renderActiveScene(active) {
   }
   $("active-body-editor").disabled = false;
   $("active-status").textContent = status;
-  $("active-length").textContent = formatNumber(contentLength);
-  $("active-length-spaces").textContent = formatNumber(contentLengthWithSpaces);
+  $("active-length").textContent = formatNumber(visibleMetrics.contentLength);
+  $("active-length-spaces").textContent = formatNumber(visibleMetrics.contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
   $("active-editor-metrics").textContent = formatEditorMetrics(visibleMetrics);
   $("active-summary").textContent = summary || " ";
@@ -1111,24 +1106,11 @@ function scheduleLocalMetricUpdate() {
 }
 
 function measureEditorText(editorText) {
-  const paragraphs = (editorText || "")
-    .replace(/\r\n/g, "\n")
-    .split("\n\n")
-    .map((part) => part.trim())
-    .filter((part) => part);
-  let contentLength = 0;
-  let contentLengthWithSpaces = 0;
-
-  for (const paragraph of paragraphs) {
-    contentLengthWithSpaces += paragraph.length;
-    for (let index = 0; index < paragraph.length; index += 1) {
-      if (!/\s/.test(paragraph[index])) {
-        contentLength += 1;
-      }
-    }
-  }
-
-  return { contentLength, contentLengthWithSpaces };
+  const normalized = (editorText || "").replace(/\r\n/g, "\n");
+  return {
+    contentLength: normalized.replace(/\s/g, "").length,
+    contentLengthWithSpaces: normalized.length,
+  };
 }
 
 function formatEditorMetrics(metrics) {
