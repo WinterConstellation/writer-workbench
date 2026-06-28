@@ -3345,6 +3345,10 @@ Commands run:
 - `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
 - `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 228 passed.
 - `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|Large|Performance|Metric"` -> 38 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 228 passed.
 - Browser screenshot attempt via Playwright was not completed because Playwright's bundled Chromium executable is not installed on this machine. No browser install was performed.
 - Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
 - Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|Large|Performance|Metric"` -> 38 passed.
@@ -3362,6 +3366,46 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. No new sample project data or binary asset was created.
+
+## 2026-06-28 KST design correction update: Restrained manuscript workbench
+
+Reason:
+- Previous medieval scribe theme was visually overdone and unpleasant.
+- The parchment/wood/gold treatment made the UI feel like a theme skin instead of a usable writing tool.
+
+Feature(s) implemented:
+- Reworked the HTML workbench visual theme to a restrained manuscript workspace.
+- Removed most heavy parchment, wood, gold, and repeating texture treatment.
+- Kept only subtle manuscript cues: paper-toned editor sheet, thin rubric margin, quiet serif fallback for the writing area, and muted historical accent colors.
+- Returned panels, cards, relationship map, inspector, context menu, and status bar to flatter modern workbench styling.
+- Kept layout structure and all functional JavaScript unchanged.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Renamed/updated the theme asset test to `WebWorkbenchCssUsesRestrainedManuscriptWorkbenchTheme`.
+- The test now locks restrained manuscript tokens and modern workbench colors rather than heavy decorative texture.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|Large|Performance|Metric"` -> 38 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 228 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+
+Large manuscript regression check:
+- Editor input, save, metrics, export, relationship, settings-book, and binder data loops were not changed.
+- Guardrail filter `WebWorkbenchAssetTests|Large|Performance|Metric` passed: 38 tests.
+
+Remaining problems:
+- Needs manual visual check in the packaged app.
+- This is still CSS-level visual direction; icons/spacing/type hierarchy can be refined further after seeing it live.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음.
 
 ## 2026-06-28 KST feature implementation update: Settings Book MVP first pass
 

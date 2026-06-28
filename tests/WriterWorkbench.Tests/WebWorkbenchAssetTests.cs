@@ -286,7 +286,7 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchCssUsesScribeWorkbenchTheme()
+    public async Task WebWorkbenchCssUsesRestrainedManuscriptWorkbenchTheme()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var cssPath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
@@ -296,11 +296,13 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("--parchment", css);
         Assert.Contains("--rubric", css);
         Assert.Contains("--gild", css);
+        Assert.Contains("--chrome: #28313a", css);
+        Assert.Contains("--blue: #245c73", css);
         Assert.Contains(".workbench-shell::before", css);
         Assert.Contains(".writing-sheet::before", css);
         Assert.Contains(".writing-sheet::after", css);
-        Assert.Contains("repeating-linear-gradient(0deg", css);
         Assert.Contains("\"Palatino Linotype\"", css);
+        Assert.Contains("background: var(--bg);", css);
     }
 
     [Fact]
