@@ -24,6 +24,16 @@ public enum StoryEntityType
     Concept
 }
 
+public enum StorySettingsBookCategory
+{
+    Character,
+    World,
+    Place,
+    Plot,
+    Reference,
+    Other
+}
+
 public sealed record StoryRelationship(
     string Id,
     string SourceEntityId,
@@ -47,5 +57,14 @@ public sealed record SceneEntityLink(
     string EntityId,
     string Role,
     string Notes,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record StorySettingsBookItem(
+    string Id,
+    StorySettingsBookCategory Category,
+    string Title,
+    string Body,
+    IReadOnlyList<string> Tags,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);

@@ -255,7 +255,7 @@ h1 {
 }
 
 #rail-panel-settings {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 #rail-panel-reference {
@@ -460,15 +460,62 @@ h2 {
 }
 
 .compact-form input,
-.compact-form select {
+.compact-form select,
+.compact-form textarea {
   width: 100%;
-  min-height: 30px;
   border: 1px solid var(--line-strong);
   border-radius: 5px;
   background: var(--surface);
   color: var(--text);
-  padding: 0 8px;
   font: inherit;
+}
+
+.compact-form input,
+.compact-form select {
+  min-height: 30px;
+  padding: 0 8px;
+}
+
+.compact-form textarea {
+  min-height: 76px;
+  resize: vertical;
+  padding: 7px 8px;
+}
+
+.settings-book-form {
+  margin: 0;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.settings-book-form-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.settings-book-form-actions button {
+  min-height: 26px;
+}
+
+#settings-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+}
+
+.settings-book-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.settings-book-quick {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
 }
 
 .story-list {

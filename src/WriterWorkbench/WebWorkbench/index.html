@@ -63,6 +63,23 @@
             <strong>설정집</strong>
             <span id="settings-count">0</span>
           </div>
+          <div id="settings-book-form" class="settings-book-form compact-form">
+            <select id="settings-book-category" aria-label="설정집 분류">
+              <option value="Character">인물</option>
+              <option value="World">세계관</option>
+              <option value="Place">장소</option>
+              <option value="Plot">플롯</option>
+              <option value="Reference">자료</option>
+              <option value="Other">기타</option>
+            </select>
+            <input id="settings-book-title" type="text" placeholder="제목">
+            <textarea id="settings-book-body" rows="4" placeholder="내용"></textarea>
+            <input id="settings-book-tags" type="text" placeholder="태그, 쉼표로 구분">
+            <div class="settings-book-form-actions">
+              <button id="settings-book-save" type="button">추가</button>
+              <button id="settings-book-cancel" type="button" hidden>취소</button>
+            </div>
+          </div>
           <div id="settings-list" class="side-action-list"></div>
         </div>
         <div id="rail-panel-reference" class="rail-panel">

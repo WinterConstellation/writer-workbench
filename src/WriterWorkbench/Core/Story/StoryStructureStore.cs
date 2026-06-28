@@ -226,6 +226,74 @@ public sealed class StoryStructureStore(ProjectPaths paths)
         await SaveRelationLayoutAsync(layout, token);
     }
 
+    public async Task<IReadOnlyList<StorySettingsBookItem>> LoadSettingsBookAsync(CancellationToken token)
+    {
+        return File.Exists(paths.StorySettingsBookPath)
+            ? NormalizeSettingsBookItems(await ReadJsonAsync<List<StorySettingsBookItem>>(paths.StorySettingsBookPath, token) ?? [])
+            : [];
+    }
+
+    public async Task SaveSettingsBookAsync(IEnumerable<StorySettingsBookItem> items, CancellationToken token)
+    {
+        Directory.CreateDirectory(paths.StoryPath);
+        await WriteUtf8AtomicAsync(paths.StorySettingsBookPath, NormalizeSettingsBookItems(items), token);
+    }
+
+    public async Task<StorySettingsBookItem> AddSettingsBookItemAsync(
+        StorySettingsBookCategory category,
+        string title,
+        string body,
+        IEnumerable<string> tags,
+        CancellationToken token)
+    {
+        var items = (await LoadSettingsBookAsync(token)).ToList();
+        var now = DateTimeOffset.UtcNow;
+        var item = NormalizeSettingsBookItem(new StorySettingsBookItem(
+            NextId("note", items.Select(item => item.Id)),
+            category,
+            title,
+            body,
+            tags.ToList(),
+            now,
+            now));
+        items.Add(item);
+        await SaveSettingsBookAsync(items, token);
+        return item;
+    }
+
+    public async Task<StorySettingsBookItem> UpdateSettingsBookItemAsync(StorySettingsBookItem item, CancellationToken token)
+    {
+        var items = (await LoadSettingsBookAsync(token)).ToList();
+        var index = FindSettingsBookItemIndex(items, item.Id);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Story settings book item not found: {item.Id}");
+        }
+
+        var existing = items[index];
+        var updated = NormalizeSettingsBookItem(item with
+        {
+            CreatedAt = existing.CreatedAt,
+            UpdatedAt = DateTimeOffset.UtcNow
+        });
+        items[index] = updated;
+        await SaveSettingsBookAsync(items, token);
+        return updated;
+    }
+
+    public async Task DeleteSettingsBookItemAsync(string itemId, CancellationToken token)
+    {
+        var items = (await LoadSettingsBookAsync(token)).ToList();
+        var index = FindSettingsBookItemIndex(items, itemId);
+        if (index < 0)
+        {
+            throw new KeyNotFoundException($"Story settings book item not found: {itemId}");
+        }
+
+        items.RemoveAt(index);
+        await SaveSettingsBookAsync(items, token);
+    }
+
     private static async Task<T?> ReadJsonAsync<T>(string path, CancellationToken token)
     {
         await using var stream = File.OpenRead(path);
@@ -339,6 +407,38 @@ public sealed class StoryStructureStore(ProjectPaths paths)
         return normalized;
     }
 
+    private static IReadOnlyList<StorySettingsBookItem> NormalizeSettingsBookItems(IEnumerable<StorySettingsBookItem> items)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<StorySettingsBookItem>();
+        foreach (var item in items)
+        {
+            var normalizedItem = NormalizeSettingsBookItem(item);
+            if (seen.Add(normalizedItem.Id))
+            {
+                normalized.Add(normalizedItem);
+            }
+        }
+
+        return normalized;
+    }
+
+    private static StorySettingsBookItem NormalizeSettingsBookItem(StorySettingsBookItem item)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var createdAt = item.CreatedAt == default ? now : item.CreatedAt;
+        return item with
+        {
+            Id = NormalizeText(item.Id, "note-0001"),
+            Category = Enum.IsDefined(item.Category) ? item.Category : StorySettingsBookCategory.Other,
+            Title = NormalizeText(item.Title, "Untitled"),
+            Body = item.Body ?? "",
+            Tags = NormalizeTextList(item.Tags ?? []),
+            CreatedAt = createdAt,
+            UpdatedAt = item.UpdatedAt == default ? createdAt : item.UpdatedAt
+        };
+    }
+
     private static void ValidateRelationshipEndpoints(
         IEnumerable<StoryEntity> entities,
         string sourceEntityId,
@@ -369,6 +469,19 @@ public sealed class StoryStructureStore(ProjectPaths paths)
         for (var index = 0; index < relationships.Count; index++)
         {
             if (string.Equals(relationships[index].Id, relationshipId, StringComparison.OrdinalIgnoreCase))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static int FindSettingsBookItemIndex(IReadOnlyList<StorySettingsBookItem> items, string itemId)
+    {
+        for (var index = 0; index < items.Count; index++)
+        {
+            if (string.Equals(items[index].Id, itemId, StringComparison.OrdinalIgnoreCase))
             {
                 return index;
             }

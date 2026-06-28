@@ -16,8 +16,10 @@ const state = {
   availableCommands: [],
   shortcutBindings: [],
   storyModel: { entities: [], relationships: [] },
+  settingsBook: [],
   editingEntityId: "",
   editingRelationshipId: "",
+  editingSettingsBookId: "",
   activeSceneMetrics: null,
 };
 
@@ -74,6 +76,7 @@ function render(payload) {
   const previewText = readPayloadValue(payload, "previewText", "PreviewText", "");
   const story = readPayloadValue(payload, "story", "Story", null);
   const trash = readPayloadValue(payload, "trash", "Trash", []) || [];
+  const settingsBook = readPayloadValue(payload, "settingsBook", "SettingsBook", []) || [];
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   syncRemoteDraftFromPayload(remoteCommands, activeView);
@@ -92,7 +95,7 @@ function render(payload) {
   renderPreview(previewText);
   renderInspector(active);
   renderPipeline(binder);
-  renderSettingsPanel(menuCommands);
+  renderSettingsPanel(menuCommands, settingsBook);
   renderReferencePanel(project, active, trash);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
@@ -354,8 +357,90 @@ function normalizeCharacterCountLabels() {
   }
 }
 
-function renderSettingsPanel(menuCommands) {
+function renderSettingsPanel(menuCommands, settingsBook) {
+  state.settingsBook = (settingsBook || [])
+    .map(normalizeSettingsBookItem)
+    .filter((item) => item.id || item.title || item.body);
+  if (state.editingSettingsBookId &&
+      !state.settingsBook.some((item) => item.id === state.editingSettingsBookId)) {
+    state.editingSettingsBookId = "";
+  }
+
+  $("settings-count").textContent = formatNumber(state.settingsBook.length);
+  renderSettingsBookList(menuCommands);
+  syncSettingsBookForm();
+}
+
+function normalizeSettingsBookItem(item) {
+  return {
+    id: readPayloadValue(item, "id", "Id", ""),
+    category: readPayloadValue(item, "category", "Category", "Other") || "Other",
+    title: readPayloadValue(item, "title", "Title", ""),
+    body: readPayloadValue(item, "body", "Body", ""),
+    tags: readPayloadValue(item, "tags", "Tags", []) || [],
+    updatedAt: readPayloadValue(item, "updatedAt", "UpdatedAt", ""),
+  };
+}
+
+function renderSettingsBookList(menuCommands) {
   const list = $("settings-list");
+  list.textContent = "";
+
+  if (state.settingsBook.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "reference-item";
+    const title = document.createElement("strong");
+    title.textContent = "설정집 항목 없음";
+    const body = document.createElement("span");
+    body.textContent = "인물, 세계관, 자료를 왼쪽 폼에서 추가하세요.";
+    empty.append(title, body);
+    list.appendChild(empty);
+  }
+
+  for (const item of state.settingsBook) {
+    const row = document.createElement("article");
+    row.className = "story-list-item settings-book-item";
+    row.classList.toggle("editing", item.id === state.editingSettingsBookId);
+    const title = document.createElement("strong");
+    title.textContent = item.title || item.id;
+    const meta = document.createElement("span");
+    meta.textContent = `${categoryLabel(item.category)} · ${formatDate(item.updatedAt)} · ${item.id}`;
+    const excerpt = document.createElement("span");
+    excerpt.textContent = item.body ? item.body.slice(0, 96) : "내용 없음";
+    const tags = document.createElement("div");
+    tags.className = "settings-book-tags";
+    for (const tag of item.tags) {
+      const chip = document.createElement("span");
+      chip.className = "tag";
+      chip.textContent = tag;
+      tags.appendChild(chip);
+    }
+    const actions = document.createElement("div");
+    actions.className = "story-item-actions";
+    actions.append(
+      createSettingsBookActionButton("edit", item.id, "수정"),
+      createSettingsBookActionButton("delete", item.id, "삭제"));
+    row.append(title, meta, excerpt, tags, actions);
+    list.appendChild(row);
+  }
+
+  const quick = createSettingsQuickCommands(menuCommands);
+  if (quick.length > 0) {
+    const quickWrap = document.createElement("div");
+    quickWrap.className = "settings-book-quick";
+    for (const command of quick) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "side-action";
+      button.dataset.command = command.commandId;
+      button.textContent = command.label || command.commandId;
+      quickWrap.appendChild(button);
+    }
+    list.appendChild(quickWrap);
+  }
+}
+
+function createSettingsQuickCommands(menuCommands) {
   const commands = (menuCommands || [])
     .map(normalizeCommand)
     .filter((command) => command.area === "top.story" || command.area === "top.tools");
@@ -372,16 +457,129 @@ function renderSettingsPanel(menuCommands) {
       seen.add(command.commandId.toLowerCase());
     }
   }
-  list.textContent = "";
-  $("settings-count").textContent = formatNumber(commands.length);
+  return commands;
+}
 
-  for (const command of commands) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "side-action";
-    button.dataset.command = command.commandId;
-    button.textContent = command.label || command.commandId;
-    list.appendChild(button);
+function createSettingsBookActionButton(action, itemId, label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.settingsBookAction = action;
+  button.dataset.settingsBookId = itemId;
+  button.textContent = label;
+  return button;
+}
+
+function categoryLabel(category) {
+  const labels = {
+    Character: "인물",
+    World: "세계관",
+    Place: "장소",
+    Plot: "플롯",
+    Reference: "자료",
+    Other: "기타",
+  };
+  return labels[category] || category || "기타";
+}
+
+function syncSettingsBookForm() {
+  const form = $("settings-book-form");
+  if (form?.contains(document.activeElement)) {
+    return;
+  }
+
+  const item = state.settingsBook.find((entry) => entry.id === state.editingSettingsBookId);
+  if (item) {
+    fillSettingsBookForm(item);
+    return;
+  }
+
+  clearSettingsBookForm();
+}
+
+function fillSettingsBookForm(item) {
+  state.editingSettingsBookId = item.id || "";
+  $("settings-book-category").value = item.category || "Other";
+  $("settings-book-title").value = item.title || "";
+  $("settings-book-body").value = item.body || "";
+  $("settings-book-tags").value = (item.tags || []).join(", ");
+  $("settings-book-save").textContent = state.editingSettingsBookId ? "저장" : "추가";
+  $("settings-book-cancel").hidden = !state.editingSettingsBookId;
+}
+
+function clearSettingsBookForm() {
+  state.editingSettingsBookId = "";
+  $("settings-book-category").value = "Character";
+  $("settings-book-title").value = "";
+  $("settings-book-body").value = "";
+  $("settings-book-tags").value = "";
+  $("settings-book-save").textContent = "추가";
+  $("settings-book-cancel").hidden = true;
+}
+
+function parseSettingsBookTags(value) {
+  const seen = new Set();
+  return (value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0)
+    .filter((tag) => {
+      const key = tag.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function saveSettingsBookItem() {
+  const category = $("settings-book-category").value || "Other";
+  const title = $("settings-book-title").value.trim();
+  const body = $("settings-book-body").value;
+  const tags = parseSettingsBookTags($("settings-book-tags").value);
+  if (!title) {
+    $("status-text").textContent = "설정집 제목을 입력하세요.";
+    return;
+  }
+
+  if (state.editingSettingsBookId) {
+    postWebMessage({
+      type: "story.settingsBook.update",
+      itemId: state.editingSettingsBookId,
+      category,
+      title,
+      body,
+      tags,
+    });
+    $("status-text").textContent = `${title} 저장 요청`;
+  } else {
+    postWebMessage({
+      type: "story.settingsBook.add",
+      category,
+      title,
+      body,
+      tags,
+    });
+    $("status-text").textContent = `${title} 추가 요청`;
+  }
+
+  clearSettingsBookForm();
+}
+
+function handleSettingsBookAction(button) {
+  const action = button.dataset.settingsBookAction;
+  const itemId = button.dataset.settingsBookId;
+  if (!action || !itemId) return;
+
+  const item = state.settingsBook.find((entry) => entry.id === itemId);
+  if (action === "edit") {
+    if (!item) return;
+    fillSettingsBookForm(item);
+    $("settings-book-title").focus();
+    return;
+  }
+
+  if (action === "delete") {
+    if (!window.confirm(`${item?.title || itemId} 삭제?`)) return;
+    postWebMessage({ type: "story.settingsBook.delete", itemId });
   }
 }
 
@@ -978,6 +1176,24 @@ document.addEventListener("click", (event) => {
   const remoteAction = event.target.closest("[data-remote-action]");
   if (remoteAction) {
     handleRemoteSettingsAction(remoteAction);
+    return;
+  }
+
+  const settingsBookSave = event.target.closest("#settings-book-save");
+  if (settingsBookSave) {
+    saveSettingsBookItem();
+    return;
+  }
+
+  const settingsBookCancel = event.target.closest("#settings-book-cancel");
+  if (settingsBookCancel) {
+    clearSettingsBookForm();
+    return;
+  }
+
+  const settingsBookAction = event.target.closest("[data-settings-book-action]");
+  if (settingsBookAction) {
+    handleSettingsBookAction(settingsBookAction);
     return;
   }
 

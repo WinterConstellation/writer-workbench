@@ -24,7 +24,8 @@ public static class WebWorkbenchPayloadFactory
         string previewText = "",
         IReadOnlyList<ShortcutBinding>? shortcutBindings = null,
         WebWorkbenchStory? story = null,
-        IReadOnlyList<WebWorkbenchTrashItem>? trash = null)
+        IReadOnlyList<WebWorkbenchTrashItem>? trash = null,
+        IReadOnlyList<WebWorkbenchSettingsBookItem>? settingsBook = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -96,7 +97,8 @@ public static class WebWorkbenchPayloadFactory
             NormalizeActiveView(activeView),
             previewText ?? "",
             story,
-            trash ?? []);
+            trash ?? [],
+            settingsBook ?? []);
     }
 
     private static string NormalizeActiveView(string? activeView)

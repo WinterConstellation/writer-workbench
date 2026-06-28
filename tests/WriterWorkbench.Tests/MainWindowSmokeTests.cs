@@ -1513,6 +1513,55 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlSettingsBookCommandsPersistItems()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
+
+                InvokePrivateAsync(window, "ApplyHtmlSettingsBookAddAsync", "World", "동부 왕국", "비가 자주 오는 국경 도시", new[] { "세계관", "도시" });
+                InvokePrivateAsync(window, "ApplyHtmlSettingsBookUpdateAsync", "note-0001", "Reference", "동부 왕국 자료", "무역로와 항구 기록", new[] { "자료" });
+
+                var items = WaitForTaskOnDispatcher(store.LoadSettingsBookAsync(CancellationToken.None));
+
+                var item = Assert.Single(items);
+                Assert.Equal("note-0001", item.Id);
+                Assert.Equal(StorySettingsBookCategory.Reference, item.Category);
+                Assert.Equal("동부 왕국 자료", item.Title);
+                Assert.Equal("무역로와 항구 기록", item.Body);
+                Assert.True(File.Exists(ProjectPaths.ForRoot(root).StorySettingsBookPath));
+                Assert.Contains("설정집 항목 수정됨", ((TextBlock)window.FindName("StatusText")).Text);
+
+                InvokePrivateAsync(window, "ApplyHtmlSettingsBookDeleteAsync", "note-0001");
+
+                Assert.Empty(WaitForTaskOnDispatcher(store.LoadSettingsBookAsync(CancellationToken.None)));
+                Assert.Contains("설정집 항목 삭제됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
     public void MainWindowHtmlShortcutCommandPersistsBinding()
     {
         string? failure = null;

@@ -108,6 +108,78 @@ public sealed class StoryStructureStoreTests
     }
 
     [Fact]
+    public async Task MissingSettingsBookFileReturnsEmptyList()
+    {
+        var paths = ProjectPaths.ForRoot(NewRoot());
+        var store = new StoryStructureStore(paths);
+
+        var items = await store.LoadSettingsBookAsync(CancellationToken.None);
+
+        Assert.Empty(items);
+        Assert.False(File.Exists(paths.StorySettingsBookPath));
+    }
+
+    [Fact]
+    public async Task SettingsBookAddUpdateDeleteRoundtripsKoreanText()
+    {
+        var paths = ProjectPaths.ForRoot(NewRoot());
+        var store = new StoryStructureStore(paths);
+
+        var created = await store.AddSettingsBookItemAsync(
+            StorySettingsBookCategory.World,
+            "동부 왕국",
+            "비가 자주 오는 국경 도시 설정",
+            ["세계관", "1부", "세계관"],
+            CancellationToken.None);
+        var updated = await store.UpdateSettingsBookItemAsync(
+            created with
+            {
+                Category = StorySettingsBookCategory.Reference,
+                Title = "동부 왕국 자료",
+                Body = "무역로와 항구 기록",
+                Tags = ["자료", "항구"]
+            },
+            CancellationToken.None);
+
+        var loaded = await store.LoadSettingsBookAsync(CancellationToken.None);
+
+        Assert.Equal("note-0001", created.Id);
+        Assert.Equal("동부 왕국 자료", Assert.Single(loaded).Title);
+        Assert.Equal("무역로와 항구 기록", updated.Body);
+        Assert.Equal(["자료", "항구"], updated.Tags);
+        Assert.Contains("무역로와 항구 기록", await File.ReadAllTextAsync(paths.StorySettingsBookPath, CancellationToken.None));
+
+        await store.DeleteSettingsBookItemAsync(created.Id, CancellationToken.None);
+
+        Assert.Empty(await store.LoadSettingsBookAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task SavingSettingsBookDoesNotRewriteDocumentBodies()
+    {
+        var root = NewRoot();
+        var paths = ProjectPaths.ForRoot(root);
+        var projectStore = new ProjectStore(paths);
+        var document = new WriterDocument(
+            "scene-0001",
+            "Body",
+            [new WriterParagraph("p-0001", "본문은 그대로 남아야 한다.", "body", [], [])]);
+        await projectStore.SaveDocumentAsync(document, CancellationToken.None);
+        var jsonTimestamp = File.GetLastWriteTimeUtc(paths.DocumentJsonPath(document.Id));
+        var textTimestamp = File.GetLastWriteTimeUtc(paths.DocumentTextPath(document.Id));
+
+        await new StoryStructureStore(paths).AddSettingsBookItemAsync(
+            StorySettingsBookCategory.Character,
+            "본문과 분리된 인물",
+            "원고 파일을 건드리지 않는 설정집 항목",
+            ["검증"],
+            CancellationToken.None);
+
+        Assert.Equal(jsonTimestamp, File.GetLastWriteTimeUtc(paths.DocumentJsonPath(document.Id)));
+        Assert.Equal(textTimestamp, File.GetLastWriteTimeUtc(paths.DocumentTextPath(document.Id)));
+    }
+
+    [Fact]
     public async Task SavingStoryStructureDoesNotRewriteDocumentBodies()
     {
         var root = NewRoot();

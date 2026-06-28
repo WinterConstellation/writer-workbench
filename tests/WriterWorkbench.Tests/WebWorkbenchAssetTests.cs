@@ -91,6 +91,12 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("remote-settings-available-list", html);
         Assert.Contains("remote-settings-save", html);
         Assert.Contains("rail-panel-settings", html);
+        Assert.Contains("settings-book-category", html);
+        Assert.Contains("settings-book-title", html);
+        Assert.Contains("settings-book-body", html);
+        Assert.Contains("settings-book-tags", html);
+        Assert.Contains("settings-book-save", html);
+        Assert.Contains("settings-book-cancel", html);
         Assert.Contains("rail-panel-reference", html);
         Assert.Contains("bottom-status", html);
     }
@@ -171,6 +177,12 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("renderRemoteSettings", script);
         Assert.Contains("saveRemoteSettings", script);
         Assert.Contains("remoteSettings.update", script);
+        Assert.Contains("renderSettingsPanel(menuCommands, settingsBook)", script);
+        Assert.Contains("story.settingsBook.add", script);
+        Assert.Contains("story.settingsBook.update", script);
+        Assert.Contains("story.settingsBook.delete", script);
+        Assert.Contains("normalizeSettingsBookItem", script);
+        Assert.Contains("data-settings-book-action", script);
         Assert.Contains("renderShortcutSettings", script);
         Assert.Contains("filterShortcutSettings", script);
         Assert.Contains("scheduleLocalMetricUpdate", script);

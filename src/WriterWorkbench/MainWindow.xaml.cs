@@ -2490,6 +2490,33 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "story.settingsBook.add", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlSettingsBookAddAsync(
+                    ReadJsonString(root, "category"),
+                    ReadJsonString(root, "title"),
+                    ReadJsonString(root, "body"),
+                    ReadJsonStringArray(root, "tags"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.settingsBook.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlSettingsBookUpdateAsync(
+                    ReadJsonString(root, "itemId"),
+                    ReadJsonString(root, "category"),
+                    ReadJsonString(root, "title"),
+                    ReadJsonString(root, "body"),
+                    ReadJsonStringArray(root, "tags"));
+                return;
+            }
+
+            if (string.Equals(messageType, "story.settingsBook.delete", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlSettingsBookDeleteAsync(ReadJsonString(root, "itemId"));
+                return;
+            }
+
             if (string.Equals(messageType, "trash.restore", StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyHtmlTrashRestoreAsync(ReadJsonString(root, "trashId"));
@@ -2536,6 +2563,17 @@ public partial class MainWindow : Window
         return root.TryGetProperty(propertyName, out var element) && element.TryGetDouble(out var value)
             ? value
             : 0;
+    }
+
+    private static IReadOnlyList<string> ReadJsonStringArray(JsonElement root, string propertyName)
+    {
+        return root.TryGetProperty(propertyName, out var element) && element.ValueKind == JsonValueKind.Array
+            ? element.EnumerateArray()
+                .Select(item => item.ValueKind == JsonValueKind.String ? item.GetString() : null)
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item!.Trim())
+                .ToList()
+            : [];
     }
 
     private void ApplyHtmlActiveSceneUpdate(string title, string editorText)
@@ -2798,6 +2836,103 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ApplyHtmlSettingsBookAddAsync(
+        string category,
+        string title,
+        string body,
+        IReadOnlyList<string> tags)
+    {
+        if (string.IsNullOrWhiteSpace(title))
+        {
+            StatusText.Text = "설정집 항목 추가 실패 - 제목을 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var item = await _storyStructureStore.AddSettingsBookItemAsync(
+                ParseSettingsBookCategory(category),
+                title.Trim(),
+                body,
+                tags,
+                CancellationToken.None);
+            StatusText.Text = $"설정집 항목 추가됨 {item.Id} - {item.Title}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"설정집 항목 추가 실패 {title} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlSettingsBookUpdateAsync(
+        string itemId,
+        string category,
+        string title,
+        string body,
+        IReadOnlyList<string> tags)
+    {
+        if (string.IsNullOrWhiteSpace(itemId) || string.IsNullOrWhiteSpace(title))
+        {
+            StatusText.Text = "설정집 항목 수정 실패 - 항목과 제목을 확인하세요.";
+            return;
+        }
+
+        try
+        {
+            var items = await _storyStructureStore.LoadSettingsBookAsync(CancellationToken.None);
+            var existing = items.FirstOrDefault(item =>
+                string.Equals(item.Id, itemId.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (existing is null)
+            {
+                throw new KeyNotFoundException($"Story settings book item not found: {itemId}");
+            }
+
+            var updated = await _storyStructureStore.UpdateSettingsBookItemAsync(
+                existing with
+                {
+                    Category = ParseSettingsBookCategory(category),
+                    Title = title.Trim(),
+                    Body = body,
+                    Tags = tags
+                },
+                CancellationToken.None);
+            StatusText.Text = $"설정집 항목 수정됨 {updated.Id} - {updated.Title}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"설정집 항목 수정 실패 {itemId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlSettingsBookDeleteAsync(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId))
+        {
+            StatusText.Text = "설정집 항목 삭제 실패 - 항목이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            await _storyStructureStore.DeleteSettingsBookItemAsync(itemId.Trim(), CancellationToken.None);
+            StatusText.Text = $"설정집 항목 삭제됨 {itemId.Trim()}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"설정집 항목 삭제 실패 {itemId} - {ex.Message}";
+        }
+    }
+
+    private static StorySettingsBookCategory ParseSettingsBookCategory(string category)
+    {
+        return Enum.TryParse<StorySettingsBookCategory>(category, ignoreCase: true, out var parsed)
+            ? parsed
+            : StorySettingsBookCategory.Other;
+    }
+
     private static bool CommandRequiresActiveDocument(string commandId)
     {
         return commandId is
@@ -2941,6 +3076,7 @@ public partial class MainWindow : Window
             _commandRegistry);
         var story = await CreateHtmlStoryPayloadAsync();
         var trash = await CreateHtmlTrashPayloadAsync();
+        var settingsBook = await CreateHtmlSettingsBookPayloadAsync();
         return WebWorkbenchPayloadFactory.Create(
             manifest,
             _projectRoot,
@@ -2957,7 +3093,8 @@ public partial class MainWindow : Window
             CreateHtmlPreviewText(),
             _shortcutManager.Bindings,
             story,
-            trash);
+            trash,
+            settingsBook);
     }
 
     private async Task EnsureActiveDocumentForHtmlPayloadAsync()
@@ -3076,6 +3213,28 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             StatusText.Text = $"휴지통 상태 생성 실패 - {ex.Message}";
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<WebWorkbenchSettingsBookItem>> CreateHtmlSettingsBookPayloadAsync()
+    {
+        try
+        {
+            var items = await _storyStructureStore.LoadSettingsBookAsync(CancellationToken.None);
+            return items
+                .Select(item => new WebWorkbenchSettingsBookItem(
+                    item.Id,
+                    item.Category.ToString(),
+                    item.Title,
+                    item.Body,
+                    item.Tags,
+                    item.UpdatedAt))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"설정집 상태 생성 실패 - {ex.Message}";
             return [];
         }
     }

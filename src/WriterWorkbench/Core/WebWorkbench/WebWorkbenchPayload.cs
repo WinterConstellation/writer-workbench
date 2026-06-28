@@ -15,7 +15,8 @@ public sealed record WebWorkbenchPayload(
     string ActiveView = "editor",
     string PreviewText = "",
     WebWorkbenchStory? Story = null,
-    IReadOnlyList<WebWorkbenchTrashItem>? Trash = null);
+    IReadOnlyList<WebWorkbenchTrashItem>? Trash = null,
+    IReadOnlyList<WebWorkbenchSettingsBookItem>? SettingsBook = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -79,3 +80,11 @@ public sealed record WebWorkbenchTrashItem(
     string DocumentId,
     string Title,
     DateTimeOffset DeletedAt);
+
+public sealed record WebWorkbenchSettingsBookItem(
+    string Id,
+    string Category,
+    string Title,
+    string Body,
+    IReadOnlyList<string> Tags,
+    DateTimeOffset UpdatedAt);

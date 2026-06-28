@@ -373,4 +373,47 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("scene-0002-20260627010000000", item.TrashId);
         Assert.Equal("삭제된 장면", item.Title);
     }
+
+    [Fact]
+    public void PayloadCarriesSettingsBookItemsForHtmlSettingsPanel()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-settings", "설정집", registry);
+        var now = DateTimeOffset.Parse("2026-06-28T01:00:00+09:00");
+        var manifest = new ProjectManifest(
+            1,
+            "설정집 테스트",
+            [
+                new ProjectDocumentInfo("scene-0001", "첫 장면", "scene-0001.wwdoc.json", "scene-0001.txt", now)
+            ]);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            manifest,
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "대기",
+            "기본",
+            autosaveEnabled: true,
+            settingsBook:
+            [
+                new WebWorkbenchSettingsBookItem(
+                    "note-0001",
+                    "World",
+                    "동부 왕국",
+                    "비가 자주 오는 국경 도시",
+                    ["세계관", "도시"],
+                    now)
+            ]);
+
+        Assert.NotNull(payload.SettingsBook);
+        var item = Assert.Single(payload.SettingsBook!);
+        Assert.Equal("note-0001", item.Id);
+        Assert.Equal("World", item.Category);
+        Assert.Equal("동부 왕국", item.Title);
+        Assert.Equal(["세계관", "도시"], item.Tags);
+    }
 }
