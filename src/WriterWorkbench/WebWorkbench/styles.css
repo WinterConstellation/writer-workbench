@@ -380,7 +380,7 @@ h1 {
 }
 
 #rail-panel-settings {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(172px, 0.58fr);
 }
 
 #rail-panel-reference {
@@ -753,6 +753,77 @@ h2 {
   padding-top: 8px;
 }
 
+.text-replacement-panel {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 7px;
+  min-height: 0;
+  border-top: 1px solid var(--line);
+  background: var(--surface-soft);
+  padding: 8px;
+}
+
+.text-replacement-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+}
+
+.text-replacement-form input {
+  min-width: 0;
+  min-height: 28px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 7px;
+  font: inherit;
+}
+
+.text-replacement-form button {
+  min-height: 26px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+#text-replacement-apply {
+  grid-column: 1 / -1;
+}
+
+.text-replacement-list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+}
+
+.text-replacement-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface);
+  padding: 5px;
+  font-size: 11px;
+}
+
+.text-replacement-row strong,
+.text-replacement-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-replacement-row button {
+  min-height: 22px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+
 .story-list {
   min-height: 0;
   overflow: auto;
@@ -816,6 +887,15 @@ h2 {
     linear-gradient(90deg, rgba(36, 92, 115, 0.08) 1px, transparent 1px),
     var(--surface);
   background-size: 32px 32px;
+}
+
+.story-map-content {
+  position: relative;
+  width: 1200px;
+  height: 760px;
+  min-width: 1200px;
+  min-height: 760px;
+  transform-origin: 0 0;
 }
 
 .relationship-lines {

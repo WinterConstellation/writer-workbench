@@ -17,7 +17,8 @@ public sealed record WebWorkbenchPayload(
     string PreviewText = "",
     WebWorkbenchStory? Story = null,
     IReadOnlyList<WebWorkbenchTrashItem>? Trash = null,
-    IReadOnlyList<WebWorkbenchSettingsBookItem>? SettingsBook = null);
+    IReadOnlyList<WebWorkbenchSettingsBookItem>? SettingsBook = null,
+    IReadOnlyList<WebWorkbenchTextReplacementRule>? TextReplacements = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -91,3 +92,9 @@ public sealed record WebWorkbenchSettingsBookItem(
     string Body,
     IReadOnlyList<string> Tags,
     DateTimeOffset UpdatedAt);
+
+public sealed record WebWorkbenchTextReplacementRule(
+    string Id,
+    string Source,
+    string Replacement,
+    bool IsEnabled);

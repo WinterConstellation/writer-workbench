@@ -30,6 +30,7 @@ public enum StorySettingsBookCategory
     World,
     Place,
     Plot,
+    Synopsis,
     Reference,
     Other
 }

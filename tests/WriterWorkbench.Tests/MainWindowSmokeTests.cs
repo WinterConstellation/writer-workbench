@@ -1761,6 +1761,100 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlSettingsBookSynopsisSyncsToWhiteboardEntity()
+    {
+        string? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
+
+                InvokePrivateAsync(window, "ApplyHtmlSettingsBookAddAsync", "Synopsis", "1부 시놉시스", "발단과 전환점 정리", new[] { "시놉시스", "1부" });
+
+                var item = Assert.Single(WaitForTaskOnDispatcher(store.LoadSettingsBookAsync(CancellationToken.None)));
+                var entity = Assert.Single(WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None)));
+
+                Assert.Equal(StorySettingsBookCategory.Synopsis, item.Category);
+                Assert.Equal("settings-note-0001", entity.Id);
+                Assert.Equal(StoryEntityType.Event, entity.Type);
+                Assert.Equal("시놉시스", entity.Role);
+                Assert.Equal("1부 시놉시스", entity.Name);
+                Assert.Contains("설정집 항목 추가됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex.ToString();
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            Assert.Fail(failure);
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlTextReplacementAppliesToActiveSceneOnlyWhenRequested()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var original = new WriterDocument(
+                    "scene-replace",
+                    "대치 장면",
+                    [new WriterParagraph("p-0001", "첫 문장... 안되...", "body", [], [])]);
+                typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, original);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, original.Id);
+                typeof(MainWindow).GetField("_editorTextView", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(
+                    window,
+                    DocumentEditorTextService.CreateView(original));
+
+                InvokePrivateAsync(window, "ApplyHtmlTextReplacementAddAsync", "...", "…");
+                InvokePrivateAsync(window, "ApplyHtmlTextReplacementAddAsync", "안되", "안 돼");
+                var unchanged = GetPrivateField<WriterDocument>(window, "_activeDocument");
+
+                InvokePrivateAsync(window, "ApplyHtmlTextReplacementsToActiveSceneAsync");
+                var updated = GetPrivateField<WriterDocument>(window, "_activeDocument");
+
+                Assert.Equal("첫 문장... 안되...", Assert.Single(unchanged.Paragraphs).Text);
+                Assert.Equal("첫 문장… 안 돼…", Assert.Single(updated.Paragraphs).Text);
+                Assert.True(GetPrivateField<bool>(window, "_dirty"));
+                Assert.Contains("대치어 적용됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowHtmlShortcutCommandPersistsBinding()
     {
         string? failure = null;

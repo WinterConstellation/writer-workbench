@@ -65,6 +65,7 @@ public partial class MainWindow : Window
     private SceneSnapshotService _snapshotService;
     private StoryStructureStore _storyStructureStore;
     private SceneEntityLinkStore _sceneEntityLinkStore;
+    private TextReplacementStore _textReplacementStore;
     private ProjectManifest? _currentManifest;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
@@ -103,6 +104,7 @@ public partial class MainWindow : Window
         _snapshotService = new SceneSnapshotService(projectPaths, _store);
         _storyStructureStore = new StoryStructureStore(projectPaths);
         _sceneEntityLinkStore = new SceneEntityLinkStore(projectPaths);
+        _textReplacementStore = new TextReplacementStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
@@ -721,6 +723,8 @@ public partial class MainWindow : Window
         _exportService = new ManuscriptExportService(projectPaths, _store, _metadataStore);
         _snapshotService = new SceneSnapshotService(projectPaths, _store);
         _storyStructureStore = new StoryStructureStore(projectPaths);
+        _sceneEntityLinkStore = new SceneEntityLinkStore(projectPaths);
+        _textReplacementStore = new TextReplacementStore(projectPaths);
         _workspacePresets = new WorkspacePresetService(projectPaths.WorkspacePresetsPath);
         _shortcuts = new ShortcutProfileService(projectPaths.ShortcutsPath);
         _customizationProfiles = new WorkbenchCustomizationProfileService(projectPaths.WorkbenchProfilesPath, _commandRegistry);
@@ -2581,6 +2585,26 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "textReplacement.add", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlTextReplacementAddAsync(
+                    ReadJsonString(root, "source"),
+                    ReadJsonString(root, "replacement"));
+                return;
+            }
+
+            if (string.Equals(messageType, "textReplacement.delete", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlTextReplacementDeleteAsync(ReadJsonString(root, "ruleId"));
+                return;
+            }
+
+            if (string.Equals(messageType, "textReplacement.applyActive", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlTextReplacementsToActiveSceneAsync();
+                return;
+            }
+
             if (string.Equals(messageType, "trash.restore", StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyHtmlTrashRestoreAsync(ReadJsonString(root, "trashId"));
@@ -3104,6 +3128,77 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ApplyHtmlTextReplacementAddAsync(string source, string replacement)
+    {
+        if (string.IsNullOrWhiteSpace(source))
+        {
+            StatusText.Text = "대치어 추가 실패 - 바꿀 말을 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var rule = await _textReplacementStore.AddOrUpdateAsync(source, replacement, CancellationToken.None);
+            StatusText.Text = $"대치어 저장됨 {rule.Source} -> {rule.Replacement}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            StatusText.Text = $"대치어 추가 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlTextReplacementDeleteAsync(string ruleId)
+    {
+        if (string.IsNullOrWhiteSpace(ruleId))
+        {
+            StatusText.Text = "대치어 삭제 실패 - 대상이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            await _textReplacementStore.DeleteAsync(ruleId, CancellationToken.None);
+            StatusText.Text = $"대치어 삭제됨 {ruleId.Trim()}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"대치어 삭제 실패 {ruleId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlTextReplacementsToActiveSceneAsync()
+    {
+        await EnsureActiveDocumentForHtmlPayloadAsync();
+        if (_activeDocument is null || string.IsNullOrWhiteSpace(_activeDocumentId))
+        {
+            StatusText.Text = "대치어 적용 실패 - 활성 장면이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            var rules = await _textReplacementStore.LoadAsync(CancellationToken.None);
+            var editorText = DocumentEditorTextService.CreateView(_activeDocument).Text;
+            var result = TextReplacementStore.Apply(editorText, rules);
+            if (result.ReplacementCount == 0)
+            {
+                StatusText.Text = $"대치어 적용됨 {_activeDocument.Id} - 변경 없음";
+                await PushHtmlWorkbenchStateAsync();
+                return;
+            }
+
+            ApplyHtmlActiveSceneUpdate(_activeDocument.Title, result.Text);
+            StatusText.Text = $"대치어 적용됨 {_activeDocument.Id} - {result.ReplacementCount:N0}개";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"대치어 적용 실패 - {ex.Message}";
+        }
+    }
+
     private async Task SyncSettingsBookItemToStoryEntityAsync(StorySettingsBookItem item)
     {
         if (!TryMapSettingsBookCategoryToStoryEntity(item.Category, out var entityType, out var role, out var color))
@@ -3184,6 +3279,11 @@ public partial class MainWindow : Window
                 entityType = StoryEntityType.Event;
                 role = "사건";
                 color = "#DB2777";
+                return true;
+            case StorySettingsBookCategory.Synopsis:
+                entityType = StoryEntityType.Event;
+                role = "시놉시스";
+                color = "#8B5CF6";
                 return true;
             default:
                 entityType = StoryEntityType.Concept;
@@ -3365,6 +3465,7 @@ public partial class MainWindow : Window
         var story = await CreateHtmlStoryPayloadAsync();
         var trash = await CreateHtmlTrashPayloadAsync();
         var settingsBook = await CreateHtmlSettingsBookPayloadAsync();
+        var textReplacements = await CreateHtmlTextReplacementPayloadAsync();
         return WebWorkbenchPayloadFactory.Create(
             manifest,
             _projectRoot,
@@ -3383,6 +3484,7 @@ public partial class MainWindow : Window
             story,
             trash,
             settingsBook,
+            textReplacements,
             _graphicPreset.Id);
     }
 
@@ -3524,6 +3626,26 @@ public partial class MainWindow : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             StatusText.Text = $"설정집 상태 생성 실패 - {ex.Message}";
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<WebWorkbenchTextReplacementRule>> CreateHtmlTextReplacementPayloadAsync()
+    {
+        try
+        {
+            var rules = await _textReplacementStore.LoadAsync(CancellationToken.None);
+            return rules
+                .Select(rule => new WebWorkbenchTextReplacementRule(
+                    rule.Id,
+                    rule.Source,
+                    rule.Replacement,
+                    rule.IsEnabled))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"대치어 상태 생성 실패 - {ex.Message}";
             return [];
         }
     }

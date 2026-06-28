@@ -8,6 +8,7 @@ const state = {
   isRendering: false,
   remoteDrag: null,
   storyDrag: null,
+  storyZoom: 1,
   activeView: "editor",
   selectedDocumentId: "",
   binderContextDocumentId: "",
@@ -21,6 +22,7 @@ const state = {
   shortcutBindings: [],
   storyModel: { entities: [], relationships: [] },
   settingsBook: [],
+  textReplacements: [],
   editingEntityId: "",
   editingRelationshipId: "",
   editingSettingsBookId: "",
@@ -83,6 +85,7 @@ function render(payload) {
   const story = readPayloadValue(payload, "story", "Story", null);
   const trash = readPayloadValue(payload, "trash", "Trash", []) || [];
   const settingsBook = readPayloadValue(payload, "settingsBook", "SettingsBook", []) || [];
+  const textReplacements = readPayloadValue(payload, "textReplacements", "TextReplacements", []) || [];
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   syncRemoteDraftFromPayload(remoteCommands, activeView);
@@ -103,6 +106,7 @@ function render(payload) {
   renderInspector(active);
   renderPipeline(binder);
   renderSettingsPanel(menuCommands, settingsBook);
+  renderTextReplacements(textReplacements);
   renderReferencePanel(project, active, trash, settingsBook);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
@@ -811,6 +815,7 @@ function categoryLabel(category) {
     World: "세계관",
     Place: "장소",
     Plot: "플롯",
+    Synopsis: "시놉시스",
     Reference: "자료",
     Other: "기타",
   };
@@ -898,6 +903,69 @@ function saveSettingsBookItem() {
   }
 
   clearSettingsBookForm();
+}
+
+function normalizeTextReplacementRule(rule) {
+  return {
+    id: readPayloadValue(rule, "id", "Id", ""),
+    source: readPayloadValue(rule, "source", "Source", ""),
+    replacement: readPayloadValue(rule, "replacement", "Replacement", ""),
+    isEnabled: Boolean(readPayloadValue(rule, "isEnabled", "IsEnabled", true)),
+  };
+}
+
+function renderTextReplacements(rules) {
+  state.textReplacements = (rules || [])
+    .map(normalizeTextReplacementRule)
+    .filter((rule) => rule.id && rule.source);
+  $("text-replacement-count").textContent = `${formatNumber(state.textReplacements.length)}개`;
+
+  const list = $("text-replacement-list");
+  list.textContent = "";
+  if (state.textReplacements.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "reference-item";
+    empty.innerHTML = "<strong>대치어 없음</strong><span>예: ... -> …</span>";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const rule of state.textReplacements) {
+    const row = document.createElement("div");
+    row.className = "text-replacement-row";
+    const source = document.createElement("strong");
+    source.textContent = rule.source;
+    const arrow = document.createElement("span");
+    arrow.textContent = "→";
+    const target = document.createElement("span");
+    target.textContent = rule.replacement;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.dataset.textReplacementDelete = rule.id;
+    remove.textContent = "삭제";
+    row.append(source, arrow, target, remove);
+    list.appendChild(row);
+  }
+}
+
+function addTextReplacementRule() {
+  const source = $("text-replacement-source").value;
+  const replacement = $("text-replacement-target").value;
+  if (!source.trim()) {
+    $("status-text").textContent = "대치어의 바꿀 말을 입력하세요.";
+    return;
+  }
+
+  postWebMessage({ type: "textReplacement.add", source, replacement });
+  $("text-replacement-source").value = "";
+  $("text-replacement-target").value = "";
+  $("status-text").textContent = `${source.trim()} 대치어 저장 요청`;
+}
+
+function applyTextReplacementsToActiveScene() {
+  flushActiveSceneUpdate();
+  postWebMessage({ type: "textReplacement.applyActive" });
+  $("status-text").textContent = "현재 장면 대치어 적용 요청";
 }
 
 function handleSettingsBookAction(button) {
@@ -1191,11 +1259,16 @@ function renderRelationshipMap(story) {
   if (state.editingRelationshipId && !model.relationships.some((relationship) => relationship.id === state.editingRelationshipId)) {
     state.editingRelationshipId = "";
   }
-  $("relationship-counts").textContent = `노드 ${formatNumber(model.entities.length)}개 / 관계 ${formatNumber(model.relationships.length)}개`;
+  updateRelationshipMapSummary(model);
   renderStoryLists(model);
   renderStorySelectors(model.entities);
   renderStoryCanvas(model);
   syncStoryEditForms(model);
+}
+
+function updateRelationshipMapSummary(model = state.storyModel) {
+  $("relationship-counts").textContent =
+    `노드 ${formatNumber(model.entities.length)}개 / 관계 ${formatNumber(model.relationships.length)}개 · ${Math.round(state.storyZoom * 100)}%`;
 }
 
 function renderStoryLists(model) {
@@ -1281,10 +1354,14 @@ function renderStorySelectors(entities) {
 function renderStoryCanvas(model) {
   const canvas = $("relationship-map-canvas");
   canvas.textContent = "";
+  const content = document.createElement("div");
+  content.className = "story-map-content";
+  content.style.transform = `scale(${state.storyZoom})`;
+  canvas.appendChild(content);
   const entityById = new Map(model.entities.map((entity) => [entity.id, entity]));
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.classList.add("relationship-lines");
-  canvas.appendChild(svg);
+  content.appendChild(svg);
 
   for (const relationship of model.relationships) {
     const source = entityById.get(relationship.sourceEntityId);
@@ -1321,7 +1398,7 @@ function renderStoryCanvas(model) {
     empty.style.left = "24px";
     empty.style.top = "24px";
     empty.innerHTML = "<strong>캐릭터 없음</strong><span>왼쪽에서 캐릭터를 추가하세요.</span>";
-    canvas.appendChild(empty);
+    content.appendChild(empty);
     return;
   }
 
@@ -1344,7 +1421,36 @@ function renderStoryCanvas(model) {
       createStoryActionButton("entityDelete", entity.id, "삭제"));
     node.append(title, meta, actions);
     node.addEventListener("pointerdown", startStoryNodeDrag);
-    canvas.appendChild(node);
+    content.appendChild(node);
+  }
+}
+
+function setStoryZoom(nextZoom) {
+  state.storyZoom = Math.min(2.4, Math.max(0.45, Math.round(nextZoom * 100) / 100));
+  const content = document.querySelector(".story-map-content");
+  if (content) {
+    content.style.transform = `scale(${state.storyZoom})`;
+  }
+  updateRelationshipMapSummary();
+}
+
+function handleStoryMapWheel(event) {
+  if (state.activeView !== "relationship-map") return;
+
+  event.preventDefault();
+  setStoryZoom(state.storyZoom + (event.deltaY < 0 ? 0.1 : -0.1));
+}
+
+function handleStoryZoomKey(event) {
+  if (state.activeView !== "relationship-map") return;
+  if (event.target.closest("input, textarea, select, button, [contenteditable=\"true\"]")) return;
+
+  if (event.key === "+" || event.key === "=") {
+    event.preventDefault();
+    setStoryZoom(state.storyZoom + 0.1);
+  } else if (event.key === "-" || event.key === "_") {
+    event.preventDefault();
+    setStoryZoom(state.storyZoom - 0.1);
   }
 }
 
@@ -1738,6 +1844,27 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const textReplacementDelete = event.target.closest("[data-text-replacement-delete]");
+  if (textReplacementDelete) {
+    postWebMessage({
+      type: "textReplacement.delete",
+      ruleId: textReplacementDelete.dataset.textReplacementDelete,
+    });
+    return;
+  }
+
+  const textReplacementAdd = event.target.closest("#text-replacement-add");
+  if (textReplacementAdd) {
+    addTextReplacementRule();
+    return;
+  }
+
+  const textReplacementApply = event.target.closest("#text-replacement-apply");
+  if (textReplacementApply) {
+    applyTextReplacementsToActiveScene();
+    return;
+  }
+
   const storyAction = event.target.closest("[data-story-action]");
   if (storyAction) {
     handleStoryAction(storyAction);
@@ -1817,6 +1944,18 @@ $("active-memo-editor").addEventListener("keydown", (event) => {
     saveActiveSceneMemo();
   }
 });
+$("text-replacement-source").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    $("text-replacement-target").focus();
+  }
+});
+$("text-replacement-target").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addTextReplacementRule();
+  }
+});
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
 $("binder-category-filter")?.addEventListener("change", (event) => {
   state.binderFileCategoryFilter = event.target.value || "전체";
@@ -1829,6 +1968,8 @@ $("binder-status-filter")?.addEventListener("change", (event) => {
   renderBinder(binder);
 });
 document.addEventListener("keydown", captureShortcutGesture);
+document.addEventListener("keydown", handleStoryZoomKey);
+$("relationship-map-canvas").addEventListener("wheel", handleStoryMapWheel, { passive: false });
 
 $("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);
 document.addEventListener("pointermove", moveRemoteDrag);
@@ -2093,8 +2234,8 @@ function startStoryNodeDrag(event) {
   state.storyDrag = {
     pointerId: event.pointerId,
     entityId: node.dataset.entityId,
-    offsetX: event.clientX - rect.left,
-    offsetY: event.clientY - rect.top,
+    offsetX: (event.clientX - rect.left) / state.storyZoom,
+    offsetY: (event.clientY - rect.top) / state.storyZoom,
   };
   node.setPointerCapture?.(event.pointerId);
   event.preventDefault();
@@ -2108,8 +2249,8 @@ function moveStoryNodeDrag(event) {
   if (!node || !canvas) return;
 
   const rect = canvas.getBoundingClientRect();
-  const x = Math.max(0, event.clientX - rect.left + canvas.scrollLeft - state.storyDrag.offsetX);
-  const y = Math.max(0, event.clientY - rect.top + canvas.scrollTop - state.storyDrag.offsetY);
+  const x = Math.max(0, (event.clientX - rect.left + canvas.scrollLeft) / state.storyZoom - state.storyDrag.offsetX);
+  const y = Math.max(0, (event.clientY - rect.top + canvas.scrollTop) / state.storyZoom - state.storyDrag.offsetY);
   node.style.left = `${x}px`;
   node.style.top = `${y}px`;
 }

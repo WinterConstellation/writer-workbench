@@ -72,6 +72,10 @@ public sealed class WebWorkbenchPayloadFactoryTests
             [
                 new ShortcutBinding(AppCommandIds.ProjectSave, "Ctrl+S", CommandScope.Global),
                 new ShortcutBinding(AppCommandIds.ViewPreviewToggle, "Ctrl+Alt+P", CommandScope.Workbench)
+            ],
+            textReplacements:
+            [
+                new WebWorkbenchTextReplacementRule("replace-0001", "...", "…", true)
             ]);
         var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
@@ -97,6 +101,9 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("업로드대기", payload.Binder[1].Status);
         Assert.Equal("시놉시스", payload.Binder[1].FileCategory);
         Assert.Equal("추격 메모", payload.Binder[1].Memo);
+        var textReplacement = Assert.Single(payload.TextReplacements ?? []);
+        Assert.Equal("...", textReplacement.Source);
+        Assert.Equal("…", textReplacement.Replacement);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.ProjectSave);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Contains("한국어 장편", json);

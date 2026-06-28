@@ -78,6 +78,7 @@
               <option value="World">세계관</option>
               <option value="Place">장소</option>
               <option value="Plot">플롯</option>
+              <option value="Synopsis">시놉시스</option>
               <option value="Reference">자료</option>
               <option value="Other">기타</option>
             </select>
@@ -90,6 +91,19 @@
             </div>
           </div>
           <div id="settings-list" class="side-action-list"></div>
+          <section class="text-replacement-panel">
+            <div class="settings-subtitle">
+              <strong>대치어</strong>
+              <span id="text-replacement-count">0</span>
+            </div>
+            <div class="text-replacement-form">
+              <input id="text-replacement-source" type="text" placeholder="바꿀 말">
+              <input id="text-replacement-target" type="text" placeholder="대치어">
+              <button id="text-replacement-add" type="button">추가</button>
+              <button id="text-replacement-apply" type="button">현재 장면 적용</button>
+            </div>
+            <div id="text-replacement-list" class="text-replacement-list"></div>
+          </section>
         </div>
         <div id="rail-panel-reference" class="rail-panel">
           <div class="rail-header">

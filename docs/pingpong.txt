@@ -4220,6 +4220,61 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-29 KST feature implementation update: Text replacements, synopsis whiteboard nodes, and relationship map zoom
+
+Feature(s) implemented:
+- Added explicit text replacement rules under project settings at `settings/text-replacements.json`.
+- Added HTML settings-panel controls for replacement source, replacement target, rule deletion, and explicit current-scene application.
+- Added current-scene replacement bridge actions: add/update rule, delete rule, and apply enabled rules to the active manuscript only when requested.
+- Added `Synopsis` as a settings-book category and syncs synopsis notes into the relationship-map whiteboard as event nodes with role `시놉시스`.
+- Added relationship-map whiteboard zoom with mouse wheel over the canvas and `+` / `-` keys while the relationship-map view is active.
+- Updated relationship-map node drag math so saved layout coordinates stay stable while zoomed.
+
+Files changed:
+- `src/WriterWorkbench/Core/Documents/TextReplacementRule.cs`
+- `src/WriterWorkbench/Core/Documents/TextReplacementStore.cs`
+- `src/WriterWorkbench/Core/Story/StoryStructureDocument.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/TextReplacementStoreTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `TextReplacementStoreTests` for UTF-8 Korean/ellipsis roundtrip, explicit replacement application, and delete behavior.
+- Added payload assertions that text replacement rules are sent to the HTML workbench.
+- Added HTML/CSS/JS asset anchors for text replacement controls and relationship-map zoom.
+- Added `MainWindowHtmlTextReplacementAppliesToActiveSceneOnlyWhenRequested`.
+- Added `MainWindowHtmlSettingsBookSynopsisSyncsToWhiteboardEntity`.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 244 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Manuscript typing loop was not extended with replacement, synopsis, or zoom work.
+- Text replacement application is explicit-button driven and runs only on the active scene text.
+- Settings-book synopsis sync touches story/settings JSON only, not manuscript body files.
+- Relationship-map zoom changes canvas transform and drag coordinate math only.
+- Existing full test run includes large document payload/metric guardrails and passed.
+
+Remaining problems:
+- The custom spell checker is not implemented yet. Recommended direction is a separate correction-corpus module that stores before/after pairs from real checker results, then offers reviewable suggestions through an explicit command/panel instead of live rewriting during typing.
+- Replacement rules currently apply by exact string order only; no regex, morphology, or context-sensitive correction is included yet.
+- Manual UI confirmation is still needed for canvas zoom feel on the user's monitor layout.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-29 KST feature implementation update: Editor memo panel and relationship whiteboard integration
 
 Feature(s) implemented:
