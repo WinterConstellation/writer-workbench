@@ -20,6 +20,7 @@ const state = {
   editingEntityId: "",
   editingRelationshipId: "",
   editingSettingsBookId: "",
+  editingReferenceId: "",
   activeSceneMetrics: null,
 };
 
@@ -98,7 +99,7 @@ function render(payload) {
   renderInspector(active);
   renderPipeline(binder);
   renderSettingsPanel(menuCommands, settingsBook);
-  renderReferencePanel(project, active, trash);
+  renderReferencePanel(project, active, trash, settingsBook);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
   renderShortcutSettings(state.shortcutBindings);
@@ -626,8 +627,169 @@ function normalizeTrashItem(item) {
   };
 }
 
-function renderReferencePanel(project, active, trashItems) {
+function renderReferencePanel(project, active, trashItems, settingsBook) {
+  const referenceItems = (settingsBook || [])
+    .map(normalizeSettingsBookItem)
+    .filter((item) => item.category === "Reference")
+    .filter((item) => item.id || item.title || item.body);
+  if (state.editingReferenceId &&
+      !referenceItems.some((item) => item.id === state.editingReferenceId)) {
+    state.editingReferenceId = "";
+  }
+
+  $("reference-count").textContent = formatNumber(referenceItems.length);
+  renderReferenceList(referenceItems);
+  syncReferenceForm(referenceItems);
+  renderReferenceSummary(project, active, trashItems);
+  renderTrashList(trashItems);
+}
+
+function renderReferenceList(referenceItems) {
   const list = $("reference-list");
+  list.textContent = "";
+
+  if (referenceItems.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "reference-item";
+    const title = document.createElement("strong");
+    title.textContent = "자료 없음";
+    const body = document.createElement("span");
+    body.textContent = "작품 자료, 조사 메모, 출처를 이 탭에서 추가하세요.";
+    empty.append(title, body);
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const item of referenceItems) {
+    const row = document.createElement("article");
+    row.className = "reference-item reference-card";
+    row.classList.toggle("editing", item.id === state.editingReferenceId);
+
+    const title = document.createElement("strong");
+    title.textContent = item.title || item.id;
+    const meta = document.createElement("span");
+    meta.textContent = `${formatDate(item.updatedAt)} · ${item.id}`;
+    const excerpt = document.createElement("span");
+    excerpt.textContent = item.body ? item.body.slice(0, 140) : "내용 없음";
+
+    const tags = document.createElement("div");
+    tags.className = "reference-tags";
+    for (const tag of item.tags || []) {
+      const chip = document.createElement("span");
+      chip.className = "tag";
+      chip.textContent = tag;
+      tags.appendChild(chip);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "reference-card-actions";
+    actions.append(
+      createReferenceActionButton("edit", item.id, "편집"),
+      createReferenceActionButton("delete", item.id, "삭제"));
+
+    row.append(title, meta, excerpt, tags, actions);
+    list.appendChild(row);
+  }
+}
+
+function createReferenceActionButton(action, itemId, label) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.referenceAction = action;
+  button.dataset.referenceId = itemId;
+  button.textContent = label;
+  return button;
+}
+
+function syncReferenceForm(referenceItems) {
+  const form = $("reference-form");
+  if (form?.contains(document.activeElement)) {
+    return;
+  }
+
+  const item = referenceItems.find((entry) => entry.id === state.editingReferenceId);
+  if (item) {
+    fillReferenceForm(item);
+    return;
+  }
+
+  clearReferenceForm();
+}
+
+function fillReferenceForm(item) {
+  state.editingReferenceId = item.id || "";
+  $("reference-title").value = item.title || "";
+  $("reference-body").value = item.body || "";
+  $("reference-tags").value = (item.tags || []).join(", ");
+  $("reference-save").textContent = state.editingReferenceId ? "저장" : "추가";
+  $("reference-cancel").hidden = !state.editingReferenceId;
+}
+
+function clearReferenceForm() {
+  state.editingReferenceId = "";
+  $("reference-title").value = "";
+  $("reference-body").value = "";
+  $("reference-tags").value = "";
+  $("reference-save").textContent = "추가";
+  $("reference-cancel").hidden = true;
+}
+
+function saveReferenceItem() {
+  const title = $("reference-title").value.trim();
+  const body = $("reference-body").value;
+  const tags = parseSettingsBookTags($("reference-tags").value);
+  if (!title) {
+    $("status-text").textContent = "자료 제목을 입력하세요.";
+    return;
+  }
+
+  if (state.editingReferenceId) {
+    postWebMessage({
+      type: "story.settingsBook.update",
+      itemId: state.editingReferenceId,
+      category: "Reference",
+      title,
+      body,
+      tags,
+    });
+    $("status-text").textContent = `${title} 자료 저장 요청`;
+  } else {
+    postWebMessage({
+      type: "story.settingsBook.add",
+      category: "Reference",
+      title,
+      body,
+      tags,
+    });
+    $("status-text").textContent = `${title} 자료 추가 요청`;
+  }
+
+  clearReferenceForm();
+}
+
+function handleReferenceAction(button) {
+  const action = button.dataset.referenceAction;
+  const itemId = button.dataset.referenceId;
+  if (!action || !itemId) return;
+
+  const item = state.settingsBook.find((entry) => entry.id === itemId);
+  if (action === "edit") {
+    if (!item) return;
+    fillReferenceForm(item);
+    setRailMode("reference");
+    $("reference-title").focus();
+    return;
+  }
+
+  if (action === "delete") {
+    if (!window.confirm(`${item?.title || itemId} 자료를 삭제할까요?`)) return;
+    postWebMessage({ type: "story.settingsBook.delete", itemId });
+    $("status-text").textContent = `${item?.title || itemId} 자료 삭제 요청`;
+  }
+}
+
+function renderReferenceSummary(project, active, trashItems) {
+  const list = $("reference-summary-list");
   list.textContent = "";
   const trash = (trashItems || []).map(normalizeTrashItem);
   const references = [
@@ -636,11 +798,10 @@ function renderReferencePanel(project, active, trashItems) {
     ["요약", active ? readPayloadValue(active, "summary", "Summary", "-") || "-" : "-"],
     ["휴지통", `${formatNumber(trash.length)}개`],
   ];
-  $("reference-count").textContent = formatNumber(references.length);
 
   for (const [title, value] of references) {
     const item = document.createElement("div");
-    item.className = "reference-item";
+    item.className = "reference-item reference-summary";
     const strong = document.createElement("strong");
     strong.textContent = title;
     const span = document.createElement("span");
@@ -648,7 +809,10 @@ function renderReferencePanel(project, active, trashItems) {
     item.append(strong, span);
     list.appendChild(item);
   }
+}
 
+function renderTrashList(trashItems) {
+  const trash = (trashItems || []).map(normalizeTrashItem);
   const trashList = $("trash-list");
   trashList.textContent = "";
   if (trash.length === 0) {
@@ -1198,6 +1362,24 @@ document.addEventListener("click", (event) => {
   const remoteAction = event.target.closest("[data-remote-action]");
   if (remoteAction) {
     handleRemoteSettingsAction(remoteAction);
+    return;
+  }
+
+  const referenceSave = event.target.closest("#reference-save");
+  if (referenceSave) {
+    saveReferenceItem();
+    return;
+  }
+
+  const referenceCancel = event.target.closest("#reference-cancel");
+  if (referenceCancel) {
+    clearReferenceForm();
+    return;
+  }
+
+  const referenceAction = event.target.closest("[data-reference-action]");
+  if (referenceAction) {
+    handleReferenceAction(referenceAction);
     return;
   }
 

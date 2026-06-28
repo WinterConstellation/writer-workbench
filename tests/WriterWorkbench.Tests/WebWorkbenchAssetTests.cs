@@ -98,6 +98,13 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("settings-book-save", html);
         Assert.Contains("settings-book-cancel", html);
         Assert.Contains("rail-panel-reference", html);
+        Assert.Contains("reference-form", html);
+        Assert.Contains("reference-title", html);
+        Assert.Contains("reference-body", html);
+        Assert.Contains("reference-tags", html);
+        Assert.Contains("reference-save", html);
+        Assert.Contains("reference-cancel", html);
+        Assert.Contains("reference-summary-list", html);
         Assert.Contains("bottom-status", html);
     }
 
@@ -187,6 +194,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("story.settingsBook.delete", script);
         Assert.Contains("normalizeSettingsBookItem", script);
         Assert.Contains("data-settings-book-action", script);
+        Assert.Contains("renderReferencePanel(project, active, trash, settingsBook)", script);
+        Assert.Contains("saveReferenceItem", script);
+        Assert.Contains("handleReferenceAction", script);
+        Assert.Contains("dataset.referenceAction", script);
+        Assert.Contains("category: \"Reference\"", script);
         Assert.Contains("renderShortcutSettings", script);
         Assert.Contains("filterShortcutSettings", script);
         Assert.Contains("scheduleLocalMetricUpdate", script);

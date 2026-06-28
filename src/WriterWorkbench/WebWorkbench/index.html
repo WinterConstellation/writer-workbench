@@ -87,7 +87,17 @@
             <strong>자료</strong>
             <span id="reference-count">0</span>
           </div>
+          <div id="reference-form" class="reference-form">
+            <input id="reference-title" type="text" placeholder="자료 제목">
+            <textarea id="reference-body" rows="4" placeholder="자료 내용"></textarea>
+            <input id="reference-tags" type="text" placeholder="태그, 쉼표로 구분">
+            <div class="reference-form-actions">
+              <button id="reference-save" type="button">추가</button>
+              <button id="reference-cancel" type="button" hidden>취소</button>
+            </div>
+          </div>
           <div id="reference-list" class="reference-list"></div>
+          <div id="reference-summary-list" class="reference-list reference-summary-list"></div>
           <div id="trash-list" class="reference-list trash-list"></div>
         </div>
       </aside>

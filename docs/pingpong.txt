@@ -3851,3 +3851,48 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST feature implementation update: Reference work surface MVP
+
+Feature(s) implemented:
+- Turned the HTML `자료` rail tab into an editable reference-card work surface.
+- Reused existing `story/settings-book.json` storage through `StorySettingsBookCategory.Reference`.
+- Added reference title/body/tags form with add, edit, cancel, and delete actions.
+- Added reference card list with update time, id, body excerpt, tags, and per-card edit/delete buttons.
+- Kept project/current-scene/trash summary separate from the editable reference cards.
+- Kept export, autosave, and editor input loops untouched; reference changes run only through explicit button actions.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated `WebWorkbenchHtmlContainsFullWorkbenchShellAnchors` to require reference form/list anchors.
+- Updated `WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate` to require reference save/action wiring and `Reference` category bridge usage.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|WebWorkbenchPayloadFactoryTests|StoryStructureStoreTests|Large|Performance|Metric"` -> 56 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 229 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- Dist asset check confirmed `reference-form`, `saveReferenceItem`, and `Reference` filtering are packaged.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|WebWorkbenchPayloadFactoryTests|StoryStructureStoreTests|Large|Performance|Metric"` -> 56 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 229 passed.
+
+Large manuscript regression check:
+- Large manuscript edit/load path was not touched.
+- Guardrail coverage was included in the filtered run through `Large|Performance|Metric` related tests.
+
+Remaining problems:
+- Need manual UI pass in the packaged app to confirm reference add/edit/delete roundtrip and visual density.
+- Reference cards currently share the settings-book backend; a dedicated source/citation schema can be added later if needed.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.

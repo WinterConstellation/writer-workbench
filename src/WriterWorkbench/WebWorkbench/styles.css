@@ -384,7 +384,7 @@ h1 {
 }
 
 #rail-panel-reference {
-  grid-template-rows: auto minmax(0, 0.8fr) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 0.58fr) minmax(0, 0.75fr);
 }
 
 .binder-action-bar {
@@ -1105,6 +1105,49 @@ h2 {
   padding: 8px;
 }
 
+.reference-form {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+.reference-form input,
+.reference-form textarea {
+  width: 100%;
+  min-height: 27px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 5px 7px;
+  font: inherit;
+}
+
+.reference-form textarea {
+  min-height: 76px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.reference-form-actions,
+.reference-card-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.reference-form-actions button,
+.reference-card-actions button {
+  min-height: 27px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11px;
+}
+
 .side-action,
 .reference-item {
   width: 100%;
@@ -1129,6 +1172,22 @@ h2 {
   display: block;
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.reference-card.editing {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.reference-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 7px 0;
+}
+
+.reference-summary-list {
+  border-top: 1px solid var(--line);
 }
 
 .trash-list {
