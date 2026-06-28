@@ -407,7 +407,7 @@ h1 {
 
 .binder-filter-bar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
   align-items: center;
   gap: 6px;
   padding: 7px 8px;

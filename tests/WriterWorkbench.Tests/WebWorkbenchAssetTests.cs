@@ -64,6 +64,7 @@ public sealed class WebWorkbenchAssetTests
         Assert.DoesNotContain(">✥<", html);
         Assert.Contains("binder-action-bar", html);
         Assert.Contains("binder-category-filter", html);
+        Assert.Contains("binder-status-filter", html);
         Assert.Contains("binder-filter-summary", html);
         Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);
@@ -178,9 +179,13 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("document.command", script);
         Assert.Contains("dataset.binderDocument", script);
         Assert.Contains("binderFileCategoryFilter", script);
+        Assert.Contains("binderWorkflowStatusFilter", script);
         Assert.Contains("renderBinderCategoryFilter", script);
+        Assert.Contains("countBinderWorkflowStatuses", script);
         Assert.Contains("filterBinderByCategory", script);
+        Assert.Contains("filterBinderByWorkflowStatus", script);
         Assert.Contains("normalizeFileCategory", script);
+        Assert.Contains("normalizeWorkflowStatus", script);
         Assert.Contains("scene-actions", script);
         Assert.Contains("showBinderContextMenu", script);
         Assert.Contains("hideBinderContextMenu", script);

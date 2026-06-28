@@ -12,6 +12,7 @@ const state = {
   selectedDocumentId: "",
   binderContextDocumentId: "",
   binderFileCategoryFilter: "전체",
+  binderWorkflowStatusFilter: "전체",
   remoteDraftCommandIds: [],
   remoteSettingsDirty: false,
   availableCommands: [],
@@ -207,10 +208,10 @@ function renderTopMenu(commands) {
 
 function renderBinder(items) {
   renderBinderCategoryFilter(items);
-  const filteredItems = filterBinderByCategory(items);
-  $("binder-count").textContent = state.binderFileCategoryFilter === "전체"
-    ? formatNumber(items.length)
-    : `${formatNumber(filteredItems.length)} / ${formatNumber(items.length)}`;
+  const filteredItems = filterBinderItems(items);
+  $("binder-count").textContent = isBinderFilterActive()
+    ? `${formatNumber(filteredItems.length)} / ${formatNumber(items.length)}`
+    : formatNumber(items.length);
   const list = $("scene-list");
   list.textContent = "";
   for (const item of filteredItems) {
@@ -259,30 +260,46 @@ function renderBinder(items) {
 }
 
 function renderBinderCategoryFilter(items) {
-  const select = $("binder-category-filter");
+  const categorySelect = $("binder-category-filter");
+  const statusSelect = $("binder-status-filter");
   const summary = $("binder-filter-summary");
-  if (!select || !summary) return;
+  if (!categorySelect || !statusSelect || !summary) return;
 
-  const counts = countBinderFileCategories(items);
-  const categories = createBinderFileCategoryOptions(counts);
+  const categoryCounts = countBinderFileCategories(items);
+  const categories = createBinderFileCategoryOptions(categoryCounts);
   if (state.binderFileCategoryFilter !== "전체" && !categories.includes(state.binderFileCategoryFilter)) {
     state.binderFileCategoryFilter = "전체";
   }
 
-  select.textContent = "";
+  const statusCounts = countBinderWorkflowStatuses(items);
+  const statuses = createBinderWorkflowStatusOptions(statusCounts);
+  if (state.binderWorkflowStatusFilter !== "전체" && !statuses.includes(state.binderWorkflowStatusFilter)) {
+    state.binderWorkflowStatusFilter = "전체";
+  }
+
+  categorySelect.textContent = "";
   for (const category of categories) {
     const option = document.createElement("option");
     option.value = category;
     option.textContent = category === "전체"
       ? `전체 (${formatNumber(items.length)})`
-      : `${category} (${formatNumber(counts.get(category) || 0)})`;
-    select.appendChild(option);
+      : `${category} (${formatNumber(categoryCounts.get(category) || 0)})`;
+    categorySelect.appendChild(option);
   }
 
-  select.value = state.binderFileCategoryFilter;
-  summary.textContent = state.binderFileCategoryFilter === "전체"
-    ? "전체 보기"
-    : `${state.binderFileCategoryFilter}만 보기`;
+  statusSelect.textContent = "";
+  for (const status of statuses) {
+    const option = document.createElement("option");
+    option.value = status;
+    option.textContent = status === "전체"
+      ? `전체 상태 (${formatNumber(items.length)})`
+      : `${status} (${formatNumber(statusCounts.get(status) || 0)})`;
+    statusSelect.appendChild(option);
+  }
+
+  categorySelect.value = state.binderFileCategoryFilter;
+  statusSelect.value = state.binderWorkflowStatusFilter;
+  summary.textContent = describeBinderFilters();
 }
 
 function countBinderFileCategories(items) {
@@ -303,6 +320,28 @@ function createBinderFileCategoryOptions(counts) {
   return [...presets, ...dynamic];
 }
 
+function countBinderWorkflowStatuses(items) {
+  const counts = new Map();
+  for (const item of items) {
+    const status = normalizeWorkflowStatus(readPayloadValue(item, "status", "Status", "초고"));
+    counts.set(status, (counts.get(status) || 0) + 1);
+  }
+
+  return counts;
+}
+
+function createBinderWorkflowStatusOptions(counts) {
+  const presets = ["전체", "초고", "퇴고중", "퇴고완료", "업로드대기", "업로드완료", "제외"];
+  const dynamic = [...counts.keys()]
+    .filter((status) => !presets.includes(status))
+    .sort((a, b) => a.localeCompare(b, "ko-KR"));
+  return [...presets, ...dynamic];
+}
+
+function filterBinderItems(items) {
+  return filterBinderByWorkflowStatus(filterBinderByCategory(items));
+}
+
 function filterBinderByCategory(items) {
   if (state.binderFileCategoryFilter === "전체") {
     return items;
@@ -312,9 +351,42 @@ function filterBinderByCategory(items) {
     normalizeFileCategory(readPayloadValue(item, "fileCategory", "FileCategory", "원고")) === state.binderFileCategoryFilter);
 }
 
+function filterBinderByWorkflowStatus(items) {
+  if (state.binderWorkflowStatusFilter === "전체") {
+    return items;
+  }
+
+  return items.filter((item) =>
+    normalizeWorkflowStatus(readPayloadValue(item, "status", "Status", "초고")) === state.binderWorkflowStatusFilter);
+}
+
 function normalizeFileCategory(category) {
   const normalized = String(category || "").trim();
   return normalized.length ? normalized : "원고";
+}
+
+function normalizeWorkflowStatus(status) {
+  const normalized = String(status || "").trim();
+  if (normalized === "수정중") return "퇴고중";
+  if (normalized === "완료") return "퇴고완료";
+  return normalized.length ? normalized : "초고";
+}
+
+function isBinderFilterActive() {
+  return state.binderFileCategoryFilter !== "전체" || state.binderWorkflowStatusFilter !== "전체";
+}
+
+function describeBinderFilters() {
+  const parts = [];
+  if (state.binderFileCategoryFilter !== "전체") {
+    parts.push(state.binderFileCategoryFilter);
+  }
+
+  if (state.binderWorkflowStatusFilter !== "전체") {
+    parts.push(state.binderWorkflowStatusFilter);
+  }
+
+  return parts.length ? `${parts.join(" / ")}만 보기` : "전체 보기";
 }
 
 function createBinderActionButton(commandId, documentId, label) {
@@ -1544,6 +1616,11 @@ $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
 $("binder-category-filter")?.addEventListener("change", (event) => {
   state.binderFileCategoryFilter = event.target.value || "전체";
+  const binder = readPayloadValue(state.payload, "binder", "Binder", []);
+  renderBinder(binder);
+});
+$("binder-status-filter")?.addEventListener("change", (event) => {
+  state.binderWorkflowStatusFilter = event.target.value || "전체";
   const binder = readPayloadValue(state.payload, "binder", "Binder", []);
   renderBinder(binder);
 });
