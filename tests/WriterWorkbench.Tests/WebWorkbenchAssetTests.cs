@@ -74,6 +74,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("active-status-editor", html);
         Assert.Contains("active-file-category-editor", html);
         Assert.Contains("active-metadata-save", html);
+        Assert.Contains("active-memo-editor", html);
+        Assert.Contains("active-memo-save", html);
+        Assert.Contains("scene-memo-overview", html);
         Assert.Contains("inspector-file-category", html);
         Assert.Contains("pipeline-revision-complete", html);
         Assert.Contains("pipeline-upload-pending", html);
@@ -81,6 +84,7 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("html-view-relationship", html);
         Assert.Contains("relationship-workbench", html);
         Assert.Contains("story-entity-name", html);
+        Assert.Contains("story-entity-type", html);
         Assert.Contains("story-entity-role", html);
         Assert.Contains("story-add-entity", html);
         Assert.Contains("story-relationship-source", html);
@@ -182,12 +186,15 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("document.command", script);
         Assert.Contains("document.reorder", script);
         Assert.Contains("scene.metadata.update", script);
+        Assert.Contains("scene.memo.update", script);
         Assert.Contains("dataset.binderDocument", script);
         Assert.Contains("row.draggable = true", script);
         Assert.Contains("handleBinderDragStart", script);
         Assert.Contains("handleBinderDrop", script);
         Assert.Contains("reorderBinderDocumentIds", script);
         Assert.Contains("saveActiveSceneMetadata", script);
+        Assert.Contains("saveActiveSceneMemo", script);
+        Assert.Contains("renderSceneMemoOverview", script);
         Assert.Contains("binderFileCategoryFilter", script);
         Assert.Contains("binderWorkflowStatusFilter", script);
         Assert.Contains("renderBinderCategoryFilter", script);
@@ -240,6 +247,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("renderRelationshipMap", script);
         Assert.Contains("story.entity.add", script);
         Assert.Contains("story.entity.update", script);
+        Assert.Contains("entityType", script);
+        Assert.Contains("formatStoryEntityType", script);
         Assert.Contains("story.entity.delete", script);
         Assert.Contains("story.relationship.add", script);
         Assert.Contains("story.relationship.update", script);
@@ -349,6 +358,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains(".scene-metadata-editor", css);
         Assert.Contains(".relationship-workbench", css);
         Assert.Contains(".relationship-map-canvas", css);
+        Assert.Contains(".editor-workbench", css);
+        Assert.Contains(".scene-memo-panel", css);
+        Assert.Contains(".memo-editor", css);
+        Assert.Contains(".scene-memo-overview", css);
+        Assert.Contains("right: 18px", css);
     }
 
     [Fact]

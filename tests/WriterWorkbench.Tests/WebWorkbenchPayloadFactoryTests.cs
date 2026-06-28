@@ -33,7 +33,8 @@ public sealed class WebWorkbenchPayloadFactoryTests
                 ContentLengthWithSpaces = 140,
                 SceneType = "Scene",
                 Status = SceneStatus.Revising,
-                FileCategory = "원고"
+                FileCategory = "원고",
+                Memo = "도입부 메모"
             },
             ["scene-0002"] = SceneMetadata.CreateDefault("scene-0002") with
             {
@@ -43,7 +44,8 @@ public sealed class WebWorkbenchPayloadFactoryTests
                 ContentLengthWithSpaces = 100,
                 SceneType = "Action",
                 Status = SceneStatus.UploadPending,
-                FileCategory = "시놉시스"
+                FileCategory = "시놉시스",
+                Memo = "추격 메모"
             }
         };
         var activeDocument = new WriterDocument(
@@ -89,10 +91,12 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Equal("도입부", payload.ActiveScene.Summary);
         Assert.Equal("퇴고중", payload.ActiveScene.Status);
         Assert.Equal("원고", payload.ActiveScene.FileCategory);
+        Assert.Equal("도입부 메모", payload.ActiveScene.Memo);
         Assert.Equal("본문은 메인에서 바로 수정할 수 있어야 한다", payload.ActiveScene.EditorText);
         Assert.Equal(["scene-0001", "scene-0002"], payload.Binder.Select(item => item.Id));
         Assert.Equal("업로드대기", payload.Binder[1].Status);
         Assert.Equal("시놉시스", payload.Binder[1].FileCategory);
+        Assert.Equal("추격 메모", payload.Binder[1].Memo);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.ProjectSave);
         Assert.Contains(payload.Commands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen);
         Assert.Contains("한국어 장편", json);

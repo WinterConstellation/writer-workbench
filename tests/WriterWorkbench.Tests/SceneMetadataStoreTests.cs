@@ -18,6 +18,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal("", metadata.Synopsis);
         Assert.Equal("", metadata.Summary);
         Assert.Equal("원고", metadata.FileCategory);
+        Assert.Equal("", metadata.Memo);
         Assert.Equal(SceneStatus.Draft, metadata.Status);
         Assert.Empty(metadata.Tags);
         Assert.Null(metadata.TargetCharacterCount);
@@ -43,6 +44,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal(SceneStatus.Draft, metadata.Status);
         Assert.Equal("Scene", metadata.SceneType);
         Assert.Equal("원고", metadata.FileCategory);
+        Assert.Equal("", metadata.Memo);
         Assert.Equal(0, metadata.ContentLength);
         Assert.Equal(0, metadata.ContentLengthWithSpaces);
         Assert.False(File.Exists(paths.SceneMetadataPath("scene-0001")));
@@ -83,6 +85,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal(0, metadata.ContentLengthWithSpaces);
         Assert.Equal("Scene", metadata.SceneType);
         Assert.Equal("원고", metadata.FileCategory);
+        Assert.Equal("", metadata.Memo);
         Assert.False(metadata.ManualLineBreak);
         Assert.True(metadata.CreatedAt > DateTimeOffset.MinValue);
     }
@@ -109,7 +112,8 @@ public sealed class SceneMetadataStoreTests
             ManualLineBreak: true,
             CreatedAt: createdAt,
             Summary: "주인공이 첫 단서를 발견한다.",
-            FileCategory: "시놉시스");
+            FileCategory: "시놉시스",
+            Memo: "별도 메모");
 
         await store.SaveAsync(metadata, CancellationToken.None);
         var loaded = await store.LoadAsync("scene-0002", CancellationToken.None);
@@ -119,6 +123,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal("주인공이 첫 단서를 발견한다.", loaded.Summary);
         Assert.Equal(SceneStatus.UploadPending, loaded.Status);
         Assert.Equal("시놉시스", loaded.FileCategory);
+        Assert.Equal("별도 메모", loaded.Memo);
         Assert.Equal(["단서", "1막"], loaded.Tags);
         Assert.Equal(3500, loaded.TargetCharacterCount);
         Assert.Equal(2310, loaded.ContentLength);
@@ -129,6 +134,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal(updatedAt, loaded.UpdatedAt);
         Assert.Contains("\"Status\": \"UploadPending\"", rawJson);
         Assert.Contains("\"FileCategory\": \"시놉시스\"", rawJson);
+        Assert.Contains("\"Memo\": \"별도 메모\"", rawJson);
         Assert.Contains("\"ContentLength\": 2310", rawJson);
         Assert.Contains("\"ContentLengthWithSpaces\": 2501", rawJson);
         Assert.Contains("\"ManualLineBreak\": true", rawJson);

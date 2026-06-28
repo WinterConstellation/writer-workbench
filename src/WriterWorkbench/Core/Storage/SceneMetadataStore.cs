@@ -101,6 +101,7 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
             ContentLengthWithSpaces = Math.Max(0, metadata.ContentLengthWithSpaces),
             SceneType = string.IsNullOrWhiteSpace(metadata.SceneType) ? "Scene" : metadata.SceneType.Trim(),
             FileCategory = string.IsNullOrWhiteSpace(metadata.FileCategory) ? "원고" : metadata.FileCategory.Trim(),
+            Memo = metadata.Memo?.Trim() ?? "",
             CreatedAt = metadata.CreatedAt == default ? now : metadata.CreatedAt,
             UpdatedAt = metadata.UpdatedAt == default ? now : metadata.UpdatedAt
         };

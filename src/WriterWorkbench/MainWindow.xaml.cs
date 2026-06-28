@@ -427,8 +427,8 @@ public partial class MainWindow : Window
         var hostLeft = double.IsNaN(Left) ? 80 : Left;
         var hostTop = double.IsNaN(Top) ? 80 : Top;
         var hostWidth = ActualWidth > 0 ? ActualWidth : Width;
-        layer.Left = hostLeft + hostWidth - layer.Width - 18;
-        layer.Top = hostTop + 112;
+        layer.Left = hostLeft + hostWidth + 10;
+        layer.Top = hostTop + 96;
     }
 
     private void SelectBinderItem(string documentId)
@@ -2158,7 +2158,8 @@ public partial class MainWindow : Window
                 ManualLineBreak: InspectorManualLineBreakBox.IsChecked == true,
                 CreatedAt: _activeSceneMetadata?.CreatedAt ?? DateTimeOffset.UtcNow,
                 Summary: InspectorSynopsisBox.Text.Trim(),
-                FileCategory: ReadInspectorFileCategory());
+                FileCategory: ReadInspectorFileCategory(),
+                Memo: _activeSceneMetadata?.Memo ?? "");
 
             await _metadataStore.SaveAsync(metadata, CancellationToken.None);
             var saved = await _metadataStore.LoadAsync(metadata.DocumentId, CancellationToken.None);
@@ -2484,9 +2485,18 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "scene.memo.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlSceneMemoUpdateAsync(
+                    ReadJsonString(root, "documentId"),
+                    ReadJsonString(root, "memo"));
+                return;
+            }
+
             if (string.Equals(messageType, "story.entity.add", StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyHtmlStoryEntityAddAsync(
+                    ReadJsonString(root, "entityType"),
                     ReadJsonString(root, "name"),
                     ReadJsonString(root, "role"));
                 return;
@@ -2506,6 +2516,7 @@ public partial class MainWindow : Window
             {
                 await ApplyHtmlStoryEntityUpdateAsync(
                     ReadJsonString(root, "entityId"),
+                    ReadJsonString(root, "entityType"),
                     ReadJsonString(root, "name"),
                     ReadJsonString(root, "role"));
                 return;
@@ -2756,32 +2767,69 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ApplyHtmlStoryEntityAddAsync(string name, string role)
+    private async Task ApplyHtmlSceneMemoUpdateAsync(string documentId, string memo)
     {
-        var normalizedName = name.Trim();
-        if (normalizedName.Length == 0)
+        documentId = string.IsNullOrWhiteSpace(documentId) ? _activeDocumentId : documentId.Trim();
+        if (string.IsNullOrWhiteSpace(documentId))
         {
-            StatusText.Text = "관계도 캐릭터 추가 실패 - 이름을 입력하세요.";
+            StatusText.Text = "장면 메모 저장 실패 - 활성 장면이 없습니다.";
             return;
         }
 
         try
         {
-            var entity = await _storyStructureStore.AddEntityAsync(
-                StoryEntityType.Character,
-                normalizedName,
-                role.Trim(),
-                "",
-                "#2563EB",
-                [],
-                CancellationToken.None);
-            await RefreshStoryStructureAsync();
-            StatusText.Text = $"관계도 캐릭터 추가됨 {entity.Id} - {entity.Name}";
+            var metadata = await _metadataStore.LoadExistingOrDefaultAsync(documentId, CancellationToken.None);
+            var updated = metadata with
+            {
+                Memo = memo.Trim(),
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            await _metadataStore.SaveAsync(updated, CancellationToken.None);
+            var saved = await _metadataStore.LoadAsync(documentId, CancellationToken.None);
+            _binderMetadataByDocumentId[documentId] = saved;
+            if (string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeSceneMetadata = saved;
+                PopulateSceneInspector(saved);
+            }
+
+            await RefreshBinderAsync();
+            StatusText.Text = $"장면 메모 저장됨 {documentId}";
             await PushHtmlWorkbenchStateAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            StatusText.Text = $"관계도 캐릭터 추가 실패 - {ex.Message}";
+            StatusText.Text = $"장면 메모 저장 실패 {documentId} - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlStoryEntityAddAsync(string entityType, string name, string role)
+    {
+        var normalizedName = name.Trim();
+        if (normalizedName.Length == 0)
+        {
+            StatusText.Text = "관계도 노드 추가 실패 - 이름을 입력하세요.";
+            return;
+        }
+
+        try
+        {
+            var parsedType = ParseStoryEntityType(entityType);
+            var entity = await _storyStructureStore.AddEntityAsync(
+                parsedType,
+                normalizedName,
+                role.Trim(),
+                "",
+                GetStoryEntityColor(parsedType),
+                [],
+                CancellationToken.None);
+            await RefreshStoryStructureAsync();
+            StatusText.Text = $"관계도 노드 추가됨 {entity.Id} - {entity.Name}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"관계도 노드 추가 실패 - {ex.Message}";
         }
     }
 
@@ -2793,7 +2841,7 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(sourceEntityId) || string.IsNullOrWhiteSpace(targetEntityId))
         {
-            StatusText.Text = "관계도 관계 추가 실패 - 시작/도착 캐릭터를 선택하세요.";
+            StatusText.Text = "관계도 관계 추가 실패 - 시작/도착 노드를 선택하세요.";
             return;
         }
 
@@ -2816,11 +2864,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ApplyHtmlStoryEntityUpdateAsync(string entityId, string name, string role)
+    private async Task ApplyHtmlStoryEntityUpdateAsync(string entityId, string entityType, string name, string role)
     {
         if (string.IsNullOrWhiteSpace(entityId) || string.IsNullOrWhiteSpace(name))
         {
-            StatusText.Text = "관계도 캐릭터 수정 실패 - 대상과 이름을 확인하세요.";
+            StatusText.Text = "관계도 노드 수정 실패 - 대상과 이름을 확인하세요.";
             return;
         }
 
@@ -2837,17 +2885,19 @@ public partial class MainWindow : Window
             var updated = await _storyStructureStore.UpdateEntityAsync(
                 existing with
                 {
+                    Type = ParseStoryEntityType(entityType),
                     Name = name.Trim(),
-                    Role = role.Trim()
+                    Role = role.Trim(),
+                    Color = GetStoryEntityColor(ParseStoryEntityType(entityType))
                 },
                 CancellationToken.None);
             await RefreshStoryStructureAsync();
-            StatusText.Text = $"관계도 캐릭터 수정됨 {updated.Id} - {updated.Name}";
+            StatusText.Text = $"관계도 노드 수정됨 {updated.Id} - {updated.Name}";
             await PushHtmlWorkbenchStateAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
         {
-            StatusText.Text = $"관계도 캐릭터 수정 실패 {entityId} - {ex.Message}";
+            StatusText.Text = $"관계도 노드 수정 실패 {entityId} - {ex.Message}";
         }
     }
 
@@ -2855,7 +2905,7 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrWhiteSpace(entityId))
         {
-            StatusText.Text = "관계도 캐릭터 삭제 실패 - 대상이 없습니다.";
+            StatusText.Text = "관계도 노드 삭제 실패 - 대상이 없습니다.";
             return;
         }
 
@@ -2863,12 +2913,12 @@ public partial class MainWindow : Window
         {
             await _storyStructureStore.DeleteEntityAsync(entityId.Trim(), CancellationToken.None);
             await RefreshStoryStructureAsync();
-            StatusText.Text = $"관계도 캐릭터 삭제됨 {entityId.Trim()}";
+            StatusText.Text = $"관계도 노드 삭제됨 {entityId.Trim()}";
             await PushHtmlWorkbenchStateAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
         {
-            StatusText.Text = $"관계도 캐릭터 삭제 실패 {entityId} - {ex.Message}";
+            StatusText.Text = $"관계도 노드 삭제 실패 {entityId} - {ex.Message}";
         }
     }
 
@@ -2978,6 +3028,8 @@ public partial class MainWindow : Window
                 body,
                 tags,
                 CancellationToken.None);
+            await SyncSettingsBookItemToStoryEntityAsync(item);
+            await RefreshStoryStructureAsync();
             StatusText.Text = $"설정집 항목 추가됨 {item.Id} - {item.Title}";
             await PushHtmlWorkbenchStateAsync();
         }
@@ -3019,6 +3071,8 @@ public partial class MainWindow : Window
                     Tags = tags
                 },
                 CancellationToken.None);
+            await SyncSettingsBookItemToStoryEntityAsync(updated);
+            await RefreshStoryStructureAsync();
             StatusText.Text = $"설정집 항목 수정됨 {updated.Id} - {updated.Title}";
             await PushHtmlWorkbenchStateAsync();
         }
@@ -3038,7 +3092,9 @@ public partial class MainWindow : Window
 
         try
         {
+            await DeleteSettingsBookLinkedStoryEntityAsync(itemId.Trim());
             await _storyStructureStore.DeleteSettingsBookItemAsync(itemId.Trim(), CancellationToken.None);
+            await RefreshStoryStructureAsync();
             StatusText.Text = $"설정집 항목 삭제됨 {itemId.Trim()}";
             await PushHtmlWorkbenchStateAsync();
         }
@@ -3048,11 +3104,121 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task SyncSettingsBookItemToStoryEntityAsync(StorySettingsBookItem item)
+    {
+        if (!TryMapSettingsBookCategoryToStoryEntity(item.Category, out var entityType, out var role, out var color))
+        {
+            await DeleteSettingsBookLinkedStoryEntityAsync(item.Id);
+            return;
+        }
+
+        var entityId = CreateSettingsBookEntityId(item.Id);
+        var entities = (await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None)).ToList();
+        var index = entities.FindIndex(entity =>
+            string.Equals(entity.Id, entityId, StringComparison.OrdinalIgnoreCase));
+        var now = DateTimeOffset.UtcNow;
+        var entity = new StoryEntity(
+            entityId,
+            entityType,
+            item.Title,
+            role,
+            item.Body.Trim(),
+            color,
+            item.Tags,
+            index >= 0 ? entities[index].CreatedAt : now,
+            now);
+
+        if (index >= 0)
+        {
+            entities[index] = entity;
+        }
+        else
+        {
+            entities.Add(entity);
+        }
+
+        await _storyStructureStore.SaveEntitiesAsync(entities, CancellationToken.None);
+    }
+
+    private async Task DeleteSettingsBookLinkedStoryEntityAsync(string itemId)
+    {
+        var entityId = CreateSettingsBookEntityId(itemId);
+        var entities = await _storyStructureStore.LoadEntitiesAsync(CancellationToken.None);
+        if (!entities.Any(entity => string.Equals(entity.Id, entityId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        await _storyStructureStore.DeleteEntityAsync(entityId, CancellationToken.None);
+    }
+
+    private static string CreateSettingsBookEntityId(string itemId)
+    {
+        return $"settings-{itemId.Trim()}";
+    }
+
+    private static bool TryMapSettingsBookCategoryToStoryEntity(
+        StorySettingsBookCategory category,
+        out StoryEntityType entityType,
+        out string role,
+        out string color)
+    {
+        switch (category)
+        {
+            case StorySettingsBookCategory.Character:
+                entityType = StoryEntityType.Character;
+                role = "인물";
+                color = "#7C3AED";
+                return true;
+            case StorySettingsBookCategory.World:
+                entityType = StoryEntityType.Concept;
+                role = "세계관";
+                color = "#2563EB";
+                return true;
+            case StorySettingsBookCategory.Place:
+                entityType = StoryEntityType.Place;
+                role = "장소";
+                color = "#059669";
+                return true;
+            case StorySettingsBookCategory.Plot:
+                entityType = StoryEntityType.Event;
+                role = "사건";
+                color = "#DB2777";
+                return true;
+            default:
+                entityType = StoryEntityType.Concept;
+                role = "";
+                color = "#4B5563";
+                return false;
+        }
+    }
+
     private static StorySettingsBookCategory ParseSettingsBookCategory(string category)
     {
         return Enum.TryParse<StorySettingsBookCategory>(category, ignoreCase: true, out var parsed)
             ? parsed
             : StorySettingsBookCategory.Other;
+    }
+
+    private static StoryEntityType ParseStoryEntityType(string entityType)
+    {
+        return Enum.TryParse<StoryEntityType>(entityType, ignoreCase: true, out var parsed)
+            ? parsed
+            : StoryEntityType.Character;
+    }
+
+    private static string GetStoryEntityColor(StoryEntityType entityType)
+    {
+        return entityType switch
+        {
+            StoryEntityType.Character => "#7C3AED",
+            StoryEntityType.Concept => "#2563EB",
+            StoryEntityType.Place => "#059669",
+            StoryEntityType.Event => "#DB2777",
+            StoryEntityType.Faction => "#B45309",
+            StoryEntityType.Item => "#0891B2",
+            _ => "#4B5563"
+        };
     }
 
     private static bool CommandRequiresActiveDocument(string commandId)

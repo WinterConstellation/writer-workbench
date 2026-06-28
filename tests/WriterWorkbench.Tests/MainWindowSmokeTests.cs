@@ -323,6 +323,48 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowShowsRemoteControlLayerDockedToRightOfOwnerByDefault()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow
+                {
+                    Left = 120,
+                    Top = 80,
+                    Width = 900
+                };
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                InvokePrivate(window, "ShowRemoteControlLayer", true);
+
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.Equal(1030d, layer.Left);
+                Assert.Equal(176d, layer.Top);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowContainsLongOperationProgressSurface()
     {
         Exception? failure = null;
@@ -951,6 +993,55 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlSceneMemoUpdatePersistsWithoutMutatingBody()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+                var metadataStore = GetPrivateField<SceneMetadataStore>(window, "_metadataStore");
+
+                var document = new WriterDocument(
+                    "scene-memo",
+                    "메모 장면",
+                    [new WriterParagraph("p-0001", "본문은 유지", "body", [], [])]);
+                WaitForTaskOnDispatcher(store.SaveDocumentAsync(document, CancellationToken.None));
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, document.Id);
+
+                InvokePrivateAsync(window, "ApplyHtmlSceneMemoUpdateAsync", document.Id, "작가 메모");
+
+                var saved = WaitForTaskOnDispatcher(metadataStore.LoadAsync(document.Id, CancellationToken.None));
+                var loadedDocument = WaitForTaskOnDispatcher(store.LoadDocumentAsync(document.Id, CancellationToken.None));
+
+                Assert.Equal("작가 메모", saved.Memo);
+                Assert.Equal("본문은 유지", loadedDocument.Paragraphs[0].Text);
+                Assert.Contains($"장면 메모 저장됨 {document.Id}", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile()
     {
         Exception? failure = null;
@@ -1530,8 +1621,8 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
 
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Character", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Character", "도현", "조력자");
                 InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "");
                 InvokePrivateAsync(window, "ApplyHtmlStoryLayoutUpdateAsync", "entity-0002", 333d, 144d);
 
@@ -1577,9 +1668,9 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
 
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "윤서", "주연");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "도현", "조력자");
-                InvokePrivateAsync(window, "ApplyHtmlStoryEntityUpdateAsync", "entity-0001", "윤서 수정", "화자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Character", "윤서", "주연");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityAddAsync", "Character", "도현", "조력자");
+                InvokePrivateAsync(window, "ApplyHtmlStoryEntityUpdateAsync", "entity-0001", "Concept", "윤서 수정", "화자");
                 InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipAddAsync", "entity-0001", "entity-0002", "동맹", "서로 돕는다");
                 InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipUpdateAsync", "rel-0001", "entity-0001", "entity-0002", "긴장", "믿지 못한다");
                 InvokePrivateAsync(window, "ApplyHtmlStoryRelationshipDeleteAsync", "rel-0001");
@@ -1590,8 +1681,9 @@ public sealed class MainWindowSmokeTests
 
                 Assert.Equal("윤서 수정", Assert.Single(entities).Name);
                 Assert.Equal("화자", Assert.Single(entities).Role);
+                Assert.Equal(StoryEntityType.Concept, Assert.Single(entities).Type);
                 Assert.Empty(relationships);
-                Assert.Contains("관계도 캐릭터 삭제됨", ((TextBlock)window.FindName("StatusText")).Text);
+                Assert.Contains("관계도 노드 삭제됨", ((TextBlock)window.FindName("StatusText")).Text);
                 window.Close();
             }
             catch (Exception ex)
@@ -1625,6 +1717,14 @@ public sealed class MainWindowSmokeTests
                 var store = GetPrivateField<StoryStructureStore>(window, "_storyStructureStore");
 
                 InvokePrivateAsync(window, "ApplyHtmlSettingsBookAddAsync", "World", "동부 왕국", "비가 자주 오는 국경 도시", new[] { "세계관", "도시" });
+
+                var syncedEntities = WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None));
+                var syncedEntity = Assert.Single(syncedEntities);
+                Assert.Equal("settings-note-0001", syncedEntity.Id);
+                Assert.Equal(StoryEntityType.Concept, syncedEntity.Type);
+                Assert.Equal("동부 왕국", syncedEntity.Name);
+                Assert.Equal("세계관", syncedEntity.Role);
+
                 InvokePrivateAsync(window, "ApplyHtmlSettingsBookUpdateAsync", "note-0001", "Reference", "동부 왕국 자료", "무역로와 항구 기록", new[] { "자료" });
 
                 var items = WaitForTaskOnDispatcher(store.LoadSettingsBookAsync(CancellationToken.None));
@@ -1634,6 +1734,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(StorySettingsBookCategory.Reference, item.Category);
                 Assert.Equal("동부 왕국 자료", item.Title);
                 Assert.Equal("무역로와 항구 기록", item.Body);
+                Assert.Empty(WaitForTaskOnDispatcher(store.LoadEntitiesAsync(CancellationToken.None)));
                 Assert.True(File.Exists(ProjectPaths.ForRoot(root).StorySettingsBookPath));
                 Assert.Contains("설정집 항목 수정됨", ((TextBlock)window.FindName("StatusText")).Text);
 

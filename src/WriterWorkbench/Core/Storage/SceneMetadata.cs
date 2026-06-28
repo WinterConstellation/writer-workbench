@@ -14,9 +14,10 @@ public sealed record SceneMetadata(
     bool ManualLineBreak = false,
     DateTimeOffset CreatedAt = default,
     string Summary = "",
-    string FileCategory = "원고")
+    string FileCategory = "원고",
+    string Memo = "")
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
 
     public static SceneMetadata CreateDefault(string documentId)
     {

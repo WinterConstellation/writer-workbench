@@ -36,7 +36,8 @@ public sealed record WebWorkbenchScene(
     string SceneType,
     DateTimeOffset UpdatedAt,
     bool IsActive,
-    string EditorText);
+    string EditorText,
+    string Memo);
 
 public sealed record WebWorkbenchCommand(
     string CommandId,

@@ -60,7 +60,8 @@ public static class WebWorkbenchPayloadFactory
                                   activeMetadata?.SceneType ?? "Scene",
                                   activeMetadata?.UpdatedAt ?? DateTimeOffset.MinValue,
                                   true,
-                                  activeEditorView.Text));
+                                  activeEditorView.Text,
+                                  activeMetadata?.Memo ?? ""));
 
         var resolver = new WorkbenchCustomizationResolver(profile);
         var commands = CreateCommands(resolver.GetPlacements("toolbar", "main"), commandRegistry);
@@ -284,7 +285,8 @@ public static class WebWorkbenchPayloadFactory
             metadata?.SceneType ?? "Scene",
             metadata?.UpdatedAt == default ? document.UpdatedAt : metadata!.UpdatedAt,
             isActive,
-            isActive ? activeEditorView.Text : "");
+            isActive ? activeEditorView.Text : "",
+            metadata?.Memo ?? "");
     }
 
     private static string FormatSceneStatus(SceneStatus status)

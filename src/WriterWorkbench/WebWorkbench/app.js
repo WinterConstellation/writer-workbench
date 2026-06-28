@@ -516,6 +516,18 @@ function saveActiveSceneMetadata() {
   });
 }
 
+function saveActiveSceneMemo() {
+  const active = readPayloadValue(state.payload, "activeScene", "ActiveScene", null);
+  const documentId = readPayloadValue(active, "id", "Id", state.selectedDocumentId || "");
+  if (!documentId) return;
+
+  postWebMessage({
+    type: "scene.memo.update",
+    documentId,
+    memo: $("active-memo-editor").value || "",
+  });
+}
+
 function showBinderContextMenu(event, documentId) {
   event.preventDefault();
   if (!documentId) return;
@@ -559,6 +571,9 @@ function renderActiveScene(active) {
     $("active-file-category-editor").value = "원고";
     $("active-file-category-editor").disabled = true;
     $("active-metadata-save").disabled = true;
+    $("active-memo-editor").value = "";
+    $("active-memo-editor").disabled = true;
+    $("active-memo-save").disabled = true;
     $("active-status").textContent = "-";
     $("active-file-category").textContent = "원고";
     $("active-length").textContent = "0";
@@ -569,6 +584,7 @@ function renderActiveScene(active) {
     $("active-summary").textContent = "";
     $("active-tags").textContent = "";
     $("status-active-scene").textContent = "-";
+    renderSceneMemoOverview("");
     return;
   }
 
@@ -578,6 +594,7 @@ function renderActiveScene(active) {
   const fileCategory = readPayloadValue(active, "fileCategory", "FileCategory", "원고");
   const sceneType = readPayloadValue(active, "sceneType", "SceneType", "Scene");
   const summary = readPayloadValue(active, "summary", "Summary", "");
+  const memo = readPayloadValue(active, "memo", "Memo", "");
   const tags = readPayloadValue(active, "tags", "Tags", []);
   const editorText = readPayloadValue(active, "editorText", "EditorText", "");
   const visibleMetrics = measureEditorText(editorText);
@@ -594,6 +611,8 @@ function renderActiveScene(active) {
   $("active-status-editor").disabled = false;
   $("active-file-category-editor").disabled = false;
   $("active-metadata-save").disabled = false;
+  $("active-memo-editor").disabled = false;
+  $("active-memo-save").disabled = false;
   $("active-status").textContent = status;
   $("active-file-category").textContent = fileCategory;
   if (document.activeElement !== $("active-status-editor")) {
@@ -602,12 +621,16 @@ function renderActiveScene(active) {
   if (document.activeElement !== $("active-file-category-editor")) {
     $("active-file-category-editor").value = fileCategory;
   }
+  if (document.activeElement !== $("active-memo-editor")) {
+    $("active-memo-editor").value = memo;
+  }
   $("active-length").textContent = formatNumber(visibleMetrics.contentLength);
   $("active-length-spaces").textContent = formatNumber(visibleMetrics.contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
   $("active-editor-metrics").textContent = formatEditorMetrics(visibleMetrics);
-  $("active-summary").textContent = summary || " ";
+  $("active-summary").textContent = summary || "";
   $("status-active-scene").textContent = `${id} · ${title}`;
+  renderSceneMemoOverview(id);
 
   const tagRow = $("active-tags");
   tagRow.textContent = "";
@@ -711,6 +734,45 @@ function renderSettingsBookList(menuCommands) {
       quickWrap.appendChild(button);
     }
     list.appendChild(quickWrap);
+  }
+}
+
+function renderSceneMemoOverview(activeId) {
+  const list = $("scene-memo-overview");
+  if (!list) return;
+
+  const memoScenes = (state.binderItems || [])
+    .map((item) => ({
+      id: readPayloadValue(item, "id", "Id", ""),
+      title: readPayloadValue(item, "title", "Title", ""),
+      memo: readPayloadValue(item, "memo", "Memo", ""),
+    }))
+    .filter((item) => item.id && item.memo.trim().length > 0);
+
+  $("scene-memo-count").textContent = `${formatNumber(memoScenes.length)}개`;
+  list.textContent = "";
+  if (memoScenes.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "scene-memo-item empty";
+    empty.textContent = "저장된 원고 메모 없음";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const scene of memoScenes) {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "scene-memo-item";
+    item.classList.toggle("active", scene.id === activeId);
+    item.dataset.memoDocument = scene.id;
+
+    const title = document.createElement("strong");
+    title.textContent = scene.title || scene.id;
+    const body = document.createElement("span");
+    body.textContent = scene.memo;
+
+    item.append(title, body);
+    list.appendChild(item);
   }
 }
 
@@ -1129,7 +1191,7 @@ function renderRelationshipMap(story) {
   if (state.editingRelationshipId && !model.relationships.some((relationship) => relationship.id === state.editingRelationshipId)) {
     state.editingRelationshipId = "";
   }
-  $("relationship-counts").textContent = `${formatNumber(model.entities.length)}명 / 관계 ${formatNumber(model.relationships.length)}개`;
+  $("relationship-counts").textContent = `노드 ${formatNumber(model.entities.length)}개 / 관계 ${formatNumber(model.relationships.length)}개`;
   renderStoryLists(model);
   renderStorySelectors(model.entities);
   renderStoryCanvas(model);
@@ -1149,7 +1211,7 @@ function renderStoryLists(model) {
     const title = document.createElement("strong");
     title.textContent = entity.name || entity.id;
     const meta = document.createElement("span");
-    meta.textContent = `${entity.role || entity.type} · ${entity.id}`;
+    meta.textContent = `${formatStoryEntityType(entity.type)} · ${entity.role || entity.id}`;
     const actions = document.createElement("div");
     actions.className = "story-item-actions";
     actions.append(
@@ -1189,6 +1251,17 @@ function createStoryActionButton(action, id, label) {
   return button;
 }
 
+function formatStoryEntityType(type) {
+  return {
+    Character: "인물",
+    Concept: "세계관",
+    Place: "장소",
+    Event: "사건",
+    Faction: "세력",
+    Item: "물건",
+  }[type] || type || "노드";
+}
+
 function renderStorySelectors(entities) {
   for (const select of [$("story-relationship-source"), $("story-relationship-target")]) {
     const previous = select.value;
@@ -1196,7 +1269,7 @@ function renderStorySelectors(entities) {
     for (const entity of entities) {
       const option = document.createElement("option");
       option.value = entity.id;
-      option.textContent = entity.name || entity.id;
+      option.textContent = `${entity.name || entity.id} · ${formatStoryEntityType(entity.type)}`;
       select.appendChild(option);
     }
     if (previous && entities.some((entity) => entity.id === previous)) {
@@ -1671,6 +1744,12 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const memoDocument = event.target.closest("[data-memo-document]");
+  if (memoDocument) {
+    selectBinderDocument(memoDocument.dataset.memoDocument);
+    return;
+  }
+
   const addEntity = event.target.closest("#story-add-entity");
   if (addEntity) {
     addStoryEntity();
@@ -1725,10 +1804,17 @@ document.addEventListener("contextmenu", (event) => {
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-metadata-save").addEventListener("click", saveActiveSceneMetadata);
+$("active-memo-save").addEventListener("click", saveActiveSceneMemo);
 $("active-file-category-editor").addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     event.preventDefault();
     saveActiveSceneMetadata();
+  }
+});
+$("active-memo-editor").addEventListener("keydown", (event) => {
+  if (event.ctrlKey && event.key === "Enter") {
+    event.preventDefault();
+    saveActiveSceneMemo();
   }
 });
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
@@ -1834,17 +1920,18 @@ function updateActiveEditorMetrics() {
 }
 
 function addStoryEntity() {
+  const entityType = $("story-entity-type").value || "Character";
   const name = $("story-entity-name").value.trim();
   const role = $("story-entity-role").value.trim();
   if (!name) {
-    $("status-text").textContent = "관계도 캐릭터 이름을 입력하세요.";
+    $("status-text").textContent = "관계도 노드 이름을 입력하세요.";
     return;
   }
 
   if (state.editingEntityId) {
-    postWebMessage({ type: "story.entity.update", entityId: state.editingEntityId, name, role });
+    postWebMessage({ type: "story.entity.update", entityId: state.editingEntityId, entityType, name, role });
   } else {
-    postWebMessage({ type: "story.entity.add", name, role });
+    postWebMessage({ type: "story.entity.add", entityType, name, role });
   }
 
   clearStoryEntityForm();
@@ -1856,7 +1943,7 @@ function addStoryRelationship() {
   const label = $("story-relationship-label").value.trim() || "관계";
   const notes = $("story-relationship-notes").value.trim();
   if (!sourceEntityId || !targetEntityId || sourceEntityId === targetEntityId) {
-    $("status-text").textContent = "서로 다른 캐릭터 두 명을 선택하세요.";
+    $("status-text").textContent = "서로 다른 노드 두 개를 선택하세요.";
     return;
   }
 
@@ -1887,6 +1974,7 @@ function syncStoryEditForms(model) {
   const entityButton = $("story-add-entity");
   const entityCancel = $("story-cancel-entity-edit");
   if (entity) {
+    $("story-entity-type").value = entity.type || "Character";
     $("story-entity-name").value = entity.name || "";
     $("story-entity-role").value = entity.role || "";
     entityButton.textContent = "저장";
@@ -1914,6 +2002,7 @@ function syncStoryEditForms(model) {
 
 function clearStoryEntityForm() {
   state.editingEntityId = "";
+  $("story-entity-type").value = "Character";
   $("story-entity-name").value = "";
   $("story-entity-role").value = "";
   $("story-add-entity").textContent = "추가";
@@ -1937,6 +2026,7 @@ function handleStoryAction(button) {
     const entity = state.storyModel.entities.find((item) => item.id === id);
     if (!entity) return;
     state.editingEntityId = id;
+    $("story-entity-type").value = entity.type || "Character";
     $("story-entity-name").value = entity.name || "";
     $("story-entity-role").value = entity.role || "";
     syncStoryEditForms(state.storyModel);
@@ -2067,11 +2157,12 @@ if (window.chrome && window.chrome.webview) {
       contentLengthWithSpaces: 1360,
       sceneType: "Scene",
       updatedAt: new Date().toISOString(),
-      editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."
+      editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다.",
+      memo: "이 장면의 별도 메모입니다."
     },
     binder: [
-      { id: "scene-0001", title: "첫 장면", status: "초고", fileCategory: "원고", sceneType: "Scene", contentLength: 1200, isActive: true },
-      { id: "scene-0002", title: "추격", status: "퇴고중", fileCategory: "원고", sceneType: "Action", contentLength: 900, isActive: false },
+      { id: "scene-0001", title: "첫 장면", status: "초고", fileCategory: "원고", sceneType: "Scene", contentLength: 1200, isActive: true, memo: "이 장면의 별도 메모입니다." },
+      { id: "scene-0002", title: "추격", status: "퇴고중", fileCategory: "원고", sceneType: "Action", contentLength: 900, isActive: false, memo: "추격 장면 속도감 확인." },
       { id: "scene-0003", title: "결말", status: "업로드대기", fileCategory: "시놉시스", sceneType: "Scene", contentLength: 1500, isActive: false }
     ],
     menuCommands: [
