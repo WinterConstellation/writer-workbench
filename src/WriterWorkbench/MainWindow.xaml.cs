@@ -66,6 +66,7 @@ public partial class MainWindow : Window
     private StoryStructureStore _storyStructureStore;
     private SceneEntityLinkStore _sceneEntityLinkStore;
     private TextReplacementStore _textReplacementStore;
+    private WebWorkbenchWordAnalysis? _latestWordAnalysis;
     private ProjectManifest? _currentManifest;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
@@ -739,6 +740,7 @@ public partial class MainWindow : Window
         _activeDocument = null;
         _activeSceneMetadata = null;
         _editorTextView = DocumentEditorTextView.Empty;
+        _latestWordAnalysis = null;
         _htmlActiveView = "editor";
         _lastAppliedPresetSlot = null;
         _dirty = false;
@@ -2605,6 +2607,16 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (string.Equals(messageType, "wordAnalysis.analyze", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlWordAnalysisAsync(
+                    ReadJsonString(root, "scope"),
+                    ReadJsonStringArray(root, "documentIds"),
+                    ReadJsonString(root, "activeTitle"),
+                    ReadJsonString(root, "activeEditorText"));
+                return;
+            }
+
             if (string.Equals(messageType, "trash.restore", StringComparison.OrdinalIgnoreCase))
             {
                 await ApplyHtmlTrashRestoreAsync(ReadJsonString(root, "trashId"));
@@ -3199,6 +3211,94 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ApplyHtmlWordAnalysisAsync(
+        string scope,
+        IReadOnlyList<string> documentIds,
+        string activeTitle,
+        string activeEditorText)
+    {
+        await EnsureActiveDocumentForHtmlPayloadAsync();
+        if (_activeDocument is not null &&
+            (!string.Equals(_activeDocument.Title, activeTitle, StringComparison.Ordinal) ||
+             !string.Equals(DocumentEditorTextService.CreateView(_activeDocument).Text, activeEditorText, StringComparison.Ordinal)))
+        {
+            ApplyHtmlActiveSceneUpdate(activeTitle, activeEditorText);
+        }
+
+        var normalizedScope = string.Equals(scope, "selected", StringComparison.OrdinalIgnoreCase)
+            ? "selected"
+            : "current";
+        var ids = normalizedScope == "selected"
+            ? documentIds
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+            : [string.IsNullOrWhiteSpace(_activeDocumentId) ? "" : _activeDocumentId];
+
+        if (ids.Count == 0 || ids.All(string.IsNullOrWhiteSpace))
+        {
+            StatusText.Text = "반복어 분석 실패 - 선택된 원고가 없습니다.";
+            await PushHtmlWorkbenchStateAsync();
+            return;
+        }
+
+        try
+        {
+            var documents = await LoadWordAnalysisDocumentsAsync(ids);
+            var result = WordFrequencyService.Analyze(documents, minimumCount: 2, limit: 120);
+            var label = normalizedScope == "selected"
+                ? $"선택 원고 {documents.Count:N0}개"
+                : documents.FirstOrDefault()?.Title ?? "현재 장면";
+            _latestWordAnalysis = new WebWorkbenchWordAnalysis(
+                normalizedScope,
+                label,
+                result.DocumentCount,
+                result.TokenCount,
+                result.UniqueWordCount,
+                result.Entries
+                    .Select(entry => new WebWorkbenchWordFrequencyEntry(entry.Word, entry.Count))
+                    .ToList());
+
+            StatusText.Text = $"반복어 분석됨 {label} - 반복 단어 {_latestWordAnalysis.Entries.Count:N0}개";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException)
+        {
+            StatusText.Text = $"반복어 분석 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task<IReadOnlyList<WordFrequencyDocument>> LoadWordAnalysisDocumentsAsync(IReadOnlyList<string> documentIds)
+    {
+        var manifest = _currentManifest ?? await _store.LoadManifestAsync(CancellationToken.None);
+        _currentManifest = manifest;
+        var documentInfoById = manifest.Documents.ToDictionary(document => document.Id, StringComparer.OrdinalIgnoreCase);
+        var documents = new List<WordFrequencyDocument>();
+
+        foreach (var documentId in documentIds)
+        {
+            if (string.IsNullOrWhiteSpace(documentId))
+            {
+                continue;
+            }
+
+            if (!documentInfoById.ContainsKey(documentId))
+            {
+                throw new KeyNotFoundException($"Document not found: {documentId}");
+            }
+
+            var document = _activeDocument is not null &&
+                           string.Equals(_activeDocument.Id, documentId, StringComparison.OrdinalIgnoreCase)
+                ? _activeDocument
+                : await _store.LoadDocumentAsync(documentId, CancellationToken.None);
+            var editorText = DocumentEditorTextService.CreateView(document).Text;
+            documents.Add(new WordFrequencyDocument(document.Id, document.Title, editorText));
+        }
+
+        return documents;
+    }
+
     private async Task SyncSettingsBookItemToStoryEntityAsync(StorySettingsBookItem item)
     {
         if (!TryMapSettingsBookCategoryToStoryEntity(item.Category, out var entityType, out var role, out var color))
@@ -3485,6 +3585,7 @@ public partial class MainWindow : Window
             trash,
             settingsBook,
             textReplacements,
+            _latestWordAnalysis,
             _graphicPreset.Id);
     }
 

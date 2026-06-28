@@ -81,6 +81,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("pipeline-revision-complete", html);
         Assert.Contains("pipeline-upload-pending", html);
         Assert.Contains("pipeline-uploaded", html);
+        Assert.Contains("word-analysis-current", html);
+        Assert.Contains("word-analysis-selected", html);
+        Assert.Contains("word-analysis-selected-count", html);
+        Assert.Contains("word-analysis-summary", html);
+        Assert.Contains("word-analysis-list", html);
         Assert.Contains("html-view-relationship", html);
         Assert.Contains("relationship-workbench", html);
         Assert.Contains("story-entity-name", html);
@@ -193,6 +198,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("document.reorder", script);
         Assert.Contains("scene.metadata.update", script);
         Assert.Contains("scene.memo.update", script);
+        Assert.Contains("wordAnalysis.analyze", script);
+        Assert.Contains("requestWordAnalysis", script);
+        Assert.Contains("renderWordAnalysis", script);
+        Assert.Contains("handleWordAnalysisSelection", script);
+        Assert.Contains("data-word-analysis-select", script);
         Assert.Contains("dataset.binderDocument", script);
         Assert.Contains("row.draggable = true", script);
         Assert.Contains("handleBinderDragStart", script);
@@ -380,6 +390,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains(".scene-memo-panel", css);
         Assert.Contains(".memo-editor", css);
         Assert.Contains(".scene-memo-overview", css);
+        Assert.Contains(".scene-analysis-select", css);
+        Assert.Contains(".word-analysis-section", css);
+        Assert.Contains(".word-analysis-row", css);
         Assert.Contains("right: 18px", css);
     }
 

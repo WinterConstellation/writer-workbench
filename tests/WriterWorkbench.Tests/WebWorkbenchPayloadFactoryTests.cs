@@ -455,4 +455,39 @@ public sealed class WebWorkbenchPayloadFactoryTests
 
         Assert.Equal("dark", payload.GraphicPresetId);
     }
+
+    [Fact]
+    public void PayloadCarriesLatestWordAnalysisForHtmlInspector()
+    {
+        var registry = AppCommandCatalog.CreateDefaultRegistry();
+        var profile = WorkbenchCustomizationProfileFactory.CreateDefault("profile-word-analysis", "반복어", registry);
+        var analysis = new WebWorkbenchWordAnalysis(
+            "selected",
+            "선택 원고 2개",
+            2,
+            10,
+            7,
+            [
+                new WebWorkbenchWordFrequencyEntry("검은", 3),
+                new WebWorkbenchWordFrequencyEntry("문장", 2)
+            ]);
+
+        var payload = WebWorkbenchPayloadFactory.Create(
+            new ProjectManifest(1, "반복어", []),
+            @"C:\WriterWorkbench\Projects\Sample.writerproj",
+            null,
+            null,
+            new Dictionary<string, SceneMetadata>(),
+            profile,
+            registry,
+            "Ready",
+            "기본",
+            autosaveEnabled: true,
+            wordAnalysis: analysis);
+
+        Assert.NotNull(payload.WordAnalysis);
+        Assert.Equal("selected", payload.WordAnalysis!.Scope);
+        Assert.Equal("선택 원고 2개", payload.WordAnalysis.Label);
+        Assert.Equal(3, payload.WordAnalysis.Entries[0].Count);
+    }
 }

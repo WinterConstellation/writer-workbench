@@ -27,6 +27,7 @@ public static class WebWorkbenchPayloadFactory
         IReadOnlyList<WebWorkbenchTrashItem>? trash = null,
         IReadOnlyList<WebWorkbenchSettingsBookItem>? settingsBook = null,
         IReadOnlyList<WebWorkbenchTextReplacementRule>? textReplacements = null,
+        WebWorkbenchWordAnalysis? wordAnalysis = null,
         string graphicPresetId = "default")
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
@@ -104,7 +105,8 @@ public static class WebWorkbenchPayloadFactory
             story,
             trash ?? [],
             settingsBook ?? [],
-            textReplacements ?? []);
+            textReplacements ?? [],
+            wordAnalysis);
     }
 
     private static string NormalizeGraphicPresetId(string? graphicPresetId)

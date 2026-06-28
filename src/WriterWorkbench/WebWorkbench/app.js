@@ -16,6 +16,7 @@ const state = {
   binderWorkflowStatusFilter: "전체",
   binderItems: [],
   binderDragDocumentId: "",
+  wordAnalysisSelectedIds: new Set(),
   remoteDraftCommandIds: [],
   remoteSettingsDirty: false,
   availableCommands: [],
@@ -86,6 +87,7 @@ function render(payload) {
   const trash = readPayloadValue(payload, "trash", "Trash", []) || [];
   const settingsBook = readPayloadValue(payload, "settingsBook", "SettingsBook", []) || [];
   const textReplacements = readPayloadValue(payload, "textReplacements", "TextReplacements", []) || [];
+  const wordAnalysis = readPayloadValue(payload, "wordAnalysis", "WordAnalysis", null);
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   syncRemoteDraftFromPayload(remoteCommands, activeView);
@@ -107,6 +109,7 @@ function render(payload) {
   renderPipeline(binder);
   renderSettingsPanel(menuCommands, settingsBook);
   renderTextReplacements(textReplacements);
+  renderWordAnalysis(wordAnalysis);
   renderReferencePanel(project, active, trash, settingsBook);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
@@ -214,7 +217,14 @@ function renderTopMenu(commands) {
 
 function renderBinder(items) {
   state.binderItems = items;
+  const validDocumentIds = new Set(items.map((item) => readPayloadValue(item, "id", "Id", "")).filter(Boolean));
+  for (const selectedId of Array.from(state.wordAnalysisSelectedIds)) {
+    if (!validDocumentIds.has(selectedId)) {
+      state.wordAnalysisSelectedIds.delete(selectedId);
+    }
+  }
   renderBinderCategoryFilter(items);
+  renderWordAnalysisSelectionCount();
   const filteredItems = filterBinderItems(items);
   $("binder-count").textContent = isBinderFilterActive()
     ? `${formatNumber(filteredItems.length)} / ${formatNumber(items.length)}`
@@ -236,7 +246,13 @@ function renderBinder(items) {
     row.tabIndex = 0;
     row.innerHTML = `
       <div class="scene-line">
-        <span class="scene-title"></span>
+        <span class="scene-title-wrap">
+          <label class="scene-analysis-select">
+            <input type="checkbox" data-word-analysis-select>
+            <span>분석</span>
+          </label>
+          <span class="scene-title"></span>
+        </span>
         <span class="state-pill"></span>
       </div>
       <div class="scene-meta">
@@ -246,6 +262,11 @@ function renderBinder(items) {
       <div class="scene-actions"></div>`;
     row.querySelector(".scene-title").textContent = title;
     row.querySelector(".state-pill").textContent = status;
+    const analysisCheckbox = row.querySelector("[data-word-analysis-select]");
+    analysisCheckbox.dataset.wordAnalysisSelect = id;
+    analysisCheckbox.checked = state.wordAnalysisSelectedIds.has(id);
+    analysisCheckbox.setAttribute("aria-label", `${title} 반복어 분석 선택`);
+    analysisCheckbox.addEventListener("change", handleWordAnalysisSelection);
     const meta = row.querySelectorAll(".scene-meta span");
     meta[0].textContent = id;
     meta[1].textContent = `${fileCategory} · ${sceneType} · 공백 제외 ${formatNumber(length)}`;
@@ -256,7 +277,7 @@ function renderBinder(items) {
       createBinderActionButton("document.duplicateScene", id, "복제"),
       createBinderActionButton("document.deleteScene", id, "삭제"));
     row.addEventListener("click", (event) => {
-      if (event.target.closest("[data-binder-command]")) {
+      if (event.target.closest("[data-binder-command], [data-word-analysis-select], .scene-analysis-select")) {
         return;
       }
 
@@ -966,6 +987,101 @@ function applyTextReplacementsToActiveScene() {
   flushActiveSceneUpdate();
   postWebMessage({ type: "textReplacement.applyActive" });
   $("status-text").textContent = "현재 장면 대치어 적용 요청";
+}
+
+function handleWordAnalysisSelection(event) {
+  const documentId = event.target.dataset.wordAnalysisSelect;
+  if (!documentId) return;
+
+  if (event.target.checked) {
+    state.wordAnalysisSelectedIds.add(documentId);
+  } else {
+    state.wordAnalysisSelectedIds.delete(documentId);
+  }
+
+  renderWordAnalysisSelectionCount();
+}
+
+function renderWordAnalysisSelectionCount() {
+  const label = $("word-analysis-selected-count");
+  if (label) {
+    label.textContent = `선택 ${formatNumber(state.wordAnalysisSelectedIds.size)}개`;
+  }
+}
+
+function requestWordAnalysis(scope) {
+  const normalizedScope = scope === "selected" ? "selected" : "current";
+  const documentIds = normalizedScope === "selected"
+    ? Array.from(state.wordAnalysisSelectedIds)
+    : [state.selectedDocumentId].filter(Boolean);
+  if (normalizedScope === "selected" && documentIds.length === 0) {
+    $("status-text").textContent = "반복어 분석할 원고를 바인더에서 체크하세요.";
+    return;
+  }
+
+  flushActiveSceneUpdate();
+  postWebMessage({
+    type: "wordAnalysis.analyze",
+    scope: normalizedScope,
+    documentIds,
+    activeTitle: $("active-title-editor").value,
+    activeEditorText: $("active-body-editor").value,
+  });
+  $("status-text").textContent = normalizedScope === "selected"
+    ? `선택 원고 ${formatNumber(documentIds.length)}개 반복어 분석 요청`
+    : "현재 장면 반복어 분석 요청";
+}
+
+function normalizeWordAnalysis(result) {
+  if (!result) return null;
+
+  const entries = readPayloadValue(result, "entries", "Entries", []) || [];
+  return {
+    scope: readPayloadValue(result, "scope", "Scope", ""),
+    label: readPayloadValue(result, "label", "Label", ""),
+    documentCount: readPayloadValue(result, "documentCount", "DocumentCount", 0),
+    tokenCount: readPayloadValue(result, "tokenCount", "TokenCount", 0),
+    uniqueWordCount: readPayloadValue(result, "uniqueWordCount", "UniqueWordCount", 0),
+    entries: entries.map((entry) => ({
+      word: readPayloadValue(entry, "word", "Word", ""),
+      count: readPayloadValue(entry, "count", "Count", 0),
+    })).filter((entry) => entry.word && entry.count > 0),
+  };
+}
+
+function renderWordAnalysis(result) {
+  renderWordAnalysisSelectionCount();
+  const summary = $("word-analysis-summary");
+  const list = $("word-analysis-list");
+  if (!summary || !list) return;
+
+  const analysis = normalizeWordAnalysis(result);
+  list.textContent = "";
+  if (!analysis) {
+    summary.textContent = "공백 단위 반복어를 현재 장면 또는 선택 원고 합산으로 분석합니다.";
+    return;
+  }
+
+  summary.textContent =
+    `${analysis.label} · 원고 ${formatNumber(analysis.documentCount)}개 · 공백 단위 ${formatNumber(analysis.tokenCount)}개 · 고유 ${formatNumber(analysis.uniqueWordCount)}개`;
+  if (analysis.entries.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "word-analysis-row empty";
+    empty.textContent = "2회 이상 반복된 단어가 없습니다.";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const entry of analysis.entries) {
+    const row = document.createElement("div");
+    row.className = "word-analysis-row";
+    const word = document.createElement("strong");
+    word.textContent = entry.word;
+    const count = document.createElement("span");
+    count.textContent = `${formatNumber(entry.count)}회`;
+    row.append(word, count);
+    list.appendChild(row);
+  }
 }
 
 function handleSettingsBookAction(button) {
@@ -1862,6 +1978,18 @@ document.addEventListener("click", (event) => {
   const textReplacementApply = event.target.closest("#text-replacement-apply");
   if (textReplacementApply) {
     applyTextReplacementsToActiveScene();
+    return;
+  }
+
+  const wordAnalysisCurrent = event.target.closest("#word-analysis-current");
+  if (wordAnalysisCurrent) {
+    requestWordAnalysis("current");
+    return;
+  }
+
+  const wordAnalysisSelected = event.target.closest("#word-analysis-selected");
+  if (wordAnalysisSelected) {
+    requestWordAnalysis("selected");
     return;
   }
 

@@ -1855,6 +1855,70 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlWordAnalysisAggregatesSelectedDocumentsWithActiveEditorText()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+                var first = new WriterDocument(
+                    "scene-0001",
+                    "첫 장면",
+                    [new WriterParagraph("p-0001", "검은 초안", "body", [], [])]);
+                var second = new WriterDocument(
+                    "scene-0002",
+                    "둘째 장면",
+                    [new WriterParagraph("p-0001", "검은 다른", "body", [], [])]);
+                WaitForTaskOnDispatcher(store.SaveDocumentAsync(first, CancellationToken.None));
+                WaitForTaskOnDispatcher(store.SaveDocumentAsync(second, CancellationToken.None));
+                typeof(MainWindow).GetField("_activeDocument", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, first);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, first.Id);
+                typeof(MainWindow).GetField("_editorTextView", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(
+                    window,
+                    DocumentEditorTextService.CreateView(first));
+
+                InvokePrivateAsync(
+                    window,
+                    "ApplyHtmlWordAnalysisAsync",
+                    "selected",
+                    new[] { first.Id, second.Id },
+                    "첫 장면",
+                    "검은 검은 수정");
+                var payload = InvokePrivateAsync<WriterWorkbench.Core.WebWorkbench.WebWorkbenchPayload>(
+                    window,
+                    "CreateHtmlWorkbenchPayloadAsync",
+                    "editor");
+
+                Assert.NotNull(payload.WordAnalysis);
+                Assert.Equal("selected", payload.WordAnalysis!.Scope);
+                Assert.Equal(2, payload.WordAnalysis.DocumentCount);
+                Assert.Contains(payload.WordAnalysis.Entries, entry => entry.Word == "검은" && entry.Count == 3);
+                Assert.Contains("반복어 분석됨", ((TextBlock)window.FindName("StatusText")).Text);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowHtmlShortcutCommandPersistsBinding()
     {
         string? failure = null;

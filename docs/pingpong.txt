@@ -4220,6 +4220,58 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-29 KST feature implementation update: Repeated word frequency analysis MVP
+
+Feature(s) implemented:
+- Added repeated word frequency analysis for manuscript study/revision.
+- Counts words as whitespace-separated printed units, with outer punctuation/symbols trimmed so examples like `했다.` and `했다,` group as `했다`.
+- Added binder checkboxes for selecting scenes to include in aggregate analysis without changing the active document.
+- Added right-inspector `반복어 분석` panel with explicit buttons for `현재 장면` and `선택 합산`.
+- Added backend analysis for selected documents so non-active scene bodies are loaded on demand, not carried in the regular HTML payload.
+- Active editor text is used for analysis when the active scene is included, so unsaved screen edits are reflected.
+- Results show document count, token count, unique word count, and top repeated words with counts.
+
+Files changed:
+- `src/WriterWorkbench/Core/Documents/WordFrequencyService.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WordFrequencyServiceTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `WordFrequencyServiceTests` for whitespace-token counting, punctuation trimming, selected-document aggregation, and hiding single-use words by default.
+- Added payload test for carrying the latest word-analysis result to HTML.
+- Added HTML/CSS/JS asset anchors for word-analysis controls, binder selection, and renderer functions.
+- Added `MainWindowHtmlWordAnalysisAggregatesSelectedDocumentsWithActiveEditorText`.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 249 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Word analysis is explicit-command driven only; no counting work was added to the typing loop.
+- Regular binder payload still carries metadata only for non-active documents; selected-document bodies are loaded only when `선택 합산` is clicked.
+- Result payload is limited to top repeated entries, not the full manuscript text.
+
+Remaining problems:
+- No per-word jump-to-occurrence UI yet.
+- No CSV/export for frequency results yet.
+- No stop-word/exclusion list yet.
+- Current tokenizer is deliberately simple: whitespace token + outer punctuation trim. Korean morphology/stemming is not attempted.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-29 KST feature implementation update: Text replacements, synopsis whiteboard nodes, and relationship map zoom
 
 Feature(s) implemented:

@@ -18,7 +18,8 @@ public sealed record WebWorkbenchPayload(
     WebWorkbenchStory? Story = null,
     IReadOnlyList<WebWorkbenchTrashItem>? Trash = null,
     IReadOnlyList<WebWorkbenchSettingsBookItem>? SettingsBook = null,
-    IReadOnlyList<WebWorkbenchTextReplacementRule>? TextReplacements = null);
+    IReadOnlyList<WebWorkbenchTextReplacementRule>? TextReplacements = null,
+    WebWorkbenchWordAnalysis? WordAnalysis = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -98,3 +99,15 @@ public sealed record WebWorkbenchTextReplacementRule(
     string Source,
     string Replacement,
     bool IsEnabled);
+
+public sealed record WebWorkbenchWordAnalysis(
+    string Scope,
+    string Label,
+    int DocumentCount,
+    int TokenCount,
+    int UniqueWordCount,
+    IReadOnlyList<WebWorkbenchWordFrequencyEntry> Entries);
+
+public sealed record WebWorkbenchWordFrequencyEntry(
+    string Word,
+    int Count);
