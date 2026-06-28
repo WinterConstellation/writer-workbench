@@ -260,6 +260,37 @@ public sealed class ProjectStoreTests
     }
 
     [Fact]
+    public async Task ReorderDocumentsPersistsExactBinderOrder()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var paths = ProjectPaths.ForRoot(root);
+        var store = new ProjectStore(paths);
+        var first = await store.CreateDocumentAsync("First", CancellationToken.None);
+        var second = await store.CreateDocumentAsync("Second", CancellationToken.None);
+        var third = await store.CreateDocumentAsync("Third", CancellationToken.None);
+
+        var manifest = await store.ReorderDocumentsAsync([third.Id, first.Id, second.Id], CancellationToken.None);
+        var reloadedManifest = await new ProjectStore(paths).LoadManifestAsync(CancellationToken.None);
+
+        Assert.Equal([third.Id, first.Id, second.Id], manifest.Documents.Select(document => document.Id));
+        Assert.Equal([third.Id, first.Id, second.Id], reloadedManifest.Documents.Select(document => document.Id));
+        Assert.Equal("Third", reloadedManifest.Documents[0].Title);
+    }
+
+    [Fact]
+    public async Task ReorderDocumentsRejectsMissingOrDuplicatedDocuments()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+        var store = new ProjectStore(ProjectPaths.ForRoot(root));
+        var first = await store.CreateDocumentAsync("First", CancellationToken.None);
+        var second = await store.CreateDocumentAsync("Second", CancellationToken.None);
+        await store.CreateDocumentAsync("Third", CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            store.ReorderDocumentsAsync([first.Id, second.Id, second.Id], CancellationToken.None));
+    }
+
+    [Fact]
     public async Task SaveDocumentPreservesExistingBinderOrder()
     {
         var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));

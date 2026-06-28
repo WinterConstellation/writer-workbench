@@ -2278,6 +2278,25 @@ public partial class MainWindow : Window
             _ => status.ToString()
         };
     }
+
+    private static bool TryParseSceneStatus(string status, out SceneStatus parsed)
+    {
+        parsed = status.Trim() switch
+        {
+            "초고" => SceneStatus.Draft,
+            "퇴고중" or "수정중" => SceneStatus.Revising,
+            "퇴고완료" or "완료" => SceneStatus.RevisionComplete,
+            "업로드대기" => SceneStatus.UploadPending,
+            "업로드완료" => SceneStatus.Uploaded,
+            "제외" => SceneStatus.Excluded,
+            _ => SceneStatus.Draft
+        };
+
+        return parsed != SceneStatus.Draft ||
+               string.Equals(status.Trim(), "초고", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(status.Trim(), nameof(SceneStatus.Draft), StringComparison.OrdinalIgnoreCase) ||
+               Enum.TryParse<SceneStatus>(status.Trim(), ignoreCase: true, out parsed);
+    }
     private async Task OpenMainSurfaceAsync()
     {
         await OpenHtmlWorkbenchViewAsync("editor", "메인 화면");
@@ -2447,6 +2466,21 @@ public partial class MainWindow : Window
                     ? commandIdElement.GetString() ?? ""
                     : "";
                 await ApplyHtmlBinderCommandAsync(documentId, commandId);
+                return;
+            }
+
+            if (string.Equals(messageType, "document.reorder", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlBinderReorderAsync(ReadJsonStringArray(root, "documentIds"));
+                return;
+            }
+
+            if (string.Equals(messageType, "scene.metadata.update", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlSceneMetadataUpdateAsync(
+                    ReadJsonString(root, "documentId"),
+                    ReadJsonString(root, "status"),
+                    ReadJsonString(root, "fileCategory"));
                 return;
             }
 
@@ -2651,6 +2685,75 @@ public partial class MainWindow : Window
         }
 
         await ExecuteCommandAsync(commandId);
+    }
+
+    private async Task ApplyHtmlBinderReorderAsync(IReadOnlyList<string> documentIds)
+    {
+        if (documentIds.Count == 0)
+        {
+            StatusText.Text = "바인더 순서 저장 실패 - 대상이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            var manifest = await _store.ReorderDocumentsAsync(documentIds, CancellationToken.None);
+            await RefreshBinderAsync(manifest);
+            if (!string.IsNullOrWhiteSpace(_activeDocumentId))
+            {
+                SelectBinderItem(_activeDocumentId);
+            }
+
+            StatusText.Text = $"바인더 순서 저장됨 - {manifest.Documents.Count:N0}개";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        {
+            StatusText.Text = $"바인더 순서 저장 실패 - {ex.Message}";
+        }
+    }
+
+    private async Task ApplyHtmlSceneMetadataUpdateAsync(string documentId, string status, string fileCategory)
+    {
+        documentId = string.IsNullOrWhiteSpace(documentId) ? _activeDocumentId : documentId.Trim();
+        if (string.IsNullOrWhiteSpace(documentId))
+        {
+            StatusText.Text = "장면 정보 저장 실패 - 활성 장면이 없습니다.";
+            return;
+        }
+
+        if (!TryParseSceneStatus(status, out var parsedStatus))
+        {
+            StatusText.Text = $"장면 정보 저장 실패 {documentId} - 알 수 없는 상태 {status}";
+            return;
+        }
+
+        try
+        {
+            var metadata = await _metadataStore.LoadExistingOrDefaultAsync(documentId, CancellationToken.None);
+            var updated = metadata with
+            {
+                Status = parsedStatus,
+                FileCategory = string.IsNullOrWhiteSpace(fileCategory) ? "원고" : fileCategory.Trim(),
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            await _metadataStore.SaveAsync(updated, CancellationToken.None);
+            var saved = await _metadataStore.LoadAsync(documentId, CancellationToken.None);
+            _binderMetadataByDocumentId[documentId] = saved;
+            if (string.Equals(documentId, _activeDocumentId, StringComparison.OrdinalIgnoreCase))
+            {
+                _activeSceneMetadata = saved;
+                PopulateSceneInspector(saved);
+            }
+
+            await RefreshBinderAsync();
+            StatusText.Text = $"장면 정보 저장됨 {documentId} - {FormatSceneStatus(saved.Status)} / {saved.FileCategory}";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            StatusText.Text = $"장면 정보 저장 실패 {documentId} - {ex.Message}";
+        }
     }
 
     private async Task ApplyHtmlStoryEntityAddAsync(string name, string role)

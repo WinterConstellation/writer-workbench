@@ -13,6 +13,8 @@ const state = {
   binderContextDocumentId: "",
   binderFileCategoryFilter: "전체",
   binderWorkflowStatusFilter: "전체",
+  binderItems: [],
+  binderDragDocumentId: "",
   remoteDraftCommandIds: [],
   remoteSettingsDirty: false,
   availableCommands: [],
@@ -207,6 +209,7 @@ function renderTopMenu(commands) {
 }
 
 function renderBinder(items) {
+  state.binderItems = items;
   renderBinderCategoryFilter(items);
   const filteredItems = filterBinderItems(items);
   $("binder-count").textContent = isBinderFilterActive()
@@ -225,6 +228,7 @@ function renderBinder(items) {
     const row = document.createElement("article");
     row.className = `scene-item${isActive ? " active" : ""}`;
     row.dataset.documentId = id;
+    row.draggable = true;
     row.tabIndex = 0;
     row.innerHTML = `
       <div class="scene-line">
@@ -255,6 +259,11 @@ function renderBinder(items) {
       selectBinderDocument(id);
     });
     row.addEventListener("dblclick", () => selectBinderDocument(id));
+    row.addEventListener("dragstart", handleBinderDragStart);
+    row.addEventListener("dragover", handleBinderDragOver);
+    row.addEventListener("dragleave", handleBinderDragLeave);
+    row.addEventListener("drop", handleBinderDrop);
+    row.addEventListener("dragend", clearBinderDragState);
     list.appendChild(row);
   }
 }
@@ -389,6 +398,81 @@ function describeBinderFilters() {
   return parts.length ? `${parts.join(" / ")}만 보기` : "전체 보기";
 }
 
+function handleBinderDragStart(event) {
+  const row = event.currentTarget;
+  state.binderDragDocumentId = row.dataset.documentId || "";
+  row.classList.add("dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", state.binderDragDocumentId);
+}
+
+function handleBinderDragOver(event) {
+  if (!state.binderDragDocumentId) return;
+  const row = event.currentTarget;
+  const targetId = row.dataset.documentId || "";
+  if (!targetId || targetId === state.binderDragDocumentId) return;
+
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  markBinderDropPosition(row, event);
+}
+
+function handleBinderDragLeave(event) {
+  const row = event.currentTarget;
+  if (!row.contains(event.relatedTarget)) {
+    row.classList.remove("drop-before", "drop-after");
+  }
+}
+
+function handleBinderDrop(event) {
+  if (!state.binderDragDocumentId) return;
+  event.preventDefault();
+  const row = event.currentTarget;
+  const targetId = row.dataset.documentId || "";
+  const draggedId = state.binderDragDocumentId;
+  const dropAfter = getBinderDropAfter(row, event);
+  clearBinderDragState();
+  if (!targetId || targetId === draggedId) return;
+
+  const reorderedIds = reorderBinderDocumentIds(draggedId, targetId, dropAfter);
+  if (!reorderedIds.length) return;
+
+  postWebMessage({ type: "document.reorder", documentIds: reorderedIds });
+}
+
+function markBinderDropPosition(row, event) {
+  const dropAfter = getBinderDropAfter(row, event);
+  row.classList.toggle("drop-before", !dropAfter);
+  row.classList.toggle("drop-after", dropAfter);
+}
+
+function getBinderDropAfter(row, event) {
+  const rect = row.getBoundingClientRect();
+  return event.clientY > rect.top + rect.height / 2;
+}
+
+function clearBinderDragState() {
+  state.binderDragDocumentId = "";
+  document.querySelectorAll(".scene-item.dragging, .scene-item.drop-before, .scene-item.drop-after")
+    .forEach((row) => row.classList.remove("dragging", "drop-before", "drop-after"));
+}
+
+function reorderBinderDocumentIds(draggedId, targetId, dropAfter) {
+  const ids = state.binderItems
+    .map((item) => readPayloadValue(item, "id", "Id", ""))
+    .filter(Boolean);
+  const fromIndex = ids.indexOf(draggedId);
+  const targetIndex = ids.indexOf(targetId);
+  if (fromIndex < 0 || targetIndex < 0) {
+    return [];
+  }
+
+  ids.splice(fromIndex, 1);
+  const targetIndexAfterRemoval = ids.indexOf(targetId);
+  ids.splice(targetIndexAfterRemoval + (dropAfter ? 1 : 0), 0, draggedId);
+  return ids;
+}
+
 function createBinderActionButton(commandId, documentId, label) {
   const button = document.createElement("button");
   button.type = "button";
@@ -416,6 +500,19 @@ function sendBinderCommand(commandId, documentId = state.selectedDocumentId) {
     type: "document.command",
     documentId: documentId || state.selectedDocumentId || "",
     commandId,
+  });
+}
+
+function saveActiveSceneMetadata() {
+  const active = readPayloadValue(state.payload, "activeScene", "ActiveScene", null);
+  const documentId = readPayloadValue(active, "id", "Id", state.selectedDocumentId || "");
+  if (!documentId) return;
+
+  postWebMessage({
+    type: "scene.metadata.update",
+    documentId,
+    status: $("active-status-editor").value || "초고",
+    fileCategory: $("active-file-category-editor").value || "원고",
   });
 }
 
@@ -457,6 +554,11 @@ function renderActiveScene(active) {
     $("active-title-editor").value = "";
     $("active-body-editor").value = "";
     $("active-body-editor").disabled = true;
+    $("active-status-editor").value = "초고";
+    $("active-status-editor").disabled = true;
+    $("active-file-category-editor").value = "원고";
+    $("active-file-category-editor").disabled = true;
+    $("active-metadata-save").disabled = true;
     $("active-status").textContent = "-";
     $("active-file-category").textContent = "원고";
     $("active-length").textContent = "0";
@@ -489,8 +591,17 @@ function renderActiveScene(active) {
     $("active-body-editor").value = editorText;
   }
   $("active-body-editor").disabled = false;
+  $("active-status-editor").disabled = false;
+  $("active-file-category-editor").disabled = false;
+  $("active-metadata-save").disabled = false;
   $("active-status").textContent = status;
   $("active-file-category").textContent = fileCategory;
+  if (document.activeElement !== $("active-status-editor")) {
+    $("active-status-editor").value = normalizeWorkflowStatus(status);
+  }
+  if (document.activeElement !== $("active-file-category-editor")) {
+    $("active-file-category-editor").value = fileCategory;
+  }
   $("active-length").textContent = formatNumber(visibleMetrics.contentLength);
   $("active-length-spaces").textContent = formatNumber(visibleMetrics.contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
@@ -1613,6 +1724,13 @@ document.addEventListener("contextmenu", (event) => {
 
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
+$("active-metadata-save").addEventListener("click", saveActiveSceneMetadata);
+$("active-file-category-editor").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    saveActiveSceneMetadata();
+  }
+});
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
 $("binder-category-filter")?.addEventListener("change", (event) => {
   state.binderFileCategoryFilter = event.target.value || "전체";

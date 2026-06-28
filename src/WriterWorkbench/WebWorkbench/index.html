@@ -125,6 +125,18 @@
             <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
             <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
             <div id="active-editor-metrics" class="editor-metrics-status"></div>
+            <div class="scene-metadata-editor">
+              <select id="active-status-editor" aria-label="장면 상태">
+                <option value="초고">초고</option>
+                <option value="퇴고중">퇴고중</option>
+                <option value="퇴고완료">퇴고완료</option>
+                <option value="업로드대기">업로드대기</option>
+                <option value="업로드완료">업로드완료</option>
+                <option value="제외">제외</option>
+              </select>
+              <input id="active-file-category-editor" type="text" aria-label="파일 분류" placeholder="파일 분류">
+              <button id="active-metadata-save" type="button">정보 저장</button>
+            </div>
             <p id="active-summary" class="scene-summary"></p>
             <div id="active-tags" class="tag-row"></div>
             <div class="scene-stat-grid">

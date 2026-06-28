@@ -316,6 +316,34 @@ public sealed class ProjectStore(ProjectPaths paths)
         return updatedManifest;
     }
 
+    public async Task<ProjectManifest> ReorderDocumentsAsync(IReadOnlyList<string> orderedDocumentIds, CancellationToken token)
+    {
+        var manifest = await LoadManifestAsync(token);
+        if (orderedDocumentIds.Count != manifest.Documents.Count)
+        {
+            throw new InvalidOperationException("Reorder list must contain every binder document exactly once.");
+        }
+
+        var documentById = manifest.Documents.ToDictionary(document => document.Id, StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var reordered = new List<ProjectDocumentInfo>(orderedDocumentIds.Count);
+        foreach (var documentId in orderedDocumentIds)
+        {
+            if (string.IsNullOrWhiteSpace(documentId) ||
+                !seen.Add(documentId) ||
+                !documentById.TryGetValue(documentId, out var document))
+            {
+                throw new InvalidOperationException("Reorder list must contain every binder document exactly once.");
+            }
+
+            reordered.Add(document);
+        }
+
+        var updatedManifest = manifest with { Documents = reordered };
+        await SaveManifestAsync(updatedManifest, token);
+        return updatedManifest;
+    }
+
     public async Task<ProjectManifest> LoadManifestAsync(CancellationToken token)
     {
         await using var stream = File.OpenRead(paths.ManifestPath);

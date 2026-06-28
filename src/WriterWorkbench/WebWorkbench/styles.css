@@ -443,6 +443,24 @@ h1 {
   padding: 8px;
 }
 
+.scene-item[draggable="true"] {
+  cursor: grab;
+}
+
+.scene-item.dragging {
+  opacity: 0.55;
+}
+
+.scene-item.drop-before {
+  border-top-color: var(--rubric);
+  box-shadow: 0 -2px 0 var(--rubric);
+}
+
+.scene-item.drop-after {
+  border-bottom-color: var(--rubric);
+  box-shadow: 0 2px 0 var(--rubric);
+}
+
 .scene-item + .scene-item {
   margin-top: 4px;
 }
@@ -506,6 +524,28 @@ h1 {
   min-height: 23px;
   padding: 0 4px;
   font-size: 11px;
+}
+
+.scene-metadata-editor {
+  display: grid;
+  grid-template-columns: minmax(108px, 0.42fr) minmax(120px, 1fr) auto;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.scene-metadata-editor select,
+.scene-metadata-editor input {
+  min-width: 0;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.scene-metadata-editor button {
+  min-width: 72px;
 }
 
 .center-surface {

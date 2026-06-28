@@ -853,6 +853,104 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowHtmlBinderReorderPersistsManifestOrder()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+
+                var first = WaitForTaskOnDispatcher(store.CreateDocumentAsync("첫 장면", CancellationToken.None));
+                var second = WaitForTaskOnDispatcher(store.CreateDocumentAsync("두 번째", CancellationToken.None));
+                var third = WaitForTaskOnDispatcher(store.CreateDocumentAsync("세 번째", CancellationToken.None));
+                var manifest = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, second.Id);
+
+                InvokePrivateAsync(window, "ApplyHtmlBinderReorderAsync", (object)new[] { third.Id, first.Id, second.Id });
+
+                var reordered = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                var selectedItem = Assert.IsAssignableFrom<object>(Assert.IsType<ListBox>(window.FindName("BinderList")).SelectedItem);
+                var selectedId = Assert.IsType<string>(selectedItem.GetType().GetProperty("Id")!.GetValue(selectedItem));
+
+                Assert.Equal([third.Id, first.Id, second.Id], reordered.Documents.Select(document => document.Id));
+                Assert.Equal(second.Id, GetPrivateField<string>(window, "_activeDocumentId"));
+                Assert.Equal(second.Id, selectedId);
+                Assert.Contains("바인더 순서 저장됨", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlSceneMetadataUpdatePersistsStatusAndCategory()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+                var metadataStore = GetPrivateField<SceneMetadataStore>(window, "_metadataStore");
+
+                var document = WaitForTaskOnDispatcher(store.CreateDocumentAsync("상태 수정 장면", CancellationToken.None));
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, document.Id);
+
+                InvokePrivateAsync(window, "ApplyHtmlSceneMetadataUpdateAsync", document.Id, "업로드대기", "자료");
+
+                var saved = WaitForTaskOnDispatcher(metadataStore.LoadAsync(document.Id, CancellationToken.None));
+                var inspectorStatus = Assert.IsType<ComboBox>(window.FindName("InspectorStatusBox"));
+                var inspectorCategory = Assert.IsType<TextBox>(window.FindName("InspectorFileCategoryBox"));
+
+                Assert.Equal(SceneStatus.UploadPending, saved.Status);
+                Assert.Equal("자료", saved.FileCategory);
+                Assert.Equal(SceneStatus.UploadPending, inspectorStatus.SelectedValue);
+                Assert.Equal("자료", inspectorCategory.Text);
+                Assert.Contains($"장면 정보 저장됨 {document.Id}", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowAppliesHtmlRemoteSettingsUpdateToCustomizationProfile()
     {
         Exception? failure = null;

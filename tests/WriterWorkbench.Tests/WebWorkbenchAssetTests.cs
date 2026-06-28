@@ -71,6 +71,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
         Assert.Contains("active-file-category", html);
+        Assert.Contains("active-status-editor", html);
+        Assert.Contains("active-file-category-editor", html);
+        Assert.Contains("active-metadata-save", html);
         Assert.Contains("inspector-file-category", html);
         Assert.Contains("pipeline-revision-complete", html);
         Assert.Contains("pipeline-upload-pending", html);
@@ -177,7 +180,14 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("activeScene.update", script);
         Assert.Contains("document.select", script);
         Assert.Contains("document.command", script);
+        Assert.Contains("document.reorder", script);
+        Assert.Contains("scene.metadata.update", script);
         Assert.Contains("dataset.binderDocument", script);
+        Assert.Contains("row.draggable = true", script);
+        Assert.Contains("handleBinderDragStart", script);
+        Assert.Contains("handleBinderDrop", script);
+        Assert.Contains("reorderBinderDocumentIds", script);
+        Assert.Contains("saveActiveSceneMetadata", script);
         Assert.Contains("binderFileCategoryFilter", script);
         Assert.Contains("binderWorkflowStatusFilter", script);
         Assert.Contains("renderBinderCategoryFilter", script);
@@ -333,6 +343,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("grid-template-rows: auto auto auto minmax(0, 1fr)", css);
         Assert.Contains(".binder-filter-bar", css);
         Assert.Contains(".scene-actions", css);
+        Assert.Contains(".scene-item[draggable=\"true\"]", css);
+        Assert.Contains(".scene-item.drop-before", css);
+        Assert.Contains(".scene-item.drop-after", css);
+        Assert.Contains(".scene-metadata-editor", css);
         Assert.Contains(".relationship-workbench", css);
         Assert.Contains(".relationship-map-canvas", css);
     }
