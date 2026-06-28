@@ -376,7 +376,7 @@ h1 {
 }
 
 #rail-panel-binder {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
 #rail-panel-settings {
@@ -403,6 +403,32 @@ h1 {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 11px;
+}
+
+.binder-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface-soft) 72%, var(--parchment));
+}
+
+.binder-filter-bar select {
+  min-width: 0;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.binder-filter-bar span {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .scene-list {

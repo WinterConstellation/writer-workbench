@@ -63,6 +63,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("remote-drag-arrow-head", html);
         Assert.DoesNotContain(">✥<", html);
         Assert.Contains("binder-action-bar", html);
+        Assert.Contains("binder-category-filter", html);
+        Assert.Contains("binder-filter-summary", html);
         Assert.Contains("binder-context-menu", html);
         Assert.Contains("active-body-editor", html);
         Assert.Contains("html-view-editor", html);
@@ -175,6 +177,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("document.select", script);
         Assert.Contains("document.command", script);
         Assert.Contains("dataset.binderDocument", script);
+        Assert.Contains("binderFileCategoryFilter", script);
+        Assert.Contains("renderBinderCategoryFilter", script);
+        Assert.Contains("filterBinderByCategory", script);
+        Assert.Contains("normalizeFileCategory", script);
         Assert.Contains("scene-actions", script);
         Assert.Contains("showBinderContextMenu", script);
         Assert.Contains("hideBinderContextMenu", script);
@@ -319,7 +325,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains(".remote-command:active", css);
         Assert.Contains("font-weight: 650", css);
         Assert.Contains("#rail-panel-binder", css);
-        Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
+        Assert.Contains("grid-template-rows: auto auto auto minmax(0, 1fr)", css);
+        Assert.Contains(".binder-filter-bar", css);
         Assert.Contains(".scene-actions", css);
         Assert.Contains(".relationship-workbench", css);
         Assert.Contains(".relationship-map-canvas", css);

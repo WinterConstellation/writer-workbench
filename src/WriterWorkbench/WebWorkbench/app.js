@@ -11,6 +11,7 @@ const state = {
   activeView: "editor",
   selectedDocumentId: "",
   binderContextDocumentId: "",
+  binderFileCategoryFilter: "전체",
   remoteDraftCommandIds: [],
   remoteSettingsDirty: false,
   availableCommands: [],
@@ -205,10 +206,14 @@ function renderTopMenu(commands) {
 }
 
 function renderBinder(items) {
-  $("binder-count").textContent = formatNumber(items.length);
+  renderBinderCategoryFilter(items);
+  const filteredItems = filterBinderByCategory(items);
+  $("binder-count").textContent = state.binderFileCategoryFilter === "전체"
+    ? formatNumber(items.length)
+    : `${formatNumber(filteredItems.length)} / ${formatNumber(items.length)}`;
   const list = $("scene-list");
   list.textContent = "";
-  for (const item of items) {
+  for (const item of filteredItems) {
     const id = readPayloadValue(item, "id", "Id", "");
     const title = readPayloadValue(item, "title", "Title", id);
     const status = readPayloadValue(item, "status", "Status", "초고");
@@ -251,6 +256,65 @@ function renderBinder(items) {
     row.addEventListener("dblclick", () => selectBinderDocument(id));
     list.appendChild(row);
   }
+}
+
+function renderBinderCategoryFilter(items) {
+  const select = $("binder-category-filter");
+  const summary = $("binder-filter-summary");
+  if (!select || !summary) return;
+
+  const counts = countBinderFileCategories(items);
+  const categories = createBinderFileCategoryOptions(counts);
+  if (state.binderFileCategoryFilter !== "전체" && !categories.includes(state.binderFileCategoryFilter)) {
+    state.binderFileCategoryFilter = "전체";
+  }
+
+  select.textContent = "";
+  for (const category of categories) {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category === "전체"
+      ? `전체 (${formatNumber(items.length)})`
+      : `${category} (${formatNumber(counts.get(category) || 0)})`;
+    select.appendChild(option);
+  }
+
+  select.value = state.binderFileCategoryFilter;
+  summary.textContent = state.binderFileCategoryFilter === "전체"
+    ? "전체 보기"
+    : `${state.binderFileCategoryFilter}만 보기`;
+}
+
+function countBinderFileCategories(items) {
+  const counts = new Map();
+  for (const item of items) {
+    const category = normalizeFileCategory(readPayloadValue(item, "fileCategory", "FileCategory", "원고"));
+    counts.set(category, (counts.get(category) || 0) + 1);
+  }
+
+  return counts;
+}
+
+function createBinderFileCategoryOptions(counts) {
+  const presets = ["전체", "원고", "설정", "자료", "시놉시스", "표지", "기타"];
+  const dynamic = [...counts.keys()]
+    .filter((category) => !presets.includes(category))
+    .sort((a, b) => a.localeCompare(b, "ko-KR"));
+  return [...presets, ...dynamic];
+}
+
+function filterBinderByCategory(items) {
+  if (state.binderFileCategoryFilter === "전체") {
+    return items;
+  }
+
+  return items.filter((item) =>
+    normalizeFileCategory(readPayloadValue(item, "fileCategory", "FileCategory", "원고")) === state.binderFileCategoryFilter);
+}
+
+function normalizeFileCategory(category) {
+  const normalized = String(category || "").trim();
+  return normalized.length ? normalized : "원고";
 }
 
 function createBinderActionButton(commandId, documentId, label) {
@@ -1478,6 +1542,11 @@ document.addEventListener("contextmenu", (event) => {
 $("active-title-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("active-body-editor").addEventListener("input", scheduleActiveSceneUpdate);
 $("shortcut-search")?.addEventListener("input", filterShortcutSettings);
+$("binder-category-filter")?.addEventListener("change", (event) => {
+  state.binderFileCategoryFilter = event.target.value || "전체";
+  const binder = readPayloadValue(state.payload, "binder", "Binder", []);
+  renderBinder(binder);
+});
 document.addEventListener("keydown", captureShortcutGesture);
 
 $("remote-drag-handle").addEventListener("pointerdown", startRemoteDrag);

@@ -4080,3 +4080,38 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST feature implementation update: HTML binder file category filter
+
+Feature(s) implemented:
+- Added an HTML binder file-category filter above the scene list.
+- Filter options include `전체`, `원고`, `설정`, `자료`, `시놉시스`, `표지`, `기타`, plus any custom categories found in metadata.
+- Binder count now shows filtered/total count when a category filter is active.
+- Filtering uses existing scene metadata only and does not load document bodies.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated `WebWorkbenchHtmlContainsFullWorkbenchShellAnchors`.
+- Updated `WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate`.
+- Updated `WebWorkbenchCssKeepsInWindowRemoteDisabledWhenNativeLayerIsPrimary`.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests"` -> 13 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+
+Large manuscript regression check:
+- Large manuscript editor/input path was not touched.
+- Binder filtering uses the already-provided payload metadata and does not read large body text.
+
+Remaining problems:
+- Need manual UI check that the filter selection persists while normal HTML workbench state refreshes.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.
