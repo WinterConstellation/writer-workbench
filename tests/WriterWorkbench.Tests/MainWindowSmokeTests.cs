@@ -692,12 +692,58 @@ public sealed class MainWindowSmokeTests
 
                 Assert.NotNull(layerField);
                 InvokePrivate(window, "ShowHtmlWorkbenchSurface");
-                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
-
                 var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
                 Assert.True(layer.IsVisible);
                 Assert.True(layer.Topmost);
 
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+                Assert.False(layer.IsVisible);
+
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+                Assert.True(layer.IsVisible);
+                Assert.True(layer.Topmost);
+
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(layerField);
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                layer.Hide();
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+
+                Assert.True(layer.IsVisible);
+                Assert.True(layer.Topmost);
                 layer.Close();
                 window.Close();
             }

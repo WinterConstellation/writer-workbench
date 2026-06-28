@@ -3320,6 +3320,54 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST process report and feature repair update: Superpowers scope and remote policy
+
+Feature(s) implemented:
+- Added a process impact report for broad Superpowers usage in Writer Workbench.
+- Locked the remote-control policy: native topmost remote is the primary desktop remote.
+- Entering the HTML workbench now shows the native remote-control layer even if it was hidden.
+- HTML in-window remote is hidden to avoid duplicate remotes.
+
+Files changed:
+- `docs/reports/superpowers-process-impact-report-2026-06-28.md`
+- `docs/pingpong.txt`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+
+Tests added/updated:
+- Added `MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering`.
+- Updated HTML remote CSS test to require the in-window remote to stay hidden when the native layer is primary.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering` -> failed before implementation.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering|WebWorkbenchCssKeepsInWindowRemoteDisabledWhenNativeLayerIsPrimary"` -> failed before implementation, then 2 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable|MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering|WebWorkbenchCssKeepsInWindowRemoteDisabledWhenNativeLayerIsPrimary"` -> 3 passed after updating the old toggle expectation for the new policy.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 222 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- `rg` check confirmed packaged `dist` CSS keeps `.floating-remote` at `display: none`.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable|MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering|WebWorkbenchCssKeepsInWindowRemoteDisabledWhenNativeLayerIsPrimary"` -> 3 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 222 passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests"` -> 13 passed.
+
+Large manuscript regression check:
+- Large manuscript edit/load path was not touched.
+- Guardrail tests `DocumentEditorTextServiceTests|EditorLargeTextSmokeTests|LargeDocumentIntegrationTests|DetachedDocumentWindowTests` passed: 13 tests.
+
+Remaining problems:
+- Need packaged app/manual visual confirmation that exactly one remote appears and stays topmost.
+- Some existing Korean UI strings in source are already mojibake and should be repaired as a separate pass.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Report doc only.
 ## 2026-06-28 KST test update: Encoding damage guardrail
 
 Feature(s) implemented:

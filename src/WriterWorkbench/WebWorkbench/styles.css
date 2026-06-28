@@ -955,7 +955,7 @@ h2 {
 }
 
 .floating-remote {
-  display: block;
+  display: none;
   position: fixed;
   top: 128px;
   right: 318px;

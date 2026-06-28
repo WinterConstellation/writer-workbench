@@ -3351,6 +3351,7 @@ public partial class MainWindow : Window
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
         RememberSessionState(claimedSurfaceId);
+        ShowRemoteControlLayer(recenter: false);
         StatusText.Text = "메인 화면";
         return true;
     }

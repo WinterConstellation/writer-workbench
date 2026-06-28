@@ -248,7 +248,7 @@ public sealed class WebWorkbenchAssetTests
     }
 
     [Fact]
-    public async Task WebWorkbenchCssKeepsInWindowRemoteSecondary()
+    public async Task WebWorkbenchCssKeepsInWindowRemoteDisabledWhenNativeLayerIsPrimary()
     {
         var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
         var cssPath = Path.Combine(appDirectory, "WebWorkbench", "styles.css");
@@ -259,8 +259,8 @@ public sealed class WebWorkbenchAssetTests
         var remoteBlockStart = css.IndexOf(".floating-remote", StringComparison.Ordinal);
         var remoteBlockEnd = css.IndexOf("\n}", remoteBlockStart, StringComparison.Ordinal);
         var remoteBlock = css[remoteBlockStart..remoteBlockEnd];
-        Assert.Contains("display: block", remoteBlock);
-        Assert.DoesNotContain("display: none", remoteBlock);
+        Assert.Contains("display: none", remoteBlock);
+        Assert.DoesNotContain("display: block", remoteBlock);
         Assert.Contains("#rail-panel-binder", css);
         Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
         Assert.Contains(".scene-actions", css);
