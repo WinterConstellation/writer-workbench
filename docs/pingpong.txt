@@ -4195,3 +4195,27 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-29 KST artifact update: Binder drag-drop executable refresh
+
+Feature(s) implemented:
+- Refreshed the local executable after the binder drag/drop reorder and HTML metadata editing implementation.
+
+Files changed:
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- No additional tests; source/build/test verification is recorded in the `Binder drag-drop reorder and HTML metadata editing` entry above.
+
+Commands run:
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Publish only; large manuscript editor/input code was not changed.
+
+Remaining problems:
+- Manual UI confirmation is still needed for drag/drop feel and explicit scene metadata save flow.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
