@@ -44,12 +44,13 @@ public partial class RemoteControlLayerWindow : Window
                 Content = CreateButtonContent(command.Id, label),
                 Tag = command.Id,
                 ToolTip = $"{command.Category} / {command.Name}",
-                Height = 30,
-                MinWidth = 104,
-                Margin = new Thickness(0, 0, 0, 5),
-                Padding = new Thickness(7, 0, 8, 0),
+                Height = 32,
+                MinWidth = 106,
+                Margin = new Thickness(0, 0, 0, 6),
+                Padding = new Thickness(8, 0, 8, 0),
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left
+                HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalContentAlignment = System.Windows.VerticalAlignment.Center
             };
             button.Click += RemoteButton_Click;
             ApplyDisplayMode(button);
@@ -127,8 +128,8 @@ public partial class RemoteControlLayerWindow : Window
         else
         {
             label.Visibility = Visibility.Visible;
-            button.MinWidth = 104;
-            button.Padding = new Thickness(7, 0, 8, 0);
+            button.MinWidth = 106;
+            button.Padding = new Thickness(8, 0, 8, 0);
             button.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
             button.ClearValue(WidthProperty);
             button.HorizontalContentAlignment = System.Windows.HorizontalAlignment.Left;
@@ -144,15 +145,15 @@ public partial class RemoteControlLayerWindow : Window
         };
         panel.Children.Add(new Border
         {
-            Width = 16,
-            Height = 16,
-            CornerRadius = new CornerRadius(4),
+            Width = 18,
+            Height = 18,
+            CornerRadius = new CornerRadius(5),
             Background = CreateIconBrush(commandId),
             Child = new TextBlock
             {
                 Text = GetIconText(commandId),
                 Foreground = System.Windows.Media.Brushes.White,
-                FontSize = 9,
+                FontSize = 10,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
                 VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -162,7 +163,7 @@ public partial class RemoteControlLayerWindow : Window
         panel.Children.Add(new TextBlock
         {
             Text = label,
-            Margin = new Thickness(5, 0, 0, 0),
+            Margin = new Thickness(7, 0, 0, 0),
             VerticalAlignment = System.Windows.VerticalAlignment.Center,
             FontSize = 12
         });

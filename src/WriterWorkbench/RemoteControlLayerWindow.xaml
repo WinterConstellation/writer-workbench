@@ -14,11 +14,57 @@
         FontFamily="Malgun Gothic"
         Background="Transparent"
         AllowsTransparency="True">
-    <Border BorderBrush="#334155"
+    <Window.Resources>
+        <SolidColorBrush x:Key="RemoteInkBrush" Color="#1F252B"/>
+        <SolidColorBrush x:Key="RemoteSurfaceBrush" Color="#FFFAF0"/>
+        <SolidColorBrush x:Key="RemoteSurfaceSoftBrush" Color="#F3EFE6"/>
+        <SolidColorBrush x:Key="RemoteSurfaceStrongBrush" Color="#E3D8C8"/>
+        <SolidColorBrush x:Key="RemoteLineBrush" Color="#9F927F"/>
+        <SolidColorBrush x:Key="RemoteAccentBrush" Color="#245C73"/>
+        <Style TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="{StaticResource RemoteSurfaceBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource RemoteLineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{StaticResource RemoteInkBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="ButtonFrame"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="5">
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonFrame" Property="Background" Value="{StaticResource RemoteSurfaceSoftBrush}"/>
+                                <Setter TargetName="ButtonFrame" Property="BorderBrush" Value="{StaticResource RemoteAccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonFrame" Property="Background" Value="{StaticResource RemoteSurfaceStrongBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Border x:Name="RemoteLayerFrame"
+            BorderBrush="{StaticResource RemoteLineBrush}"
             BorderThickness="1"
-            Background="#F8FAFC"
+            Background="{StaticResource RemoteSurfaceBrush}"
             CornerRadius="8">
-        <Grid Margin="6">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18"
+                              ShadowDepth="6"
+                              Opacity="0.18"
+                              Color="#1F252B"/>
+        </Border.Effect>
+        <Grid Margin="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
@@ -29,7 +75,9 @@
                     Height="26"
                     Margin="0,0,0,6"
                     Padding="6,0"
-                    Background="#E2E8F0"
+                    BorderBrush="{StaticResource RemoteLineBrush}"
+                    BorderThickness="1"
+                    Background="{StaticResource RemoteSurfaceStrongBrush}"
                     CornerRadius="5"
                     Cursor="SizeAll"
                     MouseLeftButtonDown="RemoteLayerDragHandle_MouseLeftButtonDown">
@@ -58,20 +106,20 @@
                              Margin="0,0,6,0"
                              VerticalAlignment="Center">
                         <Canvas Width="24" Height="24">
-                            <Path Stroke="#475569"
+                            <Path Stroke="{StaticResource RemoteAccentBrush}"
                                   StrokeThickness="2"
                                   StrokeStartLineCap="Round"
                                   StrokeEndLineCap="Round"
                                   Data="M12,3 L12,21 M3,12 L21,12"/>
-                            <Path Fill="#475569"
+                            <Path Fill="{StaticResource RemoteAccentBrush}"
                                   Data="M12,0 L8.5,4 H15.5 Z M12,24 L8.5,20 H15.5 Z M0,12 L4,8.5 V15.5 Z M24,12 L20,8.5 V15.5 Z"/>
                         </Canvas>
                     </Viewbox>
                     <TextBlock Text="리모콘"
-                               VerticalAlignment="Center"
-                               Foreground="#111827"
-                               FontSize="12"
-                               FontWeight="SemiBold"/>
+                                VerticalAlignment="Center"
+                                Foreground="{StaticResource RemoteInkBrush}"
+                                FontSize="12"
+                                FontWeight="SemiBold"/>
                 </DockPanel>
             </Border>
             <ScrollViewer Grid.Row="1"

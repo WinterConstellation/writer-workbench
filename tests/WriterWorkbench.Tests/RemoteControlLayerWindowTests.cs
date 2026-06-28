@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
 
@@ -21,6 +22,7 @@ public sealed class RemoteControlLayerWindowTests
                 layer.Render(CreateProfile(), registry);
 
                 var handle = Assert.IsType<Border>(layer.FindName("RemoteLayerDragHandle"));
+                var frame = Assert.IsType<Border>(layer.FindName("RemoteLayerFrame"));
                 var moveIcon = Assert.IsType<Viewbox>(layer.FindName("RemoteLayerMoveIcon"));
                 var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
                 var buttons = panel.Children.OfType<Button>().ToList();
@@ -32,11 +34,25 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.Equal(260d, layer.Width);
                 Assert.Equal(450d, layer.Height);
                 Assert.NotNull(layer.FindName("RemoteLayerResizeGrip"));
+                AssertBrushColor("#FFFAF0", frame.Background);
+                AssertBrushColor("#9F927F", frame.BorderBrush);
+                AssertBrushColor("#E3D8C8", handle.Background);
+                AssertBrushColor("#9F927F", handle.BorderBrush);
                 Assert.Equal(System.Windows.Input.Cursors.SizeAll, handle.Cursor);
                 var moveIconCanvas = Assert.IsType<Canvas>(moveIcon.Child);
-                Assert.True(moveIconCanvas.Children.OfType<System.Windows.Shapes.Path>().Count() >= 2);
+                var moveIconPaths = moveIconCanvas.Children.OfType<System.Windows.Shapes.Path>().ToList();
+                Assert.True(moveIconPaths.Count >= 2);
+                AssertBrushColor("#245C73", moveIconPaths[0].Stroke);
+                AssertBrushColor("#245C73", moveIconPaths[1].Fill);
                 Assert.Null(layer.FindName("RemoteLayerMoveGlyph"));
                 Assert.Equal(["project.save", "document.detachCurrent"], buttons.Select(button => button.Tag as string));
+                Assert.All(buttons, button =>
+                {
+                    Assert.Equal(32d, button.Height);
+                    Assert.Equal(new Thickness(0, 0, 0, 6), button.Margin);
+                    AssertBrushColor("#FFFAF0", button.Background);
+                    AssertBrushColor("#9F927F", button.BorderBrush);
+                });
                 layer.Left = -900;
                 layer.Top = -400;
                 Assert.Equal(-900, layer.Left);
@@ -73,10 +89,15 @@ public sealed class RemoteControlLayerWindowTests
 
                 var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
                 var button = panel.Children.OfType<Button>().First();
-                var label = ((StackPanel)button.Content).Children.OfType<TextBlock>().Last();
+                var contentPanel = Assert.IsType<StackPanel>(button.Content);
+                var icon = Assert.IsType<Border>(contentPanel.Children[0]);
+                var label = contentPanel.Children.OfType<TextBlock>().Last();
                 var modeButton = Assert.IsType<Button>(layer.FindName("RemoteLayerDisplayModeButton"));
 
                 Assert.Equal(RemoteControlDisplayMode.IconAndTitle, layer.DisplayMode);
+                Assert.Equal(18d, icon.Width);
+                Assert.Equal(18d, icon.Height);
+                Assert.Equal(new Thickness(7, 0, 0, 0), label.Margin);
                 Assert.Equal(Visibility.Visible, label.Visibility);
                 Assert.Equal(HorizontalAlignment.Stretch, button.HorizontalAlignment);
                 Assert.Equal("아이콘만", modeButton.Content);
@@ -141,6 +162,12 @@ public sealed class RemoteControlLayerWindowTests
         {
             throw failure;
         }
+    }
+
+    private static void AssertBrushColor(string expectedHex, Brush brush)
+    {
+        var solid = Assert.IsType<SolidColorBrush>(brush);
+        Assert.Equal((Color)ColorConverter.ConvertFromString(expectedHex), solid.Color);
     }
 
     private static WorkbenchCustomizationProfile CreateProfile()

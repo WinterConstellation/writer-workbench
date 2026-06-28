@@ -294,6 +294,15 @@ public sealed class WebWorkbenchAssetTests
         var remoteBlock = css[remoteBlockStart..remoteBlockEnd];
         Assert.Contains("display: none", remoteBlock);
         Assert.DoesNotContain("display: block", remoteBlock);
+        Assert.Contains("background: linear-gradient(180deg, var(--surface), var(--parchment))", remoteBlock);
+        Assert.Contains("color: var(--ink)", remoteBlock);
+        Assert.Contains(".remote-header strong", css);
+        Assert.Contains(".remote-header button:hover,", css);
+        Assert.Contains(".remote-command:hover", css);
+        Assert.Contains("stroke: var(--blue)", css);
+        Assert.Contains("fill: var(--blue)", css);
+        Assert.Contains(".remote-command:active", css);
+        Assert.Contains("font-weight: 650", css);
         Assert.Contains("#rail-panel-binder", css);
         Assert.Contains("grid-template-rows: auto auto minmax(0, 1fr)", css);
         Assert.Contains(".scene-actions", css);
