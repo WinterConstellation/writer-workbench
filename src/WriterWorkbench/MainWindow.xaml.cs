@@ -391,19 +391,22 @@ public partial class MainWindow : Window
     private void ShowRemoteControlLayer(bool recenter)
     {
         var layer = EnsureRemoteControlLayer();
+        var wasVisible = layer.IsVisible;
         layer.Topmost = true;
         if (recenter || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
         {
             PositionRemoteControlLayer(layer);
         }
 
-        if (!layer.IsVisible)
+        if (!wasVisible)
         {
             layer.Show();
+            layer.Activate();
         }
-
-        layer.Topmost = true;
-        layer.Activate();
+        else if (recenter)
+        {
+            layer.Activate();
+        }
     }
 
     private bool IsHtmlWorkbenchSurfaceVisible()

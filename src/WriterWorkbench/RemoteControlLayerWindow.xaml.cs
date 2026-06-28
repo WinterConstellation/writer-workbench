@@ -15,6 +15,8 @@ public enum RemoteControlDisplayMode
 
 public partial class RemoteControlLayerWindow : Window
 {
+    private string _renderSignature = "";
+
     public RemoteControlLayerWindow()
     {
         InitializeComponent();
@@ -34,6 +36,13 @@ public partial class RemoteControlLayerWindow : Window
             placements = WorkbenchCustomizationProfileFactory.CreateDefaultRemoteControlPlacements(registry);
         }
 
+        var signature = CreateRenderSignature(placements, registry);
+        if (string.Equals(_renderSignature, signature, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _renderSignature = signature;
         RemoteLayerButtonPanel.Children.Clear();
         foreach (var placement in placements)
         {
@@ -56,6 +65,20 @@ public partial class RemoteControlLayerWindow : Window
             ApplyDisplayMode(button);
             RemoteLayerButtonPanel.Children.Add(button);
         }
+    }
+
+    private static string CreateRenderSignature(IReadOnlyList<CommandPlacement> placements, CommandRegistry registry)
+    {
+        return string.Join(
+            "\n",
+            placements
+                .OrderBy(placement => placement.Order)
+                .Select(placement =>
+                {
+                    var command = registry.Get(placement.CommandId);
+                    var label = string.IsNullOrWhiteSpace(placement.Label) ? command.Name : placement.Label;
+                    return $"{command.Id}|{label}|{placement.Order}";
+                }));
     }
 
     public void SetDisplayMode(RemoteControlDisplayMode mode)

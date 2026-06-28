@@ -128,6 +128,46 @@ public sealed class RemoteControlLayerWindowTests
     }
 
     [Fact]
+    public void LayerSkipsRerenderWhenRemotePlacementsAreUnchanged()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var registry = AppCommandCatalog.CreateDefaultRegistry();
+                var layer = new RemoteControlLayerWindow();
+                layer.Render(CreateProfile(), registry);
+
+                var panel = Assert.IsType<StackPanel>(layer.FindName("RemoteLayerButtonPanel"));
+                var firstButton = panel.Children.OfType<Button>().First();
+
+                layer.Render(CreateProfile(), registry);
+
+                Assert.Same(firstButton, panel.Children.OfType<Button>().First());
+
+                layer.Render(CreateProfile(firstLabel: "저장 변경"), registry);
+
+                Assert.NotSame(firstButton, panel.Children.OfType<Button>().First());
+                layer.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void LayerRaisesCommandRequestWhenButtonIsClicked()
     {
         Exception? failure = null;
@@ -170,7 +210,7 @@ public sealed class RemoteControlLayerWindowTests
         Assert.Equal((Color)ColorConverter.ConvertFromString(expectedHex), solid.Color);
     }
 
-    private static WorkbenchCustomizationProfile CreateProfile()
+    private static WorkbenchCustomizationProfile CreateProfile(string firstLabel = "빠른 저장")
     {
         var now = DateTimeOffset.Parse("2026-06-25T00:00:00+09:00");
         return new WorkbenchCustomizationProfile(
@@ -178,7 +218,7 @@ public sealed class RemoteControlLayerWindowTests
             "리모콘 레이어",
             [
                 new CommandPlacement("remote", "main", "second", AppCommandIds.DocumentDetachCurrent, "창 옆", 20, new Dictionary<string, string>()),
-                new CommandPlacement("remote", "main", "first", AppCommandIds.ProjectSave, "빠른 저장", 10, new Dictionary<string, string>())
+                new CommandPlacement("remote", "main", "first", AppCommandIds.ProjectSave, firstLabel, 10, new Dictionary<string, string>())
             ],
             [],
             [],
