@@ -91,6 +91,7 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
             DocumentId = string.IsNullOrWhiteSpace(metadata.DocumentId) ? documentId : metadata.DocumentId,
             Synopsis = summary,
             Summary = summary,
+            Status = NormalizeStatus(metadata.Status),
             Tags = (metadata.Tags ?? [])
                 .Where(tag => !string.IsNullOrWhiteSpace(tag))
                 .Select(tag => tag.Trim())
@@ -99,9 +100,15 @@ public sealed class SceneMetadataStore(ProjectPaths paths)
             ContentLength = Math.Max(0, metadata.ContentLength),
             ContentLengthWithSpaces = Math.Max(0, metadata.ContentLengthWithSpaces),
             SceneType = string.IsNullOrWhiteSpace(metadata.SceneType) ? "Scene" : metadata.SceneType.Trim(),
+            FileCategory = string.IsNullOrWhiteSpace(metadata.FileCategory) ? "원고" : metadata.FileCategory.Trim(),
             CreatedAt = metadata.CreatedAt == default ? now : metadata.CreatedAt,
             UpdatedAt = metadata.UpdatedAt == default ? now : metadata.UpdatedAt
         };
+    }
+
+    private static SceneStatus NormalizeStatus(SceneStatus status)
+    {
+        return status == SceneStatus.Final ? SceneStatus.RevisionComplete : status;
     }
 
     private static int CountCharacters(WriterDocument document, bool includeWhitespace)

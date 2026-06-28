@@ -62,7 +62,7 @@ public sealed class SceneSnapshotServiceTests
         var original = CreateDocument("scene-0001", "원래 제목", "복원될 본문");
         await store.SaveDocumentAsync(original, CancellationToken.None);
         await metadataStore.SaveAsync(
-            new SceneMetadata(1, original.Id, "복원될 메모", SceneStatus.Final, ["복원"], 900, DateTimeOffset.UtcNow),
+            new SceneMetadata(1, original.Id, "복원될 메모", SceneStatus.RevisionComplete, ["복원"], 900, DateTimeOffset.UtcNow, FileCategory: "원고"),
             CancellationToken.None);
         var service = new SceneSnapshotService(paths, store);
         var snapshot = await service.CreateSnapshotAsync(original.Id, "restore source", CancellationToken.None);
@@ -80,7 +80,8 @@ public sealed class SceneSnapshotServiceTests
         Assert.Equal("원래 제목", loaded.Title);
         Assert.Equal("복원될 본문", loaded.Paragraphs[0].Text);
         Assert.Equal("복원될 메모", metadata.Synopsis);
-        Assert.Equal(SceneStatus.Final, metadata.Status);
+        Assert.Equal(SceneStatus.RevisionComplete, metadata.Status);
+        Assert.Equal("원고", metadata.FileCategory);
         Assert.Equal(["복원"], metadata.Tags);
         Assert.Single(hits);
         Assert.Equal(original.Id, hits[0].DocumentId);

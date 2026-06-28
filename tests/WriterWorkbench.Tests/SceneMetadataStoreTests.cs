@@ -13,10 +13,11 @@ public sealed class SceneMetadataStoreTests
 
         var metadata = await store.LoadAsync("scene-0001", CancellationToken.None);
 
-        Assert.Equal(2, metadata.SchemaVersion);
+        Assert.Equal(SceneMetadata.CurrentSchemaVersion, metadata.SchemaVersion);
         Assert.Equal("scene-0001", metadata.DocumentId);
         Assert.Equal("", metadata.Synopsis);
         Assert.Equal("", metadata.Summary);
+        Assert.Equal("원고", metadata.FileCategory);
         Assert.Equal(SceneStatus.Draft, metadata.Status);
         Assert.Empty(metadata.Tags);
         Assert.Null(metadata.TargetCharacterCount);
@@ -41,6 +42,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal("scene-0001", metadata.DocumentId);
         Assert.Equal(SceneStatus.Draft, metadata.Status);
         Assert.Equal("Scene", metadata.SceneType);
+        Assert.Equal("원고", metadata.FileCategory);
         Assert.Equal(0, metadata.ContentLength);
         Assert.Equal(0, metadata.ContentLengthWithSpaces);
         Assert.False(File.Exists(paths.SceneMetadataPath("scene-0001")));
@@ -70,7 +72,7 @@ public sealed class SceneMetadataStoreTests
 
         var metadata = await store.LoadExistingOrDefaultAsync("scene-old", CancellationToken.None);
 
-        Assert.Equal(2, metadata.SchemaVersion);
+        Assert.Equal(SceneMetadata.CurrentSchemaVersion, metadata.SchemaVersion);
         Assert.Equal("scene-old", metadata.DocumentId);
         Assert.Equal("legacy summary", metadata.Synopsis);
         Assert.Equal("legacy summary", metadata.Summary);
@@ -80,6 +82,7 @@ public sealed class SceneMetadataStoreTests
         Assert.Equal(0, metadata.ContentLength);
         Assert.Equal(0, metadata.ContentLengthWithSpaces);
         Assert.Equal("Scene", metadata.SceneType);
+        Assert.Equal("원고", metadata.FileCategory);
         Assert.False(metadata.ManualLineBreak);
         Assert.True(metadata.CreatedAt > DateTimeOffset.MinValue);
     }
@@ -93,10 +96,10 @@ public sealed class SceneMetadataStoreTests
         var createdAt = DateTimeOffset.Parse("2026-01-02T03:04:05+00:00");
         var updatedAt = DateTimeOffset.Parse("2026-01-03T04:05:06+00:00");
         var metadata = new SceneMetadata(
-            2,
+            SceneMetadata.CurrentSchemaVersion,
             "scene-0002",
             "",
-            SceneStatus.Revising,
+            SceneStatus.UploadPending,
             ["단서", "1막"],
             3500,
             updatedAt,
@@ -105,7 +108,8 @@ public sealed class SceneMetadataStoreTests
             SceneType: "Episode",
             ManualLineBreak: true,
             CreatedAt: createdAt,
-            Summary: "주인공이 첫 단서를 발견한다.");
+            Summary: "주인공이 첫 단서를 발견한다.",
+            FileCategory: "시놉시스");
 
         await store.SaveAsync(metadata, CancellationToken.None);
         var loaded = await store.LoadAsync("scene-0002", CancellationToken.None);
@@ -113,7 +117,8 @@ public sealed class SceneMetadataStoreTests
 
         Assert.Equal("주인공이 첫 단서를 발견한다.", loaded.Synopsis);
         Assert.Equal("주인공이 첫 단서를 발견한다.", loaded.Summary);
-        Assert.Equal(SceneStatus.Revising, loaded.Status);
+        Assert.Equal(SceneStatus.UploadPending, loaded.Status);
+        Assert.Equal("시놉시스", loaded.FileCategory);
         Assert.Equal(["단서", "1막"], loaded.Tags);
         Assert.Equal(3500, loaded.TargetCharacterCount);
         Assert.Equal(2310, loaded.ContentLength);
@@ -122,10 +127,39 @@ public sealed class SceneMetadataStoreTests
         Assert.True(loaded.ManualLineBreak);
         Assert.Equal(createdAt, loaded.CreatedAt);
         Assert.Equal(updatedAt, loaded.UpdatedAt);
-        Assert.Contains("\"Status\": \"Revising\"", rawJson);
+        Assert.Contains("\"Status\": \"UploadPending\"", rawJson);
+        Assert.Contains("\"FileCategory\": \"시놉시스\"", rawJson);
         Assert.Contains("\"ContentLength\": 2310", rawJson);
         Assert.Contains("\"ContentLengthWithSpaces\": 2501", rawJson);
         Assert.Contains("\"ManualLineBreak\": true", rawJson);
+    }
+
+    [Fact]
+    public async Task LegacyFinalStatusNormalizesToRevisionComplete()
+    {
+        var root = TestRoot();
+        var paths = ProjectPaths.ForRoot(root);
+        Directory.CreateDirectory(paths.DocumentsPath);
+        await File.WriteAllTextAsync(
+            paths.SceneMetadataPath("scene-final"),
+            """
+            {
+              "SchemaVersion": 2,
+              "DocumentId": "scene-final",
+              "Synopsis": "legacy final",
+              "Status": "Final",
+              "Tags": [],
+              "TargetCharacterCount": null,
+              "UpdatedAt": "2026-01-01T00:00:00+00:00"
+            }
+            """,
+            CancellationToken.None);
+        var store = new SceneMetadataStore(paths);
+
+        var metadata = await store.LoadExistingOrDefaultAsync("scene-final", CancellationToken.None);
+
+        Assert.Equal(SceneStatus.RevisionComplete, metadata.Status);
+        Assert.Equal("원고", metadata.FileCategory);
     }
 
     [Fact]
@@ -143,10 +177,10 @@ public sealed class SceneMetadataStoreTests
 
         await store.SaveAsync(
             new SceneMetadata(
-                2,
+                SceneMetadata.CurrentSchemaVersion,
                 "scene-0003",
                 "",
-                SceneStatus.Final,
+                SceneStatus.RevisionComplete,
                 ["완료"],
                 1200,
                 DateTimeOffset.UtcNow,

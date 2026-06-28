@@ -74,10 +74,10 @@ public sealed class ProjectStoreTests
         var metadataStore = new SceneMetadataStore(paths);
         await metadataStore.SaveAsync(
             new SceneMetadata(
-                2,
+                SceneMetadata.CurrentSchemaVersion,
                 "scene-keep",
                 "",
-                SceneStatus.Final,
+                SceneStatus.RevisionComplete,
                 ["태그"],
                 1500,
                 DateTimeOffset.Parse("2026-01-01T00:00:00+00:00"),
@@ -86,7 +86,8 @@ public sealed class ProjectStoreTests
                 SceneType: "Cover",
                 ManualLineBreak: true,
                 CreatedAt: DateTimeOffset.Parse("2025-12-31T00:00:00+00:00"),
-                Summary: "수동 요약"),
+                Summary: "수동 요약",
+                FileCategory: "표지"),
             CancellationToken.None);
         var document = new WriterDocument(
             "scene-keep",
@@ -97,7 +98,8 @@ public sealed class ProjectStoreTests
         var metadata = await metadataStore.LoadAsync(document.Id, CancellationToken.None);
 
         Assert.Equal("수동 요약", metadata.Summary);
-        Assert.Equal(SceneStatus.Final, metadata.Status);
+        Assert.Equal(SceneStatus.RevisionComplete, metadata.Status);
+        Assert.Equal("표지", metadata.FileCategory);
         Assert.Equal(["태그"], metadata.Tags);
         Assert.Equal(1500, metadata.TargetCharacterCount);
         Assert.Equal("Cover", metadata.SceneType);
@@ -289,7 +291,7 @@ public sealed class ProjectStoreTests
             ]);
         await store.SaveDocumentAsync(source, CancellationToken.None);
         await new SceneMetadataStore(ProjectPaths.ForRoot(root)).SaveAsync(
-            new SceneMetadata(1, source.Id, "복제할 시놉시스", SceneStatus.Revising, ["태그A", "태그B"], 4200, DateTimeOffset.UtcNow),
+            new SceneMetadata(1, source.Id, "복제할 시놉시스", SceneStatus.Revising, ["태그A", "태그B"], 4200, DateTimeOffset.UtcNow, FileCategory: "자료"),
             CancellationToken.None);
         var after = await store.CreateDocumentAsync("After", CancellationToken.None);
 
@@ -308,6 +310,7 @@ public sealed class ProjectStoreTests
         Assert.Equal(duplicate.Id, duplicateMetadata.DocumentId);
         Assert.Equal("복제할 시놉시스", duplicateMetadata.Synopsis);
         Assert.Equal(SceneStatus.Revising, duplicateMetadata.Status);
+        Assert.Equal("자료", duplicateMetadata.FileCategory);
         Assert.Equal(["태그A", "태그B"], duplicateMetadata.Tags);
         Assert.Equal(4200, duplicateMetadata.TargetCharacterCount);
     }

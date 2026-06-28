@@ -3992,3 +3992,61 @@ Remaining problems:
 
 Separate data artifact:
 - 별도 데이터 산출물 없음. Tests create only temporary data.
+
+## 2026-06-28 KST feature implementation update: File workflow statuses and file categories
+
+Feature(s) implemented:
+- Changed scene workflow statuses to `초고 -> 퇴고중 -> 퇴고완료 -> 업로드대기 -> 업로드완료`.
+- Kept `제외` as an explicit export-skip status and preserved legacy `Final` metadata by normalizing it to `퇴고완료`.
+- Added `SceneMetadata.FileCategory` with default `원고`.
+- Added file category display/editing to the WPF scene inspector.
+- Added file category display to the HTML workbench active scene, inspector, and binder rows.
+- Updated the HTML pipeline summary to count `초고`, `퇴고중`, `퇴고완료`, `업로드대기`, `업로드완료`, and `제외`.
+- Kept metadata-centered binder display: status/category changes do not require loading large document bodies.
+
+Files changed:
+- `src/WriterWorkbench/Core/Storage/SceneMetadata.cs`
+- `src/WriterWorkbench/Core/Storage/SceneMetadataStore.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/SceneMetadataStoreTests.cs`
+- `tests/WriterWorkbench.Tests/ProjectStoreTests.cs`
+- `tests/WriterWorkbench.Tests/SceneSnapshotServiceTests.cs`
+- `tests/WriterWorkbench.Tests/ManuscriptExportServiceTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added default/roundtrip coverage for `FileCategory`.
+- Added legacy `Final -> RevisionComplete` metadata migration coverage.
+- Updated project store, snapshot, and export tests for the new status model.
+- Updated HTML payload and asset tests for file category and new pipeline counters.
+- Updated WPF smoke tests for the scene inspector file category field and status label order.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneMetadataStoreTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|ProjectStoreTests|SceneSnapshotServiceTests|ManuscriptExportServiceTests|MainWindowContainsSceneInspectorSurface|MainWindowUsesExplicitCharacterCountLabels"` -> 62 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 232 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> published local executable.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- Public repo `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "SceneMetadataStoreTests|WebWorkbenchPayloadFactoryTests|WebWorkbenchAssetTests|ProjectStoreTests|SceneSnapshotServiceTests|ManuscriptExportServiceTests|MainWindowContainsSceneInspectorSurface|MainWindowUsesExplicitCharacterCountLabels"` -> 62 passed.
+- Public repo `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 232 passed.
+
+Large manuscript regression check:
+- Large manuscript editor/input path was not changed.
+- Metadata status/category refresh remains metadata-only and does not load full scene bodies for binder rows.
+
+Remaining problems:
+- Need a manual running-app click pass to confirm the WPF inspector save flow visually updates the HTML workbench immediately.
+
+Separate data artifact:
+- 별도 데이터 산출물 없음. Tests create only temporary data.

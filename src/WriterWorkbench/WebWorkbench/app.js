@@ -212,6 +212,7 @@ function renderBinder(items) {
     const id = readPayloadValue(item, "id", "Id", "");
     const title = readPayloadValue(item, "title", "Title", id);
     const status = readPayloadValue(item, "status", "Status", "초고");
+    const fileCategory = readPayloadValue(item, "fileCategory", "FileCategory", "원고");
     const sceneType = readPayloadValue(item, "sceneType", "SceneType", "Scene");
     const length = readPayloadValue(item, "contentLength", "ContentLength", 0);
     const isActive = readPayloadValue(item, "isActive", "IsActive", false);
@@ -233,7 +234,7 @@ function renderBinder(items) {
     row.querySelector(".state-pill").textContent = status;
     const meta = row.querySelectorAll(".scene-meta span");
     meta[0].textContent = id;
-    meta[1].textContent = `${sceneType} · 공백 제외 ${formatNumber(length)}`;
+    meta[1].textContent = `${fileCategory} · ${sceneType} · 공백 제외 ${formatNumber(length)}`;
     const actions = row.querySelector(".scene-actions");
     actions.append(
       createBinderActionButton("document.select", id, "열기"),
@@ -321,6 +322,7 @@ function renderActiveScene(active) {
     $("active-body-editor").value = "";
     $("active-body-editor").disabled = true;
     $("active-status").textContent = "-";
+    $("active-file-category").textContent = "원고";
     $("active-length").textContent = "0";
     $("active-length-spaces").textContent = "0";
     state.activeSceneMetrics = null;
@@ -335,6 +337,7 @@ function renderActiveScene(active) {
   const id = readPayloadValue(active, "id", "Id", "");
   const title = readPayloadValue(active, "title", "Title", id);
   const status = readPayloadValue(active, "status", "Status", "초고");
+  const fileCategory = readPayloadValue(active, "fileCategory", "FileCategory", "원고");
   const sceneType = readPayloadValue(active, "sceneType", "SceneType", "Scene");
   const summary = readPayloadValue(active, "summary", "Summary", "");
   const tags = readPayloadValue(active, "tags", "Tags", []);
@@ -351,6 +354,7 @@ function renderActiveScene(active) {
   }
   $("active-body-editor").disabled = false;
   $("active-status").textContent = status;
+  $("active-file-category").textContent = fileCategory;
   $("active-length").textContent = formatNumber(visibleMetrics.contentLength);
   $("active-length-spaces").textContent = formatNumber(visibleMetrics.contentLengthWithSpaces);
   $("active-type").textContent = sceneType;
@@ -1254,6 +1258,7 @@ function cssEscape(value) {
 function renderInspector(active) {
   if (!active) {
     $("inspector-status").textContent = "-";
+    $("inspector-file-category").textContent = "-";
     $("inspector-type").textContent = "-";
     $("inspector-tags").textContent = "-";
     $("active-updated").textContent = "-";
@@ -1263,24 +1268,36 @@ function renderInspector(active) {
   const tags = readPayloadValue(active, "tags", "Tags", []);
   const updatedAt = readPayloadValue(active, "updatedAt", "UpdatedAt", "");
   $("inspector-status").textContent = readPayloadValue(active, "status", "Status", "초고");
+  $("inspector-file-category").textContent = readPayloadValue(active, "fileCategory", "FileCategory", "원고");
   $("inspector-type").textContent = readPayloadValue(active, "sceneType", "SceneType", "Scene");
   $("inspector-tags").textContent = tags.length ? tags.join(", ") : "-";
   $("active-updated").textContent = formatDate(updatedAt);
 }
 
 function renderPipeline(items) {
-  const counts = { draft: 0, revising: 0, final: 0, excluded: 0 };
+  const counts = {
+    draft: 0,
+    revising: 0,
+    revisionComplete: 0,
+    uploadPending: 0,
+    uploaded: 0,
+    excluded: 0,
+  };
   for (const item of items) {
     const status = readPayloadValue(item, "status", "Status", "초고");
     if (status === "초고") counts.draft += 1;
-    else if (status === "수정중") counts.revising += 1;
-    else if (status === "완료") counts.final += 1;
+    else if (status === "퇴고중" || status === "수정중") counts.revising += 1;
+    else if (status === "퇴고완료" || status === "완료") counts.revisionComplete += 1;
+    else if (status === "업로드대기") counts.uploadPending += 1;
+    else if (status === "업로드완료") counts.uploaded += 1;
     else if (status === "제외") counts.excluded += 1;
   }
 
   $("pipeline-draft").textContent = formatNumber(counts.draft);
   $("pipeline-revising").textContent = formatNumber(counts.revising);
-  $("pipeline-final").textContent = formatNumber(counts.final);
+  $("pipeline-revision-complete").textContent = formatNumber(counts.revisionComplete);
+  $("pipeline-upload-pending").textContent = formatNumber(counts.uploadPending);
+  $("pipeline-uploaded").textContent = formatNumber(counts.uploaded);
   $("pipeline-excluded").textContent = formatNumber(counts.excluded);
 }
 
@@ -1779,6 +1796,7 @@ if (window.chrome && window.chrome.webview) {
       id: "scene-0001",
       title: "첫 장면",
       status: "초고",
+      fileCategory: "원고",
       summary: "여기에 현재 장면의 요약과 작업 정보가 표시됩니다.",
       tags: ["주인공", "도입"],
       contentLength: 1200,
@@ -1788,9 +1806,9 @@ if (window.chrome && window.chrome.webview) {
       editorText: "여기에 원고를 씁니다.\n\n메인에서도 현재 장면 본문을 바로 수정할 수 있습니다."
     },
     binder: [
-      { id: "scene-0001", title: "첫 장면", status: "초고", sceneType: "Scene", contentLength: 1200, isActive: true },
-      { id: "scene-0002", title: "추격", status: "수정중", sceneType: "Action", contentLength: 900, isActive: false },
-      { id: "scene-0003", title: "결말", status: "완료", sceneType: "Scene", contentLength: 1500, isActive: false }
+      { id: "scene-0001", title: "첫 장면", status: "초고", fileCategory: "원고", sceneType: "Scene", contentLength: 1200, isActive: true },
+      { id: "scene-0002", title: "추격", status: "퇴고중", fileCategory: "원고", sceneType: "Action", contentLength: 900, isActive: false },
+      { id: "scene-0003", title: "결말", status: "업로드대기", fileCategory: "시놉시스", sceneType: "Scene", contentLength: 1500, isActive: false }
     ],
     menuCommands: [
       { commandId: "project.save", label: "저장", category: "프로젝트", surface: "menu", area: "top.project", slotKey: "save", order: 10 },

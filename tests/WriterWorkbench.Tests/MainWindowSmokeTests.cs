@@ -1610,7 +1610,8 @@ public sealed class MainWindowSmokeTests
 
                 Assert.NotNull(window.FindName("InspectorPanel"));
                 Assert.NotNull(window.FindName("InspectorSynopsisBox"));
-                Assert.NotNull(window.FindName("InspectorStatusBox"));
+                var statusBox = Assert.IsType<ComboBox>(window.FindName("InspectorStatusBox"));
+                Assert.NotNull(window.FindName("InspectorFileCategoryBox"));
                 Assert.NotNull(window.FindName("InspectorTagsBox"));
                 Assert.NotNull(window.FindName("InspectorTargetCountBox"));
                 Assert.NotNull(window.FindName("InspectorCurrentCountText"));
@@ -1630,6 +1631,11 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(window.FindName("SceneEntityLinkNotesBox"));
                 Assert.NotNull(window.FindName("SceneEntityLinkAddButton"));
                 Assert.NotNull(window.FindName("SceneEntityLinkDeleteButton"));
+                var labels = statusBox.Items
+                    .Cast<object>()
+                    .Select(item => item.GetType().GetProperty("Label")!.GetValue(item)?.ToString())
+                    .ToList();
+                Assert.Equal(["초고", "퇴고중", "퇴고완료", "업로드대기", "업로드완료", "제외"], labels);
                 window.Close();
             }
             catch (Exception ex)
@@ -1664,6 +1670,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains("현재 문단", labels);
                 Assert.Contains("전체 공백 제외", labels);
                 Assert.Contains("전체 공백 포함", labels);
+                Assert.Contains("파일 분류", labels);
                 window.Close();
             }
             catch (Exception ex)

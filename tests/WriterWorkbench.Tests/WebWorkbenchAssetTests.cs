@@ -67,6 +67,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("active-body-editor", html);
         Assert.Contains("html-view-editor", html);
         Assert.Contains("html-view-preview", html);
+        Assert.Contains("active-file-category", html);
+        Assert.Contains("inspector-file-category", html);
+        Assert.Contains("pipeline-revision-complete", html);
+        Assert.Contains("pipeline-upload-pending", html);
+        Assert.Contains("pipeline-uploaded", html);
         Assert.Contains("html-view-relationship", html);
         Assert.Contains("relationship-workbench", html);
         Assert.Contains("story-entity-name", html);
@@ -203,6 +208,14 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("filterShortcutSettings", script);
         Assert.Contains("scheduleLocalMetricUpdate", script);
         Assert.Contains("1000", script);
+        Assert.Contains("pipeline-revision-complete", script);
+        Assert.Contains("pipeline-upload-pending", script);
+        Assert.Contains("pipeline-uploaded", script);
+        Assert.Contains("퇴고중", script);
+        Assert.Contains("퇴고완료", script);
+        Assert.Contains("업로드대기", script);
+        Assert.Contains("업로드완료", script);
+        Assert.Contains("fileCategory", script);
         Assert.Contains("renderRelationshipMap", script);
         Assert.Contains("story.entity.add", script);
         Assert.Contains("story.entity.update", script);

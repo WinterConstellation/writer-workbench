@@ -28,6 +28,7 @@ public sealed record WebWorkbenchScene(
     string Id,
     string Title,
     string Status,
+    string FileCategory,
     string Summary,
     IReadOnlyList<string> Tags,
     int ContentLength,

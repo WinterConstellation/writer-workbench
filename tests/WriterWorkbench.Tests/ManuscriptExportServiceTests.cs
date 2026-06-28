@@ -166,7 +166,7 @@ public sealed class ManuscriptExportServiceTests
         await store.SaveDocumentAsync(CreateDocument(document.Id, "안정 본문"), CancellationToken.None);
         var metadataStore = new SceneMetadataStore(paths);
         await metadataStore.SaveAsync(
-            new SceneMetadata(1, document.Id, "시놉시스", SceneStatus.Final, ["보존"], 1200, DateTimeOffset.UtcNow),
+            new SceneMetadata(1, document.Id, "시놉시스", SceneStatus.RevisionComplete, ["보존"], 1200, DateTimeOffset.UtcNow),
             CancellationToken.None);
         var jsonBefore = await File.ReadAllTextAsync(paths.DocumentJsonPath(document.Id), CancellationToken.None);
         var txtBefore = await File.ReadAllTextAsync(paths.DocumentTextPath(document.Id), CancellationToken.None);

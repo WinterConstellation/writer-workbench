@@ -13,9 +13,10 @@ public sealed record SceneMetadata(
     string SceneType = "Scene",
     bool ManualLineBreak = false,
     DateTimeOffset CreatedAt = default,
-    string Summary = "")
+    string Summary = "",
+    string FileCategory = "원고")
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     public static SceneMetadata CreateDefault(string documentId)
     {
@@ -48,6 +49,9 @@ public enum SceneStatus
 {
     Draft,
     Revising,
+    RevisionComplete,
+    UploadPending,
+    Uploaded,
     Final,
     Excluded
 }

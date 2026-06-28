@@ -50,9 +50,10 @@ public static class WebWorkbenchPayloadFactory
                               ? null
                               : new WebWorkbenchScene(
                                   activeDocument.Id,
-                                  activeDocument.Title,
-                                  FormatSceneStatus(activeMetadata?.Status ?? SceneStatus.Draft),
-                                  activeMetadata?.Summary ?? "",
+                                   activeDocument.Title,
+                                   FormatSceneStatus(activeMetadata?.Status ?? SceneStatus.Draft),
+                                   activeMetadata?.FileCategory ?? "원고",
+                                   activeMetadata?.Summary ?? "",
                                   activeMetadata?.Tags.ToList() ?? [],
                                   activeMetadata?.ContentLength ?? 0,
                                   activeMetadata?.ContentLengthWithSpaces ?? 0,
@@ -275,6 +276,7 @@ public static class WebWorkbenchPayloadFactory
             document.Id,
             document.Title,
             FormatSceneStatus(metadata?.Status ?? SceneStatus.Draft),
+            metadata?.FileCategory ?? "원고",
             metadata?.Summary ?? "",
             metadata?.Tags.ToList() ?? [],
             metadata?.ContentLength ?? 0,
@@ -290,8 +292,10 @@ public static class WebWorkbenchPayloadFactory
         return status switch
         {
             SceneStatus.Draft => "초고",
-            SceneStatus.Revising => "수정중",
-            SceneStatus.Final => "완료",
+            SceneStatus.Revising => "퇴고중",
+            SceneStatus.RevisionComplete or SceneStatus.Final => "퇴고완료",
+            SceneStatus.UploadPending => "업로드대기",
+            SceneStatus.Uploaded => "업로드완료",
             SceneStatus.Excluded => "제외",
             _ => status.ToString()
         };

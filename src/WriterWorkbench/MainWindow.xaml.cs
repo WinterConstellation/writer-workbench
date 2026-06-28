@@ -152,10 +152,12 @@ public partial class MainWindow : Window
 
     private void NormalizeInspectorCharacterCountLabels()
     {
-        SetInspectorGridLabel(4, "목표 글자");
-        SetInspectorGridLabel(5, "현재 문단");
-        SetInspectorGridLabel(6, "전체 공백 제외");
-        SetInspectorGridLabel(7, "전체 공백 포함");
+        SetInspectorGridLabel(3, "파일 분류");
+        SetInspectorGridLabel(5, "목표 글자");
+        SetInspectorGridLabel(6, "현재 문단");
+        SetInspectorGridLabel(7, "전체 공백 제외");
+        SetInspectorGridLabel(8, "전체 공백 포함");
+        SetInspectorGridLabel(9, "장면 유형");
     }
 
     private void SetInspectorGridLabel(int row, string text)
@@ -2152,12 +2154,17 @@ public partial class MainWindow : Window
                 SceneType: ReadInspectorSceneType(),
                 ManualLineBreak: InspectorManualLineBreakBox.IsChecked == true,
                 CreatedAt: _activeSceneMetadata?.CreatedAt ?? DateTimeOffset.UtcNow,
-                Summary: InspectorSynopsisBox.Text.Trim());
+                Summary: InspectorSynopsisBox.Text.Trim(),
+                FileCategory: ReadInspectorFileCategory());
 
             await _metadataStore.SaveAsync(metadata, CancellationToken.None);
-            _activeSceneMetadata = metadata;
-            PopulateSceneInspector(metadata);
-            StatusText.Text = $"장면 정보 저장됨 {metadata.DocumentId} - {FormatSceneStatus(metadata.Status)}";
+            var saved = await _metadataStore.LoadAsync(metadata.DocumentId, CancellationToken.None);
+            _activeSceneMetadata = saved;
+            _binderMetadataByDocumentId[saved.DocumentId] = saved;
+            PopulateSceneInspector(saved);
+            await RefreshBinderAsync();
+            await PushHtmlWorkbenchStateAsync();
+            StatusText.Text = $"장면 정보 저장됨 {saved.DocumentId} - {FormatSceneStatus(saved.Status)} / {saved.FileCategory}";
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -2186,6 +2193,7 @@ public partial class MainWindow : Window
     {
         InspectorSynopsisBox.Text = metadata.Summary;
         InspectorStatusBox.SelectedValue = metadata.Status;
+        InspectorFileCategoryBox.Text = metadata.FileCategory;
         InspectorTagsBox.Text = string.Join(", ", metadata.Tags);
         InspectorTargetCountBox.Text = metadata.TargetCharacterCount?.ToString() ?? "";
         InspectorContentLengthText.Text = metadata.ContentLength.ToString("N0");
@@ -2199,6 +2207,7 @@ public partial class MainWindow : Window
     {
         InspectorSynopsisBox.Text = "";
         InspectorStatusBox.SelectedValue = SceneStatus.Draft;
+        InspectorFileCategoryBox.Text = "원고";
         InspectorTagsBox.Text = "";
         InspectorTargetCountBox.Text = "";
         InspectorCurrentCountText.Text = "0";
@@ -2247,18 +2256,25 @@ public partial class MainWindow : Window
         return sceneType.Length == 0 ? "Scene" : sceneType;
     }
 
+    private string ReadInspectorFileCategory()
+    {
+        var fileCategory = InspectorFileCategoryBox.Text.Trim();
+        return fileCategory.Length == 0 ? "원고" : fileCategory;
+    }
+
     private static string FormatSceneStatus(SceneStatus status)
     {
         return status switch
         {
             SceneStatus.Draft => "초고",
-            SceneStatus.Revising => "수정중",
-            SceneStatus.Final => "완료",
+            SceneStatus.Revising => "퇴고중",
+            SceneStatus.RevisionComplete or SceneStatus.Final => "퇴고완료",
+            SceneStatus.UploadPending => "업로드대기",
+            SceneStatus.Uploaded => "업로드완료",
             SceneStatus.Excluded => "제외",
             _ => status.ToString()
         };
     }
-
     private async Task OpenMainSurfaceAsync()
     {
         await OpenHtmlWorkbenchViewAsync("editor", "메인 화면");
@@ -3917,6 +3933,7 @@ public partial class MainWindow : Window
             SearchBox.IsKeyboardFocusWithin ||
             InspectorSynopsisBox.IsKeyboardFocusWithin ||
             InspectorStatusBox.IsKeyboardFocusWithin ||
+            InspectorFileCategoryBox.IsKeyboardFocusWithin ||
             InspectorTagsBox.IsKeyboardFocusWithin ||
             InspectorTargetCountBox.IsKeyboardFocusWithin ||
             InspectorSceneTypeBox.IsKeyboardFocusWithin ||
@@ -4144,6 +4161,7 @@ public partial class MainWindow : Window
         string Id,
         string Title,
         string Status,
+        string FileCategory,
         string Summary,
         string Tags,
         int ContentLength,
@@ -4152,7 +4170,7 @@ public partial class MainWindow : Window
         DateTimeOffset UpdatedAt)
     {
         public string Display =>
-            $"{Id}  {Title} | {Status} | {SceneType} | {ContentLength:N0}/{ContentLengthWithSpaces:N0} | {Tags} | {Summary}";
+            $"{Id}  {Title} | {Status} | {FileCategory} | {SceneType} | {ContentLength:N0}/{ContentLengthWithSpaces:N0} | {Tags} | {Summary}";
 
         public static DocumentListItem From(ProjectDocumentInfo document, SceneMetadata metadata)
         {
@@ -4160,6 +4178,7 @@ public partial class MainWindow : Window
                 document.Id,
                 document.Title,
                 FormatSceneStatus(metadata.Status),
+                metadata.FileCategory,
                 metadata.Summary,
                 string.Join(", ", metadata.Tags),
                 metadata.ContentLength,
@@ -4262,8 +4281,10 @@ public partial class MainWindow : Window
         public static IReadOnlyList<SceneStatusOption> All { get; } =
         [
             new SceneStatusOption(SceneStatus.Draft, "초고"),
-            new SceneStatusOption(SceneStatus.Revising, "수정중"),
-            new SceneStatusOption(SceneStatus.Final, "완료"),
+            new SceneStatusOption(SceneStatus.Revising, "퇴고중"),
+            new SceneStatusOption(SceneStatus.RevisionComplete, "퇴고완료"),
+            new SceneStatusOption(SceneStatus.UploadPending, "업로드대기"),
+            new SceneStatusOption(SceneStatus.Uploaded, "업로드완료"),
             new SceneStatusOption(SceneStatus.Excluded, "제외")
         ];
     }
