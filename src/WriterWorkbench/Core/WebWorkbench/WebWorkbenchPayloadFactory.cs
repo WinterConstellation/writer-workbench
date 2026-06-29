@@ -67,13 +67,10 @@ public static class WebWorkbenchPayloadFactory
 
         var resolver = new WorkbenchCustomizationResolver(profile);
         var commands = CreateCommands(resolver.GetPlacements("toolbar", "main"), commandRegistry);
-        var menuCommands = CreateCommandsFromWidgets(widgetRegistry, "menu", commandRegistry)
-            ?? CreateCommands(
-                profile.Placements
-                    .Where(placement => string.Equals(placement.Surface, "menu", StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(placement => placement.Order)
-                    .ToList(),
-                commandRegistry);
+        var defaultMenuCommands = CreateCommands(CreateMenuPlacementsWithBaseline(profile), commandRegistry);
+        var menuCommands = MergeMenuCommands(
+            CreateCommandsFromWidgets(widgetRegistry, "menu", commandRegistry),
+            defaultMenuCommands);
         EnsureRequiredMenuCommand(menuCommands, commandRegistry, AppCommandIds.ViewEditorOpen, "top.view", "view.editor", "작품 수정");
         var remoteCommands = CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
         if (remoteCommands.Count == 0)
@@ -160,6 +157,54 @@ public static class WebWorkbenchPayloadFactory
             area,
             slotKey,
             order));
+    }
+
+    private static IReadOnlyList<CommandPlacement> CreateMenuPlacementsWithBaseline(WorkbenchCustomizationProfile profile)
+    {
+        var placements = profile.Placements
+            .Where(placement => string.Equals(placement.Surface, "menu", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var commandIds = placements
+            .Select(placement => placement.CommandId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var placement in WorkbenchCustomizationProfileFactory.CreateDefaultTopMenuPlacements())
+        {
+            if (commandIds.Add(placement.CommandId))
+            {
+                placements.Add(placement);
+            }
+        }
+
+        return placements
+            .OrderBy(placement => placement.Area, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(placement => placement.Order)
+            .ThenBy(placement => placement.Label, StringComparer.CurrentCulture)
+            .ToList();
+    }
+
+    private static List<WebWorkbenchCommand> MergeMenuCommands(
+        IReadOnlyList<WebWorkbenchCommand>? primary,
+        IReadOnlyList<WebWorkbenchCommand> defaults)
+    {
+        var merged = (primary ?? []).ToList();
+        var commandIds = merged
+            .Select(command => command.CommandId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var command in defaults)
+        {
+            if (commandIds.Add(command.CommandId))
+            {
+                merged.Add(command);
+            }
+        }
+
+        return merged
+            .OrderBy(command => command.Area, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(command => command.Order)
+            .ThenBy(command => command.Label, StringComparer.CurrentCulture)
+            .ToList();
     }
 
     private static List<WebWorkbenchCommand> CreateCommands(

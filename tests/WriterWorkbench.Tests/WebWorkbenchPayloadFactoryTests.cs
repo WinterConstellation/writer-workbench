@@ -184,8 +184,11 @@ public sealed class WebWorkbenchPayloadFactoryTests
             "기본",
             autosaveEnabled: true);
 
-        Assert.Equal(["save", "relationship", "view.editor"], payload.MenuCommands.Select(command => command.SlotKey));
-        Assert.Equal("top.project", payload.MenuCommands[0].Area);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ProjectSave && command.SlotKey == "save");
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.StoryRelationshipMapOpen && command.SlotKey == "relationship");
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.WritingFocusToggle);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ShortcutsOpenSettings);
         Assert.Equal("floating", Assert.Single(payload.RemoteCommands).Area);
         Assert.Equal("snapshot", Assert.Single(payload.RemoteCommands).SlotKey);
         Assert.Equal("legacy", Assert.Single(payload.Commands).SlotKey);
@@ -236,6 +239,9 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Contains(payload.MenuCommands, command => command.SlotKey == "registry-save");
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewMainOpen && command.SlotKey == "registry-main");
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.WritingFocusToggle);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.RemoteControlToggle);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ShortcutsOpenSettings);
         Assert.Equal("registry-focus", Assert.Single(payload.RemoteCommands).SlotKey);
         Assert.Equal("legacy", Assert.Single(payload.Commands).SlotKey);
     }

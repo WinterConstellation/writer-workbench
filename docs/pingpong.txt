@@ -4220,6 +4220,41 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-29 KST bugfix update: Restore baseline top menu commands
+
+Bug fixed:
+- HTML workbench top menus could lose baseline commands such as `집중`, `리모컨`, and `단축키` when a widget-registry menu existed.
+- Root cause: menu widgets replaced the profile/default menu command list instead of being merged with required baseline commands.
+
+Implementation:
+- `WebWorkbenchPayloadFactory` now merges menu widget commands with profile menu placements.
+- If the active profile itself is sparse or old, canonical default top-menu placements are added as a baseline.
+- Widget/custom menu commands keep their custom label/slot when present; missing baseline commands are appended and sorted by menu area/order.
+
+Files changed:
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated payload factory tests so widget menu presence no longer hides baseline tool commands.
+- Verified `writing.focus.toggle`, `remoteControl.toggle`, and shortcut settings remain in menu payloads.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter FullyQualifiedName~WebWorkbenchPayloadFactoryTests` -> 11 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 249 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+
+Large manuscript regression check:
+- Menu payload construction only; no manuscript typing, loading, or analysis path changed.
+
+Remaining problems:
+- Long-term menu customization still needs a proper hide/show model. For now, baseline commands intentionally remain visible to prevent accidental loss of core controls.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-29 KST feature implementation update: Repeated word frequency analysis MVP
 
 Feature(s) implemented:
