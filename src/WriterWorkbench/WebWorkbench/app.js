@@ -118,7 +118,7 @@ function render(payload) {
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
   renderShortcutSettings(state.shortcutBindings);
-  renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
+  renderFloatingRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   setActiveView(activeView);
   state.isRendering = false;
 }
@@ -1999,6 +1999,22 @@ function renderPipeline(items) {
   $("pipeline-upload-pending").textContent = formatNumber(counts.uploadPending);
   $("pipeline-uploaded").textContent = formatNumber(counts.uploaded);
   $("pipeline-excluded").textContent = formatNumber(counts.excluded);
+}
+
+function isFloatingRemoteEnabled() {
+  return false;
+}
+
+function renderFloatingRemote(commands) {
+  const remote = $("floating-remote");
+  if (!isFloatingRemoteEnabled()) {
+    state.remoteRenderSignature = "";
+    remote?.setAttribute("hidden", "hidden");
+    return;
+  }
+
+  remote?.removeAttribute("hidden");
+  renderRemote(commands);
 }
 
 function renderRemote(commands) {

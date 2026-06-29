@@ -302,6 +302,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("scope === \"workbench\" || scope === \"global\"", script);
         Assert.Contains("remoteRenderSignature", script);
         Assert.Contains("state.remoteRenderSignature === signature", script);
+        Assert.Contains("renderFloatingRemote", script);
+        Assert.Contains("function isFloatingRemoteEnabled()", script);
+        Assert.Contains("remote?.setAttribute(\"hidden\", \"hidden\")", script);
+        Assert.DoesNotContain("renderRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));", script);
     }
 
     [Fact]
@@ -383,6 +387,8 @@ public sealed class WebWorkbenchAssetTests
         var remoteBlockEnd = css.IndexOf("\n}", remoteBlockStart, StringComparison.Ordinal);
         var remoteBlock = css[remoteBlockStart..remoteBlockEnd];
         Assert.Contains("display: none", remoteBlock);
+        Assert.Contains("visibility: hidden", remoteBlock);
+        Assert.Contains("pointer-events: none", remoteBlock);
         Assert.DoesNotContain("display: block", remoteBlock);
         Assert.Contains("background: linear-gradient(180deg, var(--surface), var(--parchment))", remoteBlock);
         Assert.Contains("color: var(--ink)", remoteBlock);

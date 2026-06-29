@@ -30,6 +30,8 @@ public sealed class RemoteControlLayerWindowTests
                 Assert.True(layer.Topmost);
                 Assert.False(layer.ShowInTaskbar);
                 Assert.Equal(WindowStyle.None, layer.WindowStyle);
+                Assert.False(layer.AllowsTransparency);
+                AssertBrushColor("#FFFAF0", layer.Background);
                 Assert.Equal(ResizeMode.CanResizeWithGrip, layer.ResizeMode);
                 Assert.Equal(260d, layer.Width);
                 Assert.Equal(450d, layer.Height);

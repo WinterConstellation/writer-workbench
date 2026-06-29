@@ -12,8 +12,8 @@
         ShowActivated="False"
         Topmost="True"
         FontFamily="Malgun Gothic"
-        Background="Transparent"
-        AllowsTransparency="True">
+        Background="#FFFAF0"
+        AllowsTransparency="False">
     <Window.Resources>
         <SolidColorBrush x:Key="RemoteInkBrush" Color="#1F252B"/>
         <SolidColorBrush x:Key="RemoteSurfaceBrush" Color="#FFFAF0"/>

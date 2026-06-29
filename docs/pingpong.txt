@@ -4315,6 +4315,49 @@ Remaining problems:
 Separate data artifact:
 - New report artifact: `docs/reports/folder-sprawl-audit-2026-06-30.md`.
 
+## 2026-06-30 KST bugfix update: Remote control flicker hardening
+
+Feature(s) implemented:
+- Removed the WPF native remote control's transparent layered-window mode by changing `AllowsTransparency` to `False` and giving the window an opaque parchment background.
+- Kept the native remote as the only primary remote-control surface.
+- Stopped the hidden HTML floating remote from rendering during every WebView state payload refresh.
+- Added a `renderFloatingRemote` guard that hides the in-WebView remote with the `hidden` attribute and skips DOM rebuilds while the native remote is primary.
+- Strengthened CSS so the in-WebView remote stays `display: none`, `visibility: hidden`, and `pointer-events: none`.
+
+Files changed:
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Native remote test now verifies `AllowsTransparency == false` and the opaque parchment window background.
+- WebWorkbench asset tests now verify the HTML floating remote is hidden and not directly rendered from the main state render path.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "RemoteControlLayerWindowTests|WebWorkbenchAssetTests|MainWindowSmokeTests"` -> 71 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- `rg --no-ignore` confirmed the published WebWorkbench asset contains `renderFloatingRemote`, `isFloatingRemoteEnabled`, `visibility: hidden`, and `pointer-events: none`.
+- Public repo sync: copied 6 changed files.
+- Public repo sync: `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo sync: `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo sync: `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "RemoteControlLayerWindowTests|WebWorkbenchAssetTests|MainWindowSmokeTests"` -> 71 passed.
+
+Large manuscript regression check:
+- Manuscript body, save, autosave, and character-count logic were not changed.
+
+Remaining problems:
+- Manual visual confirmation is still required in the running app because flicker is a compositor/windowing behavior, not fully provable from unit tests.
+- If flicker remains after this patch, the next suspect is repeated native window topmost/visibility churn from the caller side, and the fix should instrument actual show/hide/reposition counts.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-30 KST bugfix update: Remote control flicker reduction
 
 Feature(s) implemented:

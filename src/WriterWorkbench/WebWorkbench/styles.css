@@ -1579,6 +1579,8 @@ h2 {
 
 .floating-remote {
   display: none;
+  visibility: hidden;
+  pointer-events: none;
   position: fixed;
   top: 128px;
   right: 18px;
