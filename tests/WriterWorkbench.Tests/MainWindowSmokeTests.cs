@@ -74,6 +74,7 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.ViewEditorOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewMainOpen, commandTags);
                 Assert.Contains(AppCommandIds.ViewPreviewToggle, commandTags);
+                Assert.Contains(AppCommandIds.ViewFullscreenToggle, commandTags);
                 Assert.Contains(AppCommandIds.HelpOpen, commandTags);
                 Assert.Contains(AppCommandIds.ExportCurrentScene, commandTags);
                 Assert.Contains(AppCommandIds.ExportFullManuscript, commandTags);
@@ -94,6 +95,55 @@ public sealed class MainWindowSmokeTests
                 Assert.Contains(AppCommandIds.DocumentDeleteScene, commandTags);
                 Assert.Contains(AppCommandIds.DocumentMoveSceneUp, commandTags);
                 Assert.Contains(AppCommandIds.DocumentMoveSceneDown, commandTags);
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowFullscreenCommandTogglesBorderlessMaximizedWindow()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow
+                {
+                    WindowStyle = WindowStyle.SingleBorderWindow,
+                    ResizeMode = ResizeMode.CanResize,
+                    WindowState = WindowState.Normal,
+                    Topmost = false
+                };
+
+                InvokeCommand(window, AppCommandIds.ViewFullscreenToggle);
+
+                Assert.Equal(WindowStyle.None, window.WindowStyle);
+                Assert.Equal(ResizeMode.NoResize, window.ResizeMode);
+                Assert.Equal(WindowState.Maximized, window.WindowState);
+                Assert.True(window.Topmost);
+                Assert.Contains("전체화면 켜짐", GetStatusText(window));
+
+                InvokeCommand(window, AppCommandIds.ViewFullscreenToggle);
+
+                Assert.Equal(WindowStyle.SingleBorderWindow, window.WindowStyle);
+                Assert.Equal(ResizeMode.CanResize, window.ResizeMode);
+                Assert.Equal(WindowState.Normal, window.WindowState);
+                Assert.False(window.Topmost);
+                Assert.Contains("전체화면 꺼짐", GetStatusText(window));
                 window.Close();
             }
             catch (Exception ex)

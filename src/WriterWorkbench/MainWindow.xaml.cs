@@ -88,8 +88,13 @@ public partial class MainWindow : Window
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
+    private WindowStyle _previousFullscreenWindowStyle;
+    private WindowState _previousFullscreenWindowState;
+    private ResizeMode _previousFullscreenResizeMode;
+    private bool _previousFullscreenTopmost;
     private RemoteControlLayerWindow? _remoteControlLayer;
     private bool _remoteControlLayerDockedToMemoRail = true;
+    private bool _fullscreenMode;
     private bool _htmlWorkbenchInitialized;
     private string? _draggedRelationshipMapEntityId;
     private System.Windows.Point _relationshipMapDragOffset;
@@ -725,6 +730,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.ViewEditorOpen] = OpenEditorSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewMainOpen] = OpenMainSurfaceAsync;
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
+        _commandHandlers[AppCommandIds.ViewFullscreenToggle] = ToggleFullscreenAsync;
         _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
         _commandHandlers[AppCommandIds.HelpOpen] = OpenHelpWindowAsync;
         _commandHandlers[AppCommandIds.AutosaveToggle] = () =>
@@ -4531,6 +4537,11 @@ public partial class MainWindow : Window
         }
 
         _focusDurationMinutes = focusMinutes;
+        if (_fullscreenMode)
+        {
+            ExitFullscreen();
+        }
+
         UpdateFocusButtonIdleContent();
         RememberSessionState(_sessionState.Surface);
 
@@ -4552,6 +4563,51 @@ public partial class MainWindow : Window
         Topmost = true;
         _focusTimer.Start();
         UpdateFocusCountdown();
+    }
+
+    private Task ToggleFullscreenAsync()
+    {
+        if (_focusMode)
+        {
+            StatusText.Text = "집중 모드 중에는 집중 종료로 전체화면을 해제하세요.";
+            return Task.CompletedTask;
+        }
+
+        if (_fullscreenMode)
+        {
+            ExitFullscreen();
+        }
+        else
+        {
+            EnterFullscreen();
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void EnterFullscreen()
+    {
+        _previousFullscreenWindowStyle = WindowStyle;
+        _previousFullscreenWindowState = WindowState;
+        _previousFullscreenResizeMode = ResizeMode;
+        _previousFullscreenTopmost = Topmost;
+
+        _fullscreenMode = true;
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        WindowState = WindowState.Maximized;
+        Topmost = true;
+        StatusText.Text = "전체화면 켜짐";
+    }
+
+    private void ExitFullscreen()
+    {
+        _fullscreenMode = false;
+        WindowStyle = _previousFullscreenWindowStyle;
+        WindowState = _previousFullscreenWindowState;
+        ResizeMode = _previousFullscreenResizeMode;
+        Topmost = _previousFullscreenTopmost;
+        StatusText.Text = "전체화면 꺼짐";
     }
 
     private void TryExitFocus()

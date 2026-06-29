@@ -240,6 +240,7 @@ public sealed class WebWorkbenchPayloadFactoryTests
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewMainOpen && command.SlotKey == "registry-main");
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewEditorOpen);
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.WritingFocusToggle);
+        Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ViewFullscreenToggle);
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.RemoteControlToggle);
         Assert.Contains(payload.MenuCommands, command => command.CommandId == AppCommandIds.ShortcutsOpenSettings);
         Assert.Equal("registry-focus", Assert.Single(payload.RemoteCommands).SlotKey);

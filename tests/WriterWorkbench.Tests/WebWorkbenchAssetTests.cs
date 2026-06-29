@@ -235,6 +235,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("setRailMode", script);
         Assert.Contains("setActiveView", script);
         Assert.Contains("renderPreview", script);
+        Assert.Contains("view.fullscreen.toggle", script);
+        Assert.Contains("F11", script);
         Assert.Contains("renderRemoteSettings", script);
         Assert.Contains("saveRemoteSettings", script);
         Assert.Contains("remoteSettings.update", script);

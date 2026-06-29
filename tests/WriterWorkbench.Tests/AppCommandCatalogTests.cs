@@ -45,6 +45,7 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.ViewEditorOpen,
             AppCommandIds.ViewMainOpen,
             AppCommandIds.ViewPreviewToggle,
+            AppCommandIds.ViewFullscreenToggle,
             AppCommandIds.SearchRun,
             AppCommandIds.AutosaveToggle,
             AppCommandIds.HelpOpen
@@ -75,6 +76,12 @@ public sealed class AppCommandCatalogTests
         Assert.Equal("관계 수정", registry.Get(AppCommandIds.StoryUpdateRelationship).Name);
         Assert.Equal("관계 삭제", registry.Get(AppCommandIds.StoryDeleteRelationship).Name);
         Assert.Equal("작품 수정", registry.Get(AppCommandIds.ViewEditorOpen).Name);
+        Assert.Equal("전체화면", registry.Get(AppCommandIds.ViewFullscreenToggle).Name);
+        Assert.Contains(
+            registry.DefaultShortcuts,
+            shortcut => shortcut.CommandId == AppCommandIds.ViewFullscreenToggle &&
+                        shortcut.Gesture == "F11" &&
+                        shortcut.Scope == CommandScope.Workbench);
         Assert.Throws<KeyNotFoundException>(() => registry.Get(AppCommandIds.ViewHtmlWorkbenchOpen));
     }
 
@@ -102,6 +109,7 @@ public sealed class AppCommandCatalogTests
             slot => Assert.Equal(AppCommandIds.ViewMainOpen, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ViewEditorOpen, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.ViewPreviewToggle, slot.CommandId),
+            slot => Assert.Equal(AppCommandIds.ViewFullscreenToggle, slot.CommandId),
             slot => Assert.Equal(AppCommandIds.HelpOpen, slot.CommandId));
 
         Assert.DoesNotContain(slots, slot => slot.CommandId == AppCommandIds.ViewHtmlWorkbenchOpen);

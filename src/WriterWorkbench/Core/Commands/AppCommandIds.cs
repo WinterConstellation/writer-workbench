@@ -40,6 +40,7 @@ public static class AppCommandIds
     public const string ViewEditorOpen = "view.editor.open";
     public const string ViewMainOpen = "view.main.open";
     public const string ViewPreviewToggle = "view.preview.toggle";
+    public const string ViewFullscreenToggle = "view.fullscreen.toggle";
     public const string SearchRun = "search.run";
     public const string AutosaveToggle = "autosave.toggle";
     public const string HelpOpen = "help.open";

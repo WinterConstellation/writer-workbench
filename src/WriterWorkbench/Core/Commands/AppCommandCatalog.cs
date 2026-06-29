@@ -46,6 +46,7 @@ public static class AppCommandCatalog
         Register(registry, AppCommandIds.ViewEditorOpen, "작품 수정", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewMainOpen, "메인", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.ViewPreviewToggle, "미리보기", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
+        Register(registry, AppCommandIds.ViewFullscreenToggle, "전체화면", "보기", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.SearchRun, "검색", "검색", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.AutosaveToggle, "자동저장", "프로젝트", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.HelpOpen, "도움말", "도움말", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
@@ -73,7 +74,8 @@ public static class AppCommandCatalog
             new CommandSlot(15, AppCommandIds.ViewMainOpen, "메인"),
             new CommandSlot(16, AppCommandIds.ViewEditorOpen, "작품 수정"),
             new CommandSlot(17, AppCommandIds.ViewPreviewToggle, "미리보기"),
-            new CommandSlot(18, AppCommandIds.HelpOpen, "도움말")
+            new CommandSlot(18, AppCommandIds.ViewFullscreenToggle, "전체화면"),
+            new CommandSlot(19, AppCommandIds.HelpOpen, "도움말")
         ];
     }
 
@@ -89,6 +91,7 @@ public static class AppCommandCatalog
             new ShortcutBinding(AppCommandIds.WorkspaceStartupPresetCycle, "Ctrl+Alt+0", CommandScope.Workbench),
             new ShortcutBinding(AppCommandIds.ShortcutsOpenSettings, "Ctrl+Alt+K", CommandScope.Workbench),
             new ShortcutBinding(AppCommandIds.ViewPreviewToggle, "Ctrl+Alt+P", CommandScope.Workbench),
+            new ShortcutBinding(AppCommandIds.ViewFullscreenToggle, "F11", CommandScope.Workbench),
             new ShortcutBinding(AppCommandIds.RemoteControlToggle, "Ctrl+Alt+R", CommandScope.Workbench),
             new ShortcutBinding(AppCommandIds.HelpOpen, "F1", CommandScope.Global)
         ];

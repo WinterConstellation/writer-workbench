@@ -122,6 +122,7 @@
                             <MenuItem Header="메인" Tag="view.main.open" Click="CommandButton_Click"/>
                             <MenuItem Header="작품 수정" Tag="view.editor.open" Click="CommandButton_Click"/>
                             <MenuItem Header="미리보기" Tag="view.preview.toggle" Click="CommandButton_Click"/>
+                            <MenuItem Header="전체화면" Tag="view.fullscreen.toggle" Click="CommandButton_Click"/>
                         </MenuItem>
                         <MenuItem Header="창" Tag="menu.window">
                             <MenuItem.Icon>

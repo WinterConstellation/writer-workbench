@@ -4220,6 +4220,53 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-29 KST feature implementation update: Fullscreen toggle command
+
+Feature(s) implemented:
+- Added `view.fullscreen.toggle` as an independent fullscreen command, separate from focus mode.
+- Added default `F11` shortcut for fullscreen toggle.
+- Added fullscreen to the default command registry, command slot list, HTML top menu fallback, native View menu, and default workbench top menu profile.
+- Fullscreen enters borderless maximized topmost mode and restores previous `WindowStyle`, `WindowState`, `ResizeMode`, and `Topmost` on exit.
+- Starting focus mode while fullscreen is active first exits the simple fullscreen state so focus-mode restore state does not get mixed with fullscreen restore state.
+
+Files changed:
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/Customization/WorkbenchCustomizationProfileFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WorkbenchCustomizationProfileTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchPayloadFactoryTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `MainWindowFullscreenCommandTogglesBorderlessMaximizedWindow`.
+- Updated command catalog tests for `view.fullscreen.toggle`, command slot, and `F11`.
+- Updated default profile/menu/payload asset tests so fullscreen remains visible in View commands and shortcut surfaces.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "CreatesDefaultCommandRegistry|CreatesDefaultCommandSlots|DefaultProfileFactoryIncludesTopMenuPlacementsForHtmlMain|PayloadUsesDefaultProfileTopMenuWhenNoWidgetRegistryIsProvided|PayloadUsesWidgetRegistryForMenuAndRemoteWhenProvided|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate|MainWindowContainsWorkspacePresetCommands|MainWindowFullscreenCommandTogglesBorderlessMaximizedWindow"` -> passed 7 tests.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> passed 252 tests.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Large manuscript input/save path was not changed.
+- Fullscreen only changes WPF window state/style and command/menu metadata.
+
+Remaining problems:
+- Fullscreen currently applies to the main window only; detached workbench windows keep their existing separate topmost/detached behavior.
+- Manual visual confirmation is still needed on the user's multi-monitor layout.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-29 KST feature implementation update: Binder batch delete and memo-line remote docking
 
 Feature(s) implemented:

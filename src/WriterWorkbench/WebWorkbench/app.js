@@ -2492,7 +2492,8 @@ if (window.chrome && window.chrome.webview) {
       { commandId: "document.createScene", label: "새 장면", category: "문서", surface: "menu", area: "top.manuscript", slotKey: "create", order: 20 },
       { commandId: "story.relationshipMap.open", label: "관계도", category: "구조", surface: "menu", area: "top.story", slotKey: "map", order: 30 },
       { commandId: "view.editor.open", label: "작품 수정", category: "보기", surface: "menu", area: "top.view", slotKey: "editor", order: 40 },
-      { commandId: "view.preview.toggle", label: "미리보기", category: "보기", surface: "menu", area: "top.view", slotKey: "preview", order: 50 }
+      { commandId: "view.preview.toggle", label: "미리보기", category: "보기", surface: "menu", area: "top.view", slotKey: "preview", order: 50 },
+      { commandId: "view.fullscreen.toggle", label: "전체화면", category: "보기", surface: "menu", area: "top.view", slotKey: "fullscreen", order: 60 }
     ],
     remoteCommands: [
       { commandId: "snapshot.createCurrent", label: "현재 장면 스냅샷", category: "스냅샷", surface: "remote", area: "floating", slotKey: "snapshot", order: 10 },
@@ -2504,11 +2505,13 @@ if (window.chrome && window.chrome.webview) {
       { commandId: "document.createScene", label: "새 장면", category: "문서", surface: "catalog", area: "catalog", slotKey: "document.createScene", order: 2 },
       { commandId: "story.relationshipMap.open", label: "관계도", category: "구조", surface: "catalog", area: "catalog", slotKey: "story.relationshipMap.open", order: 3 },
       { commandId: "view.preview.toggle", label: "미리보기", category: "보기", surface: "catalog", area: "catalog", slotKey: "view.preview.toggle", order: 4 },
-      { commandId: "help.open", label: "도움말", category: "도움말", surface: "catalog", area: "catalog", slotKey: "help.open", order: 5 }
+      { commandId: "view.fullscreen.toggle", label: "전체화면", category: "보기", surface: "catalog", area: "catalog", slotKey: "view.fullscreen.toggle", order: 5 },
+      { commandId: "help.open", label: "도움말", category: "도움말", surface: "catalog", area: "catalog", slotKey: "help.open", order: 6 }
     ],
     shortcutBindings: [
       { commandId: "project.save", commandName: "저장", category: "프로젝트", scope: "Global", gesture: "Ctrl+S" },
       { commandId: "view.preview.toggle", commandName: "미리보기", category: "보기", scope: "Workbench", gesture: "Ctrl+Alt+P" },
+      { commandId: "view.fullscreen.toggle", commandName: "전체화면", category: "보기", scope: "Workbench", gesture: "F11" },
       { commandId: "help.open", commandName: "도움말", category: "도움말", scope: "Global", gesture: "F1" }
     ],
     commands: [],

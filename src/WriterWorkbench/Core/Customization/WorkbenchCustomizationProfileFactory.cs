@@ -67,6 +67,7 @@ public static class WorkbenchCustomizationProfileFactory
             new CommandPlacement("menu", "top.view", "view.main", AppCommandIds.ViewMainOpen, "메인", 10, new Dictionary<string, string>()),
             new CommandPlacement("menu", "top.view", "view.editor", AppCommandIds.ViewEditorOpen, "작품 수정", 20, new Dictionary<string, string>()),
             new CommandPlacement("menu", "top.view", "view.preview", AppCommandIds.ViewPreviewToggle, "미리보기", 30, new Dictionary<string, string>()),
+            new CommandPlacement("menu", "top.view", "view.fullscreen", AppCommandIds.ViewFullscreenToggle, "전체화면", 40, new Dictionary<string, string>()),
             new CommandPlacement("menu", "top.tools", "tools.focus", AppCommandIds.WritingFocusToggle, "집중", 10, new Dictionary<string, string>()),
             new CommandPlacement("menu", "top.tools", "tools.remote", AppCommandIds.RemoteControlToggle, "리모컨", 20, new Dictionary<string, string>()),
             new CommandPlacement("menu", "top.tools", "tools.shortcuts", AppCommandIds.ShortcutsOpenSettings, "단축키", 30, new Dictionary<string, string>()),
