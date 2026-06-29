@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using WriterWorkbench.Core.AppSettings;
@@ -102,10 +103,13 @@ public partial class MainWindow : Window
     private WindowStyle _previousWindowStyle;
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
+    private Rect _previousWindowBounds = Rect.Empty;
+    private bool _previousFocusTopmost;
     private WindowStyle _previousFullscreenWindowStyle;
     private WindowState _previousFullscreenWindowState;
     private ResizeMode _previousFullscreenResizeMode;
     private bool _previousFullscreenTopmost;
+    private Rect _previousFullscreenBounds = Rect.Empty;
     private RemoteControlLayerWindow? _remoteControlLayer;
     private bool _remoteControlLayerDockedToMemoRail = true;
     private bool _fullscreenMode;
@@ -4692,13 +4696,12 @@ public partial class MainWindow : Window
         _previousWindowStyle = WindowStyle;
         _previousWindowState = WindowState;
         _previousResizeMode = ResizeMode;
+        _previousWindowBounds = CaptureCurrentWindowBounds();
+        _previousFocusTopmost = Topmost;
 
         BinderColumn.Width = new GridLength(0);
         PreviewColumn.Width = new GridLength(0);
-        WindowStyle = WindowStyle.None;
-        ResizeMode = ResizeMode.NoResize;
-        WindowState = WindowState.Maximized;
-        Topmost = true;
+        ApplyActiveMonitorFullscreenBounds();
         _focusTimer.Start();
         UpdateFocusCountdown();
     }
@@ -4729,12 +4732,10 @@ public partial class MainWindow : Window
         _previousFullscreenWindowState = WindowState;
         _previousFullscreenResizeMode = ResizeMode;
         _previousFullscreenTopmost = Topmost;
+        _previousFullscreenBounds = CaptureCurrentWindowBounds();
 
         _fullscreenMode = true;
-        WindowStyle = WindowStyle.None;
-        ResizeMode = ResizeMode.NoResize;
-        WindowState = WindowState.Maximized;
-        Topmost = true;
+        ApplyActiveMonitorFullscreenBounds();
         StatusText.Text = "전체화면 켜짐";
     }
 
@@ -4742,9 +4743,9 @@ public partial class MainWindow : Window
     {
         _fullscreenMode = false;
         WindowStyle = _previousFullscreenWindowStyle;
-        WindowState = _previousFullscreenWindowState;
         ResizeMode = _previousFullscreenResizeMode;
         Topmost = _previousFullscreenTopmost;
+        RestoreWindowBounds(_previousFullscreenBounds, _previousFullscreenWindowState);
         StatusText.Text = "전체화면 꺼짐";
     }
 
@@ -4774,11 +4775,113 @@ public partial class MainWindow : Window
         BinderColumn.Width = new GridLength(280);
         PreviewColumn.Width = new GridLength(360);
         WindowStyle = _previousWindowStyle;
-        WindowState = _previousWindowState;
         ResizeMode = _previousResizeMode;
-        Topmost = false;
+        Topmost = _previousFocusTopmost;
+        RestoreWindowBounds(_previousWindowBounds, _previousWindowState);
         UpdateFocusButtonIdleContent();
         StatusText.Text = "집중 세션 종료됨";
+    }
+
+    private void ApplyActiveMonitorFullscreenBounds()
+    {
+        var bounds = GetActiveMonitorBoundsInDips();
+        WindowState = WindowState.Normal;
+        WindowStyle = WindowStyle.None;
+        ResizeMode = ResizeMode.NoResize;
+        Left = bounds.Left;
+        Top = bounds.Top;
+        Width = bounds.Width;
+        Height = bounds.Height;
+        Topmost = true;
+    }
+
+    private Rect GetActiveMonitorBoundsInDips()
+    {
+        var screen = ResolveActiveScreen();
+        var topLeft = DeviceToDip(new System.Windows.Point(screen.Bounds.Left, screen.Bounds.Top));
+        var bottomRight = DeviceToDip(new System.Windows.Point(screen.Bounds.Right, screen.Bounds.Bottom));
+        return new Rect(topLeft, bottomRight);
+    }
+
+    private Forms.Screen ResolveActiveScreen()
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle != IntPtr.Zero)
+        {
+            return Forms.Screen.FromHandle(handle);
+        }
+
+        var bounds = CaptureCurrentWindowBounds();
+        var center = new System.Windows.Point(bounds.Left + bounds.Width / 2, bounds.Top + bounds.Height / 2);
+        var deviceCenter = DipToDevice(center);
+        return Forms.Screen.FromPoint(new System.Drawing.Point(
+            (int)Math.Round(deviceCenter.X),
+            (int)Math.Round(deviceCenter.Y)));
+    }
+
+    private System.Windows.Point DeviceToDip(System.Windows.Point devicePoint)
+    {
+        var source = PresentationSource.FromVisual(this);
+        return source?.CompositionTarget is null
+            ? devicePoint
+            : source.CompositionTarget.TransformFromDevice.Transform(devicePoint);
+    }
+
+    private System.Windows.Point DipToDevice(System.Windows.Point dipPoint)
+    {
+        var source = PresentationSource.FromVisual(this);
+        return source?.CompositionTarget is null
+            ? dipPoint
+            : source.CompositionTarget.TransformToDevice.Transform(dipPoint);
+    }
+
+    private Rect CaptureCurrentWindowBounds()
+    {
+        if (WindowState != WindowState.Normal && IsUsableRect(RestoreBounds))
+        {
+            return RestoreBounds;
+        }
+
+        var width = IsUsableDimension(Width) ? Width : ActualWidth;
+        var height = IsUsableDimension(Height) ? Height : ActualHeight;
+        return new Rect(
+            IsUsableCoordinate(Left) ? Left : 0,
+            IsUsableCoordinate(Top) ? Top : 0,
+            IsUsableDimension(width) ? width : 1024,
+            IsUsableDimension(height) ? height : 768);
+    }
+
+    private void RestoreWindowBounds(Rect bounds, WindowState targetState)
+    {
+        WindowState = WindowState.Normal;
+        if (IsUsableRect(bounds))
+        {
+            Left = bounds.Left;
+            Top = bounds.Top;
+            Width = bounds.Width;
+            Height = bounds.Height;
+        }
+
+        WindowState = targetState;
+    }
+
+    private static bool IsUsableRect(Rect rect)
+    {
+        return !rect.IsEmpty &&
+               IsUsableCoordinate(rect.Left) &&
+               IsUsableCoordinate(rect.Top) &&
+               IsUsableDimension(rect.Width) &&
+               IsUsableDimension(rect.Height);
+    }
+
+    private static bool IsUsableCoordinate(double value)
+    {
+        return !double.IsNaN(value) && !double.IsInfinity(value);
+    }
+
+    private static bool IsUsableDimension(double value)
+    {
+        return IsUsableCoordinate(value) && value > 0;
     }
 
     private void UpdateFocusCountdown()

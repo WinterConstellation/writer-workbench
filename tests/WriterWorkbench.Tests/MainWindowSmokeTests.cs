@@ -114,7 +114,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowFullscreenCommandTogglesBorderlessMaximizedWindow()
+    public void MainWindowFullscreenCommandCoversActiveMonitorBounds()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -126,15 +126,21 @@ public sealed class MainWindowSmokeTests
                     WindowStyle = WindowStyle.SingleBorderWindow,
                     ResizeMode = ResizeMode.CanResize,
                     WindowState = WindowState.Normal,
-                    Topmost = false
+                    Topmost = false,
+                    Left = 120,
+                    Top = 80,
+                    Width = 900,
+                    Height = 700
                 };
 
                 InvokeCommand(window, AppCommandIds.ViewFullscreenToggle);
 
                 Assert.Equal(WindowStyle.None, window.WindowStyle);
                 Assert.Equal(ResizeMode.NoResize, window.ResizeMode);
-                Assert.Equal(WindowState.Maximized, window.WindowState);
+                Assert.Equal(WindowState.Normal, window.WindowState);
                 Assert.True(window.Topmost);
+                Assert.True(window.Width >= 900);
+                Assert.True(window.Height >= 700);
                 Assert.Contains("전체화면 켜짐", GetStatusText(window));
 
                 InvokeCommand(window, AppCommandIds.ViewFullscreenToggle);
@@ -143,6 +149,10 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(ResizeMode.CanResize, window.ResizeMode);
                 Assert.Equal(WindowState.Normal, window.WindowState);
                 Assert.False(window.Topmost);
+                Assert.Equal(120d, window.Left);
+                Assert.Equal(80d, window.Top);
+                Assert.Equal(900d, window.Width);
+                Assert.Equal(700d, window.Height);
                 Assert.Contains("전체화면 꺼짐", GetStatusText(window));
                 window.Close();
             }
@@ -915,7 +925,15 @@ public sealed class MainWindowSmokeTests
             try
             {
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
-                var window = new MainWindow();
+                var window = new MainWindow
+                {
+                    WindowState = WindowState.Normal,
+                    Topmost = false,
+                    Left = 140,
+                    Top = 90,
+                    Width = 920,
+                    Height = 720
+                };
                 var layerField = typeof(MainWindow).GetField(
                     "_remoteControlLayer",
                     BindingFlags.Instance | BindingFlags.NonPublic);
@@ -1045,7 +1063,15 @@ public sealed class MainWindowSmokeTests
             try
             {
                 SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
-                var window = new MainWindow();
+                var window = new MainWindow
+                {
+                    WindowState = WindowState.Normal,
+                    Topmost = false,
+                    Left = 140,
+                    Top = 90,
+                    Width = 920,
+                    Height = 720
+                };
                 var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
                 InvokePrivate(window, "ConfigureProject", root);
                 var store = GetPrivateField<ProjectStore>(window, "_store");
@@ -1341,7 +1367,15 @@ public sealed class MainWindowSmokeTests
         {
             try
             {
-                var window = new MainWindow();
+                var window = new MainWindow
+                {
+                    WindowState = WindowState.Normal,
+                    Topmost = false,
+                    Left = 140,
+                    Top = 90,
+                    Width = 920,
+                    Height = 720
+                };
                 var focusDuration = Assert.IsType<TextBox>(window.FindName("FocusDurationMinutesBox"));
                 var focusButton = Assert.IsType<Button>(window.FindName("FocusButton"));
 
@@ -1373,7 +1407,13 @@ public sealed class MainWindowSmokeTests
         {
             try
             {
-                var window = new MainWindow();
+                var window = new MainWindow
+                {
+                    WindowState = WindowState.Normal,
+                    Topmost = false,
+                    Width = 920,
+                    Height = 720
+                };
                 var focusDuration = Assert.IsType<TextBox>(window.FindName("FocusDurationMinutesBox"));
                 var endsAtField = typeof(MainWindow).GetField(
                     "_focusEndsAt",
@@ -1388,7 +1428,17 @@ public sealed class MainWindowSmokeTests
                 var remaining = endsAt - before;
 
                 Assert.InRange(remaining.TotalMinutes, 24.5, 25.5);
+                Assert.Equal(WindowStyle.None, window.WindowStyle);
+                Assert.Equal(ResizeMode.NoResize, window.ResizeMode);
+                Assert.Equal(WindowState.Normal, window.WindowState);
+                Assert.True(window.Topmost);
+                Assert.True(window.Width >= 920);
+                Assert.True(window.Height >= 720);
                 InvokePrivate(window, "ExitFocus");
+                Assert.Equal(WindowState.Normal, window.WindowState);
+                Assert.False(window.Topmost);
+                Assert.Equal(920d, window.Width);
+                Assert.Equal(720d, window.Height);
                 window.Close();
             }
             catch (Exception ex)

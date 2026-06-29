@@ -4663,3 +4663,43 @@ Remaining problems:
 
 Separate data artifact:
 - HTML asset refreshed in `dist\WriterWorkbench-html-workbench\WebWorkbench\app.js`; executable DLL was not republished because the app was running.
+
+## 2026-06-29 KST bugfix update: Focus/fullscreen covers taskbar monitor bounds
+
+Feature(s) implemented:
+- Focus mode and fullscreen mode now cover the active monitor's full `Screen.Bounds`, not only the Windows working area.
+- This makes the active monitor taskbar disappear behind the Writer Workbench layer during focus/fullscreen.
+- Replaced `WindowState.Maximized` fullscreen entry with borderless `WindowState.Normal` sized to the active monitor bounds.
+- Added DPI-aware device-pixel to WPF-DIP conversion for monitor bounds.
+- Fullscreen exit restores previous window style, resize mode, topmost state, window state, and bounds.
+- Focus exit restores previous window style, resize mode, topmost state, window state, and size.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated fullscreen smoke test to expect active-monitor bounds coverage instead of WPF maximized state.
+- Extended focus-mode smoke test to verify borderless normal fullscreen coverage and restore behavior.
+
+Commands run:
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowFullscreenCommandCoversActiveMonitorBounds|MainWindowStartsFocusWithCustomDurationMinutes"` -> 2 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 256 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- Public repo sync: `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo sync: `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo sync: `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 256 passed.
+
+Large manuscript regression check:
+- Manuscript body input/save/metrics paths were not changed.
+- Change is limited to window placement for focus/fullscreen modes.
+
+Remaining problems:
+- Manual visual confirmation is still needed on the user's multi-monitor layout to confirm the Windows taskbar is fully hidden on the active monitor.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
