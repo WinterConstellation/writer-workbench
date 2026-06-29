@@ -4220,6 +4220,86 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-29 KST design note: Codex CLI bridge reconsideration
+
+Decision:
+- Do not embed Codex CLI directly into the writing/editing loop now.
+- Treat Codex CLI integration as a later bridge/adapter candidate, not as a core manuscript engine.
+
+Why:
+- A CLI bridge can execute external commands, touch files, and consume tokens. If wired into autosave, text input, preview, or background refresh, it can create the exact failure mode this project is trying to avoid: hidden work, unexpected file churn, and hard-to-audit side effects.
+- The app must remain usable offline and deterministic without any AI process.
+- Manuscript files must not be silently rewritten by a background agent.
+
+Allowed future shape:
+- Explicit button/command only, such as `codex.reviewSelection`, `codex.proposePatch`, or `codex.summarizeScene`.
+- CLI runs out-of-process with a visible job record, clear target files, cancellable process handle, timeout, and output log.
+- The CLI may produce a proposal/diff/report, but the user must explicitly apply changes.
+- Before any CLI action that can touch project files, create a snapshot or backup.
+- No API key manager and no credential storage unless separately requested.
+
+Hard bans for now:
+- No Codex CLI call from `EditorBox_TextChanged`, autosave, preview render, binder refresh, startup preset restore, or hidden background timers.
+- No automatic patch application to manuscript body.
+- No persistent always-on CLI session.
+- No broad shell command strings built from user text.
+
+Next consideration:
+- If revisited, design a `ToolBridge` interface first with audit log, dry-run mode, timeout, cancellation, and explicit user approval.
+
+## 2026-06-29 KST feature implementation update: Codex CLI bridge inserted
+
+Feature(s) implemented:
+- Added explicit Codex CLI bridge service under `Core/Codex`.
+- Added `codex.open` command to the app command registry.
+- Added Codex CLI state to the HTML workbench payload.
+- Added HTML Codex CLI panel with prompt input, run button, stdout display, stderr display, status, and executable path display.
+- Added `codex.run` WebView message handling in `MainWindow`.
+- Codex CLI execution is explicit-button only. It is not connected to autosave, manuscript typing, preview rendering, binder refresh, startup restore, or hidden timers.
+- The bridge launches `codex exec` out-of-process with read-only sandbox, no approval prompts, skip-git-repo-check, ephemeral session, stdin prompt, timeout, stdout/stderr capture, and process kill on timeout.
+
+Files changed:
+- `src/WriterWorkbench/Core/Codex/CodexCliBridge.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandIds.cs`
+- `src/WriterWorkbench/Core/Commands/AppCommandCatalog.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayload.cs`
+- `src/WriterWorkbench/Core/WebWorkbench/WebWorkbenchPayloadFactory.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/CodexCliBridgeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchCodexPayloadTests.cs`
+- `tests/WriterWorkbench.Tests/AppCommandCatalogTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added `CodexCliBridgeTests`.
+- Added `WebWorkbenchCodexPayloadTests`.
+- Updated command catalog and web asset tests for Codex CLI anchors/messages.
+
+Commands run:
+- `Get-Command codex` -> found WindowsApps packaged `codex.exe`.
+- `codex --version` -> failed with Access denied on this machine.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~CodexCliBridgeTests|FullyQualifiedName~WebWorkbenchCodexPayloadTests|FullyQualifiedName~AppCommandCatalogTests|FullyQualifiedName~WebWorkbenchAssetTests"` -> 18 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 256 passed.
+
+Large manuscript regression check:
+- Manuscript input/save paths were not changed.
+- Codex CLI bridge is not called from typing, autosave, preview, binder refresh, or startup.
+- Prompt execution is explicit and out-of-process.
+
+Remaining problems:
+- The current machine's surfaced `codex.exe` alias returns Access denied when run from PowerShell. The app bridge is inserted, but actual successful CLI execution depends on a runnable Codex CLI path/session.
+- No automatic diff application is implemented. CLI output is display-only for now.
+- No credential/API key storage was added.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-29 KST bugfix update: Remote control no-flicker during edit refresh
 
 Feature(s) implemented:

@@ -50,6 +50,7 @@ public static class AppCommandCatalog
         Register(registry, AppCommandIds.SearchRun, "검색", "검색", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.AutosaveToggle, "자동저장", "프로젝트", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         Register(registry, AppCommandIds.HelpOpen, "도움말", "도움말", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
+        Register(registry, AppCommandIds.CodexOpen, "Codex CLI", "도구", CommandScope.Workbench, toolbarSlots, remoteSlots, shortcuts);
         return registry;
     }
 

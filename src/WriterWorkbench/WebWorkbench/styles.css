@@ -1742,6 +1742,66 @@ h2 {
   background: var(--surface-soft);
 }
 
+.codex-cli-sheet {
+  min-height: 620px;
+}
+
+.codex-cli-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
+  gap: 14px;
+}
+
+.codex-cli-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 12px;
+}
+
+.codex-cli-card label,
+.codex-cli-card strong {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+#codex-cli-prompt {
+  min-height: 240px;
+  resize: vertical;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  color: var(--ink);
+  padding: 10px;
+  font: inherit;
+  line-height: 1.6;
+}
+
+.codex-cli-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.codex-cli-output {
+  min-height: 180px;
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  background: #1f252b;
+  color: #f7f1e7;
+  padding: 10px;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+.codex-cli-output.error {
+  min-height: 90px;
+  color: #ffd2c4;
+}
+
 .bottom-status {
   justify-content: space-between;
   gap: 18px;

@@ -275,6 +275,30 @@
             </div>
           </article>
         </section>
+        <section id="html-view-codex" class="view-panel" data-view-panel="codex">
+          <article class="mode-sheet codex-cli-sheet">
+            <div class="settings-heading">
+              <h3>Codex CLI</h3>
+              <span id="codex-cli-status" class="state-pill">대기</span>
+            </div>
+            <div class="codex-cli-grid">
+              <section class="codex-cli-card">
+                <label for="codex-cli-prompt">지시문</label>
+                <textarea id="codex-cli-prompt" rows="10" placeholder="Codex CLI에 보낼 작업 지시를 입력하세요."></textarea>
+                <div class="codex-cli-actions">
+                  <button id="codex-cli-run" type="button">실행</button>
+                  <span id="codex-cli-executable">codex</span>
+                </div>
+              </section>
+              <section class="codex-cli-card">
+                <strong>출력</strong>
+                <pre id="codex-cli-output" class="codex-cli-output"></pre>
+                <strong>오류</strong>
+                <pre id="codex-cli-error" class="codex-cli-output error"></pre>
+              </section>
+            </div>
+          </article>
+        </section>
         <section id="html-view-help" class="view-panel" data-view-panel="help">
           <article class="mode-sheet">
             <h3>도움말</h3>

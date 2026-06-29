@@ -28,7 +28,8 @@ public static class WebWorkbenchPayloadFactory
         IReadOnlyList<WebWorkbenchSettingsBookItem>? settingsBook = null,
         IReadOnlyList<WebWorkbenchTextReplacementRule>? textReplacements = null,
         WebWorkbenchWordAnalysis? wordAnalysis = null,
-        string graphicPresetId = "default")
+        string graphicPresetId = "default",
+        WebWorkbenchCodexCliState? codexCli = null)
     {
         var activeDocumentId = activeDocument?.Id ?? activeMetadata?.DocumentId ?? "";
         var activeEditorView = activeDocument is null
@@ -72,6 +73,7 @@ public static class WebWorkbenchPayloadFactory
             CreateCommandsFromWidgets(widgetRegistry, "menu", commandRegistry),
             defaultMenuCommands);
         EnsureRequiredMenuCommand(menuCommands, commandRegistry, AppCommandIds.ViewEditorOpen, "top.view", "view.editor", "작품 수정");
+        EnsureRequiredMenuCommand(menuCommands, commandRegistry, AppCommandIds.CodexOpen, "top.tools", "tools.codex", "Codex");
         var remoteCommands = CreateCommands(resolver.GetPlacements("remote", "main"), commandRegistry);
         if (remoteCommands.Count == 0)
         {
@@ -103,7 +105,8 @@ public static class WebWorkbenchPayloadFactory
             trash ?? [],
             settingsBook ?? [],
             textReplacements ?? [],
-            wordAnalysis);
+            wordAnalysis,
+            codexCli);
     }
 
     private static string NormalizeGraphicPresetId(string? graphicPresetId)
@@ -129,6 +132,7 @@ public static class WebWorkbenchPayloadFactory
             "relationship-map" or
             "shortcuts" or
             "remote-settings" or
+            "codex" or
             "help"
             ? normalized
             : "editor";

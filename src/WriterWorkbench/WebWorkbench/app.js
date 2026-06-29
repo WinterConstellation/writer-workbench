@@ -29,6 +29,7 @@ const state = {
   editingSettingsBookId: "",
   editingReferenceId: "",
   activeSceneMetrics: null,
+  codexCli: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -88,6 +89,7 @@ function render(payload) {
   const settingsBook = readPayloadValue(payload, "settingsBook", "SettingsBook", []) || [];
   const textReplacements = readPayloadValue(payload, "textReplacements", "TextReplacements", []) || [];
   const wordAnalysis = readPayloadValue(payload, "wordAnalysis", "WordAnalysis", null);
+  const codexCli = readPayloadValue(payload, "codexCli", "CodexCli", null);
   state.availableCommands = availableCommands.map(normalizeCommand);
   state.shortcutBindings = shortcutBindings.map(normalizeShortcut);
   syncRemoteDraftFromPayload(remoteCommands, activeView);
@@ -110,6 +112,7 @@ function render(payload) {
   renderSettingsPanel(menuCommands, settingsBook);
   renderTextReplacements(textReplacements);
   renderWordAnalysis(wordAnalysis);
+  renderCodexCli(codexCli);
   renderReferencePanel(project, active, trash, settingsBook);
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
@@ -1137,6 +1140,70 @@ function renderWordAnalysis(result) {
   }
 }
 
+function normalizeCodexCliState(result) {
+  if (!result) {
+    return {
+      isAvailable: false,
+      isRunning: false,
+      executablePath: "codex",
+      status: "Codex CLI 대기",
+      lastPrompt: "",
+      lastOutput: "",
+      lastError: "",
+      lastExitCode: null,
+      timedOut: false,
+      updatedAt: "",
+    };
+  }
+
+  return {
+    isAvailable: Boolean(readPayloadValue(result, "isAvailable", "IsAvailable", false)),
+    isRunning: Boolean(readPayloadValue(result, "isRunning", "IsRunning", false)),
+    executablePath: readPayloadValue(result, "executablePath", "ExecutablePath", "codex"),
+    status: readPayloadValue(result, "status", "Status", "Codex CLI 대기"),
+    lastPrompt: readPayloadValue(result, "lastPrompt", "LastPrompt", ""),
+    lastOutput: readPayloadValue(result, "lastOutput", "LastOutput", ""),
+    lastError: readPayloadValue(result, "lastError", "LastError", ""),
+    lastExitCode: readPayloadValue(result, "lastExitCode", "LastExitCode", null),
+    timedOut: Boolean(readPayloadValue(result, "timedOut", "TimedOut", false)),
+    updatedAt: readPayloadValue(result, "updatedAt", "UpdatedAt", ""),
+  };
+}
+
+function renderCodexCli(result) {
+  const panel = $("html-view-codex");
+  if (!panel) return;
+
+  const codex = normalizeCodexCliState(result);
+  state.codexCli = codex;
+  $("codex-cli-status").textContent = codex.status || "Codex CLI 대기";
+  $("codex-cli-executable").textContent = codex.executablePath || "codex";
+  $("codex-cli-output").textContent = codex.lastOutput || "";
+  $("codex-cli-error").textContent = codex.lastError || "";
+  const prompt = $("codex-cli-prompt");
+  if (prompt && !prompt.value && codex.lastPrompt) {
+    prompt.value = codex.lastPrompt;
+  }
+
+  const run = $("codex-cli-run");
+  if (run) {
+    run.disabled = codex.isRunning;
+    run.textContent = codex.isRunning ? "실행 중" : "실행";
+  }
+}
+
+function runCodexCliPrompt() {
+  const prompt = $("codex-cli-prompt")?.value || "";
+  if (!prompt.trim()) {
+    $("codex-cli-status").textContent = "지시문을 입력하세요.";
+    return;
+  }
+
+  flushActiveSceneUpdate();
+  $("codex-cli-status").textContent = "Codex CLI 실행 요청";
+  postWebMessage({ type: "codex.run", prompt });
+}
+
 function handleSettingsBookAction(button) {
   const action = button.dataset.settingsBookAction;
   const itemId = button.dataset.settingsBookId;
@@ -2043,6 +2110,12 @@ document.addEventListener("click", (event) => {
   const wordAnalysisSelected = event.target.closest("#word-analysis-selected");
   if (wordAnalysisSelected) {
     requestWordAnalysis("selected");
+    return;
+  }
+
+  const codexRun = event.target.closest("#codex-cli-run");
+  if (codexRun) {
+    runCodexCliPrompt();
     return;
   }
 

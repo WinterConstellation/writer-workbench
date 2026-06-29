@@ -105,6 +105,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("trash-list", html);
         Assert.Contains("html-view-shortcuts", html);
         Assert.Contains("html-view-remote-settings", html);
+        Assert.Contains("html-view-codex", html);
+        Assert.Contains("codex-cli-prompt", html);
+        Assert.Contains("codex-cli-run", html);
+        Assert.Contains("codex-cli-output", html);
         Assert.Contains("html-view-help", html);
         Assert.Contains("shortcut-search", html);
         Assert.Contains("remote-settings-current-list", html);
@@ -199,6 +203,9 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("scene.metadata.update", script);
         Assert.Contains("scene.memo.update", script);
         Assert.Contains("wordAnalysis.analyze", script);
+        Assert.Contains("codex.run", script);
+        Assert.Contains("renderCodexCli", script);
+        Assert.Contains("runCodexCliPrompt", script);
         Assert.Contains("requestWordAnalysis", script);
         Assert.Contains("renderWordAnalysis", script);
         Assert.Contains("handleWordAnalysisSelection", script);

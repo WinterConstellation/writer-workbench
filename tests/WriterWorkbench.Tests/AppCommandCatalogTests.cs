@@ -48,6 +48,7 @@ public sealed class AppCommandCatalogTests
             AppCommandIds.ViewFullscreenToggle,
             AppCommandIds.SearchRun,
             AppCommandIds.AutosaveToggle,
+            AppCommandIds.CodexOpen,
             AppCommandIds.HelpOpen
         };
 

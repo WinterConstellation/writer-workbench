@@ -19,7 +19,8 @@ public sealed record WebWorkbenchPayload(
     IReadOnlyList<WebWorkbenchTrashItem>? Trash = null,
     IReadOnlyList<WebWorkbenchSettingsBookItem>? SettingsBook = null,
     IReadOnlyList<WebWorkbenchTextReplacementRule>? TextReplacements = null,
-    WebWorkbenchWordAnalysis? WordAnalysis = null);
+    WebWorkbenchWordAnalysis? WordAnalysis = null,
+    WebWorkbenchCodexCliState? CodexCli = null);
 
 public sealed record WebWorkbenchProject(
     string Title,
@@ -111,3 +112,15 @@ public sealed record WebWorkbenchWordAnalysis(
 public sealed record WebWorkbenchWordFrequencyEntry(
     string Word,
     int Count);
+
+public sealed record WebWorkbenchCodexCliState(
+    bool IsAvailable,
+    bool IsRunning,
+    string ExecutablePath,
+    string Status,
+    string LastPrompt,
+    string LastOutput,
+    string LastError,
+    int? LastExitCode,
+    bool TimedOut,
+    DateTimeOffset? UpdatedAt);

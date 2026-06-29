@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using WriterWorkbench.Core.AppSettings;
 using WriterWorkbench.Core.Application;
 using WriterWorkbench.Core.Appearance;
+using WriterWorkbench.Core.Codex;
 using WriterWorkbench.Core.Commands;
 using WriterWorkbench.Core.Customization;
 using WriterWorkbench.Core.Documents;
@@ -66,7 +67,19 @@ public partial class MainWindow : Window
     private StoryStructureStore _storyStructureStore;
     private SceneEntityLinkStore _sceneEntityLinkStore;
     private TextReplacementStore _textReplacementStore;
+    private readonly CodexCliBridge _codexCliBridge = new();
     private WebWorkbenchWordAnalysis? _latestWordAnalysis;
+    private WebWorkbenchCodexCliState _codexCliState = new(
+        false,
+        false,
+        "codex",
+        "Codex CLI 대기",
+        "",
+        "",
+        "",
+        null,
+        false,
+        null);
     private ProjectManifest? _currentManifest;
     private string _activeDocumentId = "scene-0001";
     private WriterDocument? _activeDocument;
@@ -77,6 +90,7 @@ public partial class MainWindow : Window
     private bool _loadingDocument;
     private bool _autosaveEnabled = true;
     private bool _longOperationInProgress;
+    private bool _codexCliRunInProgress;
     private string _htmlActiveView = "editor";
     private bool _suppressGraphicPresetChange;
     private bool _startupStateLoaded;
@@ -733,6 +747,7 @@ public partial class MainWindow : Window
         _commandHandlers[AppCommandIds.ViewPreviewToggle] = TogglePreviewAsync;
         _commandHandlers[AppCommandIds.ViewFullscreenToggle] = ToggleFullscreenAsync;
         _commandHandlers[AppCommandIds.SearchRun] = RunSearchAsync;
+        _commandHandlers[AppCommandIds.CodexOpen] = OpenCodexCliSurfaceAsync;
         _commandHandlers[AppCommandIds.HelpOpen] = OpenHelpWindowAsync;
         _commandHandlers[AppCommandIds.AutosaveToggle] = () =>
         {
@@ -2251,6 +2266,11 @@ public partial class MainWindow : Window
         await OpenHtmlWorkbenchViewAsync("shortcuts", "단축키 설정 화면");
     }
 
+    private async Task OpenCodexCliSurfaceAsync()
+    {
+        await OpenHtmlWorkbenchViewAsync("codex", "Codex CLI 화면");
+    }
+
     private Task OpenHelpWindowAsync()
     {
         return OpenHtmlWorkbenchViewAsync("help", "도움말 화면");
@@ -2474,6 +2494,7 @@ public partial class MainWindow : Window
             "relationship-map" or
             "shortcuts" or
             "remote-settings" or
+            "codex" or
             "help"
             ? normalized
             : "editor";
@@ -2736,6 +2757,12 @@ public partial class MainWindow : Window
                     ReadJsonStringArray(root, "documentIds"),
                     ReadJsonString(root, "activeTitle"),
                     ReadJsonString(root, "activeEditorText"));
+                return;
+            }
+
+            if (string.Equals(messageType, "codex.run", StringComparison.OrdinalIgnoreCase))
+            {
+                await ApplyHtmlCodexRunAsync(ReadJsonString(root, "prompt"));
                 return;
             }
 
@@ -3490,6 +3517,103 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task ApplyHtmlCodexRunAsync(string prompt)
+    {
+        var trimmedPrompt = prompt.Trim();
+        if (trimmedPrompt.Length == 0)
+        {
+            _codexCliState = CreateCodexState(
+                false,
+                "Codex CLI 실행 실패 - 지시문이 없습니다.",
+                trimmedPrompt,
+                "",
+                "지시문을 입력하세요.",
+                null,
+                false,
+                started: false);
+            StatusText.Text = _codexCliState.Status;
+            await PushHtmlWorkbenchStateAsync();
+            return;
+        }
+
+        if (_codexCliRunInProgress)
+        {
+            StatusText.Text = "Codex CLI 실행 중입니다.";
+            await PushHtmlWorkbenchStateAsync();
+            return;
+        }
+
+        _codexCliRunInProgress = true;
+        _codexCliState = CreateCodexState(
+            true,
+            "Codex CLI 실행 중...",
+            trimmedPrompt,
+            "",
+            "",
+            null,
+            false,
+            started: true);
+        StatusText.Text = _codexCliState.Status;
+        await PushHtmlWorkbenchStateAsync();
+
+        try
+        {
+            var result = await _codexCliBridge.RunAsync(
+                new CodexCliRunRequest(trimmedPrompt, _projectRoot, TimeSpan.FromMinutes(2)),
+                CancellationToken.None);
+            var status = result.Success
+                ? "Codex CLI 완료"
+                : result.TimedOut
+                    ? "Codex CLI 시간 초과"
+                    : result.Started
+                        ? $"Codex CLI 실패 - exit {result.ExitCode?.ToString() ?? "unknown"}"
+                        : "Codex CLI 시작 실패";
+            _codexCliState = CreateCodexState(
+                false,
+                status,
+                trimmedPrompt,
+                result.StandardOutput,
+                result.StandardError,
+                result.ExitCode,
+                result.TimedOut,
+                result.Started,
+                result.ExecutablePath,
+                result.CompletedAt);
+            StatusText.Text = status;
+        }
+        finally
+        {
+            _codexCliRunInProgress = false;
+            await PushHtmlWorkbenchStateAsync();
+        }
+    }
+
+    private WebWorkbenchCodexCliState CreateCodexState(
+        bool isRunning,
+        string status,
+        string prompt,
+        string output,
+        string error,
+        int? exitCode,
+        bool timedOut,
+        bool started,
+        string? executablePath = null,
+        DateTimeOffset? updatedAt = null)
+    {
+        var resolvedPath = executablePath ?? _codexCliBridge.ResolveExecutablePath() ?? "codex";
+        return new WebWorkbenchCodexCliState(
+            !string.IsNullOrWhiteSpace(resolvedPath) && (started || File.Exists(resolvedPath)),
+            isRunning,
+            resolvedPath,
+            status,
+            prompt,
+            output,
+            error,
+            exitCode,
+            timedOut,
+            updatedAt ?? DateTimeOffset.Now);
+    }
+
     private async Task<IReadOnlyList<WordFrequencyDocument>> LoadWordAnalysisDocumentsAsync(IReadOnlyList<string> documentIds)
     {
         var manifest = _currentManifest ?? await _store.LoadManifestAsync(CancellationToken.None);
@@ -3807,7 +3931,20 @@ public partial class MainWindow : Window
             settingsBook,
             textReplacements,
             _latestWordAnalysis,
-            _graphicPreset.Id);
+            _graphicPreset.Id,
+            CreateHtmlCodexCliPayload());
+    }
+
+    private WebWorkbenchCodexCliState CreateHtmlCodexCliPayload()
+    {
+        var resolvedPath = _codexCliBridge.ResolveExecutablePath();
+        var executablePath = resolvedPath ?? _codexCliState.ExecutablePath;
+        return _codexCliState with
+        {
+            IsAvailable = resolvedPath is not null || _codexCliState.IsAvailable,
+            IsRunning = _codexCliRunInProgress,
+            ExecutablePath = string.IsNullOrWhiteSpace(executablePath) ? "codex" : executablePath
+        };
     }
 
     private async Task EnsureActiveDocumentForHtmlPayloadAsync()
