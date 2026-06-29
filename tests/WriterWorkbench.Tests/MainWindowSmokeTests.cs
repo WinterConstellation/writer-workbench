@@ -1562,6 +1562,51 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowStopsFocusAfterIdleWarningGraceExpires()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow
+                {
+                    WindowState = WindowState.Normal,
+                    Topmost = false,
+                    Width = 920,
+                    Height = 720
+                };
+
+                InvokeCommand(window, AppCommandIds.WritingFocusToggle);
+                SetPrivateField(window, "_lastFocusInputAt", DateTimeOffset.Now - TimeSpan.FromMinutes(11));
+                InvokePrivate(window, "UpdateFocusCountdown");
+
+                Assert.NotNull(GetPrivateField<Window>(window, "_focusIdleWarningWindow"));
+
+                SetPrivateField(window, "_focusIdleWarningShownAt", DateTimeOffset.Now - TimeSpan.FromMinutes(4));
+                InvokePrivate(window, "UpdateFocusCountdown");
+
+                Assert.False(GetPrivateField<bool>(window, "_focusMode"));
+                Assert.Contains("10분 무입력", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowRendersMainCommandGridFromCustomizationProfile()
     {
         Exception? failure = null;
@@ -2580,22 +2625,19 @@ public sealed class MainWindowSmokeTests
 
     private static void InvokePrivate(MainWindow window, string methodName, params object[] args)
     {
-        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var method = GetPrivateMethod(methodName, args.Length);
         method.Invoke(window, args);
     }
 
     private static T InvokePrivate<T>(MainWindow window, string methodName, params object[] args)
     {
-        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var method = GetPrivateMethod(methodName, args.Length);
         return Assert.IsType<T>(method.Invoke(window, args));
     }
 
     private static void InvokePrivateAsync(MainWindow window, string methodName, params object[] args)
     {
-        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var method = GetPrivateMethod(methodName, args.Length);
         var task = (Task)method.Invoke(window, args)!;
         WaitForTaskOnDispatcher(task);
         task.GetAwaiter().GetResult();
@@ -2603,10 +2645,17 @@ public sealed class MainWindowSmokeTests
 
     private static T InvokePrivateAsync<T>(MainWindow window, string methodName, params object[] args)
     {
-        var method = typeof(MainWindow).GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
+        var method = GetPrivateMethod(methodName, args.Length);
         var task = Assert.IsAssignableFrom<Task<T>>(method.Invoke(window, args));
         return WaitForTaskOnDispatcher(task);
+    }
+
+    private static MethodInfo GetPrivateMethod(string methodName, int parameterCount)
+    {
+        return typeof(MainWindow)
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+            .SingleOrDefault(method => method.Name == methodName && method.GetParameters().Length == parameterCount)
+            ?? throw new MissingMethodException(typeof(MainWindow).FullName, methodName);
     }
 
     private static T GetPrivateField<T>(MainWindow window, string fieldName)
@@ -2614,6 +2663,13 @@ public sealed class MainWindowSmokeTests
         var field = typeof(MainWindow).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(MainWindow).FullName, fieldName);
         return Assert.IsType<T>(field.GetValue(window));
+    }
+
+    private static void SetPrivateField(MainWindow window, string fieldName, object? value)
+    {
+        var field = typeof(MainWindow).GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
+            ?? throw new MissingFieldException(typeof(MainWindow).FullName, fieldName);
+        field.SetValue(window, value);
     }
 
     private static string GetStatusText(MainWindow window)

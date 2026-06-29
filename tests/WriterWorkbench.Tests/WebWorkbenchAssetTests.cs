@@ -61,6 +61,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("manuscript-remote-command-list", html);
         Assert.Contains("manuscript-remote-density-toggle", html);
         Assert.Contains("manuscript-remote-float", html);
+        Assert.Contains("manuscript-remote-detached-note", html);
+        Assert.Contains("manuscript-remote-redock", html);
+        Assert.True(
+            html.IndexOf("scene-memo-overview", StringComparison.Ordinal) <
+            html.IndexOf("manuscript-remote-dock", StringComparison.Ordinal));
         Assert.Contains("remote-drag-handle", html);
         Assert.Contains("remote-drag-icon", html);
         Assert.Contains("remote-drag-arrow-line", html);
@@ -309,6 +314,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("renderManuscriptRemote", script);
         Assert.Contains("renderRemoteCommandList(\"manuscript-remote-command-list\"", script);
         Assert.Contains("applyRemoteDensityState", script);
+        Assert.Contains("manuscriptRemoteDetached", script);
+        Assert.Contains("applyManuscriptRemoteDockState", script);
+        Assert.Contains("manuscript-remote-redock", script);
+        Assert.Contains("sendCommand(\"remote.show\")", script);
         Assert.Contains("state[signatureStateKey] === signature", script);
         Assert.Contains("renderFloatingRemote", script);
         Assert.Contains("function isFloatingRemoteEnabled()", script);
@@ -406,6 +415,7 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains(".manuscript-remote-dock", css);
         Assert.Contains(".manuscript-remote-command-list", css);
         Assert.Contains(".manuscript-remote-dock.remote-icon-only", css);
+        Assert.Contains(".manuscript-remote-detached-note", css);
         Assert.Contains("stroke: var(--blue)", css);
         Assert.Contains("fill: var(--blue)", css);
         Assert.Contains(".remote-command:active", css);

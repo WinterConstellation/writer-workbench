@@ -9,6 +9,7 @@ const state = {
   remoteDrag: null,
   remoteRenderSignature: "",
   manuscriptRemoteRenderSignature: "",
+  manuscriptRemoteDetached: false,
   storyDrag: null,
   storyZoom: 1,
   activeView: "editor",
@@ -2022,6 +2023,7 @@ function renderFloatingRemote(commands) {
 function renderManuscriptRemote(commands) {
   renderRemoteCommandList("manuscript-remote-command-list", commands, "manuscriptRemoteRenderSignature");
   applyRemoteDensityState();
+  applyManuscriptRemoteDockState();
 }
 
 function renderRemote(commands) {
@@ -2076,6 +2078,18 @@ function applyRemoteDensityState() {
   }
 }
 
+function applyManuscriptRemoteDockState() {
+  const dock = $("manuscript-remote-dock");
+  const note = $("manuscript-remote-detached-note");
+  if (dock) {
+    dock.hidden = state.manuscriptRemoteDetached;
+  }
+
+  if (note) {
+    note.hidden = !state.manuscriptRemoteDetached;
+  }
+}
+
 function formatDate(value) {
   if (!value) return "-";
   const date = new Date(value);
@@ -2119,6 +2133,21 @@ document.addEventListener("click", (event) => {
   if (densityToggle) {
     state.remoteIconOnly = !state.remoteIconOnly;
     applyRemoteDensityState();
+    return;
+  }
+
+  const manuscriptRemoteFloat = event.target.closest("#manuscript-remote-float");
+  if (manuscriptRemoteFloat) {
+    state.manuscriptRemoteDetached = true;
+    applyManuscriptRemoteDockState();
+    sendCommand("remote.show");
+    return;
+  }
+
+  const manuscriptRemoteRedock = event.target.closest("#manuscript-remote-redock");
+  if (manuscriptRemoteRedock) {
+    state.manuscriptRemoteDetached = false;
+    applyManuscriptRemoteDockState();
     return;
   }
 

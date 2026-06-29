@@ -1188,7 +1188,8 @@ h2 {
 .manuscript-remote-dock {
   position: relative;
   z-index: 1;
-  margin-top: 10px;
+  width: 100%;
+  margin-top: 4px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: linear-gradient(180deg, var(--surface), var(--surface-soft));
@@ -1251,6 +1252,36 @@ h2 {
 
 .manuscript-remote-dock.remote-icon-only .remote-label {
   display: none;
+}
+
+.manuscript-remote-detached-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.manuscript-remote-detached-note[hidden] {
+  display: none;
+}
+
+.manuscript-remote-detached-note button {
+  min-height: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .scene-summary {

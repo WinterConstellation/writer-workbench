@@ -4220,6 +4220,47 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST bugfix update: Focus idle warning and manuscript memo remote docking
+
+Feature(s) implemented:
+- Added focus-mode idle handling: after 10 minutes without manuscript input, a non-blocking warning popup appears.
+- If the warning popup is not dismissed within 3 minutes, focus mode exits automatically.
+- HTML editor updates and native title/body text changes now refresh the focus idle activity timestamp.
+- Moved the docked manuscript remote from under the body editor to under the manuscript memo panel.
+- When the memo-panel remote is detached, the original docked remote is hidden and a small "리모컨 분리됨 / 고정" return control remains.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/index.html`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `src/WriterWorkbench/WebWorkbench/styles.css`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added focus idle smoke coverage for warning creation and 3-minute grace auto-exit.
+- Added HTML asset guards for memo-panel remote placement, detached dock state, redock control, and detached-note CSS.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "WebWorkbenchAssetTests|MainWindowStopsFocusAfterIdleWarningGraceExpires|MainWindowStartsFocusWithCustomDurationMinutes"` -> 15 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 263 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Manuscript body storage, save format, and character counting algorithms were not changed.
+- HTML active-scene input still uses the existing debounced update path; focus idle only records the timestamp when that update arrives.
+
+Remaining problems:
+- Manual visual confirmation is still needed that the memo-panel remote location matches the user's expected layout on the real monitor size.
+- The detached native remote is still the explicit WPF layer opened by `remote.show`; this change only prevents the memo-panel dock from duplicating visually after detach.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-30 KST maintenance update: Removed unused duplicate artifacts
 
 Feature(s) implemented:

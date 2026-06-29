@@ -34,6 +34,8 @@ public partial class MainWindow : Window
     private const int MinFocusDurationMinutes = 1;
     private const int MaxFocusDurationMinutes = 240;
     private static readonly TimeSpan AutosaveIdleDelay = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan FocusIdleWarningDelay = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan FocusIdleExitGrace = TimeSpan.FromMinutes(3);
     private static readonly JsonSerializerOptions WebWorkbenchJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -98,6 +100,8 @@ public partial class MainWindow : Window
     private int? _lastAppliedPresetSlot;
     private int _focusDurationMinutes = DefaultFocusDurationMinutes;
     private DateTimeOffset _lastEditAt = DateTimeOffset.MinValue;
+    private DateTimeOffset _lastFocusInputAt = DateTimeOffset.MinValue;
+    private DateTimeOffset? _focusIdleWarningShownAt;
     private DocumentEditorTextView _editorTextView = DocumentEditorTextView.Empty;
     private DateTimeOffset _focusEndsAt;
     private WindowStyle _previousWindowStyle;
@@ -111,8 +115,10 @@ public partial class MainWindow : Window
     private bool _previousFullscreenTopmost;
     private Rect _previousFullscreenBounds = Rect.Empty;
     private RemoteControlLayerWindow? _remoteControlLayer;
+    private Window? _focusIdleWarningWindow;
     private bool _remoteControlLayerDockedToMemoRail = true;
     private bool _applyingRemoteControlSessionState;
+    private bool _closingFocusIdleWarning;
     private bool _fullscreenMode;
     private bool _htmlWorkbenchInitialized;
     private string? _draggedRelationshipMapEntityId;
@@ -3042,6 +3048,7 @@ public partial class MainWindow : Window
         UpdateMetrics(document);
         _dirty = true;
         _lastEditAt = DateTimeOffset.Now;
+        RecordFocusInputActivity();
         StatusText.Text = $"HTML 편집 반영됨 {document.Id}";
     }
 
@@ -4363,6 +4370,7 @@ public partial class MainWindow : Window
 
         _dirty = true;
         _lastEditAt = DateTimeOffset.Now;
+        RecordFocusInputActivity();
     }
 
     private void EditorBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
@@ -4374,6 +4382,7 @@ public partial class MainWindow : Window
 
         _dirty = true;
         _lastEditAt = DateTimeOffset.Now;
+        RecordFocusInputActivity();
     }
 
     private async Task SaveDocumentAsync(string verb, bool offerLargeOverwriteSnapshot = true)
@@ -4871,6 +4880,8 @@ public partial class MainWindow : Window
         _focusMode = true;
         var state = _focusSession.Start(new FocusSessionOptions(TimeSpan.FromMinutes(_focusDurationMinutes), 20, true));
         _focusEndsAt = state.EndsAt;
+        _lastFocusInputAt = DateTimeOffset.Now;
+        _focusIdleWarningShownAt = null;
 
         _previousWindowStyle = WindowStyle;
         _previousWindowState = WindowState;
@@ -4949,8 +4960,14 @@ public partial class MainWindow : Window
 
     private void ExitFocus()
     {
+        ExitFocus("집중 세션 종료됨");
+    }
+
+    private void ExitFocus(string statusMessage)
+    {
         _focusMode = false;
         _focusTimer.Stop();
+        CloseFocusIdleWarning(clearWarningTime: true);
         BinderColumn.Width = new GridLength(280);
         PreviewColumn.Width = new GridLength(360);
         WindowStyle = _previousWindowStyle;
@@ -4958,7 +4975,145 @@ public partial class MainWindow : Window
         Topmost = _previousFocusTopmost;
         RestoreWindowBounds(_previousWindowBounds, _previousWindowState);
         UpdateFocusButtonIdleContent();
-        StatusText.Text = "집중 세션 종료됨";
+        StatusText.Text = statusMessage;
+    }
+
+    private void RecordFocusInputActivity()
+    {
+        if (!_focusMode)
+        {
+            return;
+        }
+
+        _lastFocusInputAt = DateTimeOffset.Now;
+        CloseFocusIdleWarning(clearWarningTime: true);
+    }
+
+    private bool CheckFocusIdleTimeout(DateTimeOffset now)
+    {
+        if (!_focusMode)
+        {
+            return false;
+        }
+
+        if (_lastFocusInputAt == DateTimeOffset.MinValue)
+        {
+            _lastFocusInputAt = now;
+        }
+
+        if (_focusIdleWarningShownAt is { } warningShownAt)
+        {
+            if (now - warningShownAt >= FocusIdleExitGrace)
+            {
+                ExitFocus("집중모드 종료됨 - 10분 무입력 경고 후 3분 동안 응답이 없었습니다.");
+                return true;
+            }
+
+            return false;
+        }
+
+        if (now - _lastFocusInputAt >= FocusIdleWarningDelay)
+        {
+            ShowFocusIdleWarning(now);
+        }
+
+        return false;
+    }
+
+    private void ShowFocusIdleWarning(DateTimeOffset now)
+    {
+        _focusIdleWarningShownAt = now;
+        if (_focusIdleWarningWindow is { IsVisible: true })
+        {
+            return;
+        }
+
+        var body = new StackPanel
+        {
+            Margin = new Thickness(16),
+            Orientation = System.Windows.Controls.Orientation.Vertical
+        };
+        body.Children.Add(new TextBlock
+        {
+            Text = "10분 동안 입력이 없습니다. 3분 안에 닫지 않으면 집중모드를 종료합니다.",
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 14)
+        });
+
+        var continueButton = new System.Windows.Controls.Button
+        {
+            Content = "계속 집중",
+            MinWidth = 96,
+            MinHeight = 30,
+            HorizontalAlignment = System.Windows.HorizontalAlignment.Right
+        };
+        body.Children.Add(continueButton);
+
+        var warningWindow = new Window
+        {
+            Title = "집중모드 무입력 경고",
+            Width = 380,
+            Height = 160,
+            MinWidth = 340,
+            MinHeight = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            Topmost = true,
+            Content = body
+        };
+        if (IsVisible)
+        {
+            warningWindow.Owner = this;
+        }
+
+        continueButton.Click += (_, _) =>
+        {
+            _lastFocusInputAt = DateTimeOffset.Now;
+            CloseFocusIdleWarning(clearWarningTime: true);
+        };
+        warningWindow.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_focusIdleWarningWindow, warningWindow))
+            {
+                _focusIdleWarningWindow = null;
+            }
+
+            if (!_closingFocusIdleWarning && _focusMode)
+            {
+                _lastFocusInputAt = DateTimeOffset.Now;
+                _focusIdleWarningShownAt = null;
+            }
+        };
+
+        _focusIdleWarningWindow = warningWindow;
+        warningWindow.Show();
+        StatusText.Text = "10분 무입력 경고 - 3분 안에 계속 집중을 누르세요.";
+    }
+
+    private void CloseFocusIdleWarning(bool clearWarningTime)
+    {
+        if (clearWarningTime)
+        {
+            _focusIdleWarningShownAt = null;
+        }
+
+        var warningWindow = _focusIdleWarningWindow;
+        _focusIdleWarningWindow = null;
+        if (warningWindow is null)
+        {
+            return;
+        }
+
+        _closingFocusIdleWarning = true;
+        try
+        {
+            warningWindow.Close();
+        }
+        finally
+        {
+            _closingFocusIdleWarning = false;
+        }
     }
 
     private void ApplyActiveMonitorFullscreenBounds()
@@ -5065,7 +5220,13 @@ public partial class MainWindow : Window
 
     private void UpdateFocusCountdown()
     {
-        var remaining = _focusEndsAt - DateTimeOffset.Now;
+        var now = DateTimeOffset.Now;
+        if (CheckFocusIdleTimeout(now))
+        {
+            return;
+        }
+
+        var remaining = _focusEndsAt - now;
         if (remaining <= TimeSpan.Zero)
         {
             FocusButton.Content = "집중 종료";
@@ -5074,11 +5235,24 @@ public partial class MainWindow : Window
         }
 
         FocusButton.Content = $"{(int)remaining.TotalMinutes:00}:{remaining.Seconds:00}";
+        if (_focusIdleWarningShownAt is { } warningShownAt)
+        {
+            var graceRemaining = FocusIdleExitGrace - (now - warningShownAt);
+            var seconds = Math.Max(0, (int)Math.Ceiling(graceRemaining.TotalSeconds));
+            StatusText.Text = $"10분 무입력 경고 중 - {seconds}초 안에 계속 집중을 누르세요.";
+            return;
+        }
+
         StatusText.Text = "집중모드 작동 중 - Ctrl+S 저장 가능. 조기 해제에는 20자 확인이 필요합니다.";
     }
 
     private async void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (_focusMode && e.Key != Key.Escape)
+        {
+            RecordFocusInputActivity();
+        }
+
         var gesture = WpfShortcutGestureFormatter.Format(e.Key, Keyboard.Modifiers);
         var scope = GetActiveCommandScope();
         var commandId = gesture is null ? null : _shortcutManager.FindCommand(gesture, scope);
