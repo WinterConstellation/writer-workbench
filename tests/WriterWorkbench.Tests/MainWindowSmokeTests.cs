@@ -931,7 +931,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable()
+    public void MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerHiddenUntilExplicitToggle()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -947,15 +947,14 @@ public sealed class MainWindowSmokeTests
                 Assert.NotNull(layerField);
                 InvokePrivate(window, "ShowHtmlWorkbenchSurface");
                 var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
-                Assert.True(layer.IsVisible);
-                Assert.True(layer.Topmost);
-
-                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
                 Assert.False(layer.IsVisible);
 
                 InvokeCommand(window, AppCommandIds.RemoteControlToggle);
                 Assert.True(layer.IsVisible);
                 Assert.True(layer.Topmost);
+
+                InvokeCommand(window, AppCommandIds.RemoteControlToggle);
+                Assert.False(layer.IsVisible);
 
                 layer.Close();
                 window.Close();
@@ -977,7 +976,7 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
-    public void MainWindowHtmlWorkbenchShowsNativeRemoteControlLayerWhenEntering()
+    public void MainWindowHtmlWorkbenchDoesNotShowNativeRemoteControlLayerWhenEntering()
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -1004,8 +1003,7 @@ public sealed class MainWindowSmokeTests
 
                 InvokePrivate(window, "ShowHtmlWorkbenchSurface");
 
-                Assert.True(layer.IsVisible);
-                Assert.True(layer.Topmost);
+                Assert.False(layer.IsVisible);
                 layer.Close();
                 window.Close();
             }

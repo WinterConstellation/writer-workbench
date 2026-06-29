@@ -241,10 +241,6 @@ public partial class MainWindow : Window
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
             ApplyRemoteControlSessionState();
-            if (GetRemoteControlSessionState().IsVisible)
-            {
-                ShowRemoteControlLayer(recenter: false);
-            }
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -4568,7 +4564,6 @@ public partial class MainWindow : Window
         EditorSurface.Visibility = Visibility.Collapsed;
         PreviewModeButton.Content = "미리보기";
         RememberSessionState(claimedSurfaceId);
-        ShowRemoteControlLayer(recenter: false);
         StatusText.Text = "메인 화면";
         return true;
     }

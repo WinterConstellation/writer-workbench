@@ -140,6 +140,16 @@
               <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
               <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
               <div id="active-editor-metrics" class="editor-metrics-status"></div>
+              <section id="manuscript-remote-dock" class="manuscript-remote-dock" aria-label="리모컨">
+                <div class="manuscript-remote-header">
+                  <strong>리모컨</strong>
+                  <div class="manuscript-remote-actions">
+                    <button id="manuscript-remote-density-toggle" type="button">아이콘</button>
+                    <button id="manuscript-remote-float" type="button" data-command="remote.show">분리</button>
+                  </div>
+                </div>
+                <div id="manuscript-remote-command-list" class="remote-command-list manuscript-remote-command-list"></div>
+              </section>
               <div class="scene-metadata-editor">
                 <select id="active-status-editor" aria-label="장면 상태">
                   <option value="초고">초고</option>

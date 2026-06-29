@@ -8,6 +8,7 @@ const state = {
   isRendering: false,
   remoteDrag: null,
   remoteRenderSignature: "",
+  manuscriptRemoteRenderSignature: "",
   storyDrag: null,
   storyZoom: 1,
   activeView: "editor",
@@ -118,6 +119,7 @@ function render(payload) {
   renderRelationshipMap(story);
   renderRemoteSettings(remoteCommands, state.availableCommands);
   renderShortcutSettings(state.shortcutBindings);
+  renderManuscriptRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   renderFloatingRemote(remoteCommands.length ? remoteCommands : toolbarCommands.slice(0, 6));
   setActiveView(activeView);
   state.isRendering = false;
@@ -2017,18 +2019,29 @@ function renderFloatingRemote(commands) {
   renderRemote(commands);
 }
 
+function renderManuscriptRemote(commands) {
+  renderRemoteCommandList("manuscript-remote-command-list", commands, "manuscriptRemoteRenderSignature");
+  applyRemoteDensityState();
+}
+
 function renderRemote(commands) {
-  const list = $("remote-command-list");
+  renderRemoteCommandList("remote-command-list", commands, "remoteRenderSignature");
+}
+
+function renderRemoteCommandList(listId, commands, signatureStateKey) {
+  const list = $(listId);
+  if (!list) return;
+
   const normalizedCommands = commands.map(normalizeCommand)
     .sort((a, b) => a.order - b.order);
   const signature = normalizedCommands
     .map((command) => `${command.commandId}|${command.label}|${command.category}|${command.order}`)
     .join("\n");
-  if (state.remoteRenderSignature === signature) {
+  if (state[signatureStateKey] === signature) {
     return;
   }
 
-  state.remoteRenderSignature = signature;
+  state[signatureStateKey] = signature;
   list.textContent = "";
   normalizedCommands
     .forEach((command, index) => {
@@ -2046,6 +2059,21 @@ function renderRemote(commands) {
       button.append(badge, label);
       list.appendChild(button);
     });
+}
+
+function applyRemoteDensityState() {
+  $("floating-remote")?.classList.toggle("remote-icon-only", state.remoteIconOnly);
+  $("manuscript-remote-dock")?.classList.toggle("remote-icon-only", state.remoteIconOnly);
+  const label = state.remoteIconOnly ? "제목" : "아이콘";
+  const floatingToggle = $("remote-density-toggle");
+  const dockedToggle = $("manuscript-remote-density-toggle");
+  if (floatingToggle) {
+    floatingToggle.textContent = label;
+  }
+
+  if (dockedToggle) {
+    dockedToggle.textContent = label;
+  }
 }
 
 function formatDate(value) {
@@ -2087,11 +2115,10 @@ document.addEventListener("click", (event) => {
     return;
   }
 
-  const densityToggle = event.target.closest("#remote-density-toggle");
+  const densityToggle = event.target.closest("#remote-density-toggle, #manuscript-remote-density-toggle");
   if (densityToggle) {
     state.remoteIconOnly = !state.remoteIconOnly;
-    $("floating-remote").classList.toggle("remote-icon-only", state.remoteIconOnly);
-    densityToggle.textContent = state.remoteIconOnly ? "제목" : "아이콘";
+    applyRemoteDensityState();
     return;
   }
 
