@@ -7,6 +7,7 @@ const state = {
   metricUpdateTimer: 0,
   isRendering: false,
   remoteDrag: null,
+  remoteRenderSignature: "",
   storyDrag: null,
   storyZoom: 1,
   activeView: "editor",
@@ -2002,9 +2003,18 @@ function renderPipeline(items) {
 
 function renderRemote(commands) {
   const list = $("remote-command-list");
+  const normalizedCommands = commands.map(normalizeCommand)
+    .sort((a, b) => a.order - b.order);
+  const signature = normalizedCommands
+    .map((command) => `${command.commandId}|${command.label}|${command.category}|${command.order}`)
+    .join("\n");
+  if (state.remoteRenderSignature === signature) {
+    return;
+  }
+
+  state.remoteRenderSignature = signature;
   list.textContent = "";
-  commands.map(normalizeCommand)
-    .sort((a, b) => a.order - b.order)
+  normalizedCommands
     .forEach((command, index) => {
       const button = document.createElement("button");
       button.type = "button";

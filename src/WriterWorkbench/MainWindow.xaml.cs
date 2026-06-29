@@ -426,7 +426,16 @@ public partial class MainWindow : Window
     {
         var layer = EnsureRemoteControlLayer();
         var wasVisible = layer.IsVisible;
-        layer.Topmost = true;
+        if (wasVisible && !recenter)
+        {
+            return;
+        }
+
+        if (!layer.Topmost)
+        {
+            layer.Topmost = true;
+        }
+
         if (recenter)
         {
             _remoteControlLayerDockedToMemoRail = true;
@@ -441,11 +450,6 @@ public partial class MainWindow : Window
         if (!wasVisible)
         {
             layer.Show();
-            layer.Activate();
-        }
-        else if (recenter)
-        {
-            layer.Activate();
         }
     }
 
@@ -465,8 +469,15 @@ public partial class MainWindow : Window
     private void PositionRemoteControlLayer(RemoteControlLayerWindow layer)
     {
         var dockPoint = GetRemoteControlMemoDockPoint(layer);
-        layer.Left = dockPoint.X;
-        layer.Top = dockPoint.Y;
+        if (Math.Abs(layer.Left - dockPoint.X) > 0.5 || double.IsNaN(layer.Left))
+        {
+            layer.Left = dockPoint.X;
+        }
+
+        if (Math.Abs(layer.Top - dockPoint.Y) > 0.5 || double.IsNaN(layer.Top))
+        {
+            layer.Top = dockPoint.Y;
+        }
     }
 
     private System.Windows.Point GetRemoteControlMemoDockPoint(RemoteControlLayerWindow layer)

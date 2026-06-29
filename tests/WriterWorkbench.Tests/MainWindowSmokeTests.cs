@@ -1008,6 +1008,52 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowShowingHtmlWorkbenchDoesNotReflashVisibleNativeRemoteControlLayer()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(layerField);
+                InvokePrivate(window, "ShowRemoteControlLayer", true);
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                layer.Left = 222d;
+                layer.Top = 333d;
+
+                InvokePrivate(window, "ShowHtmlWorkbenchSurface");
+
+                Assert.Same(layer, layerField.GetValue(window));
+                Assert.True(layer.IsVisible);
+                Assert.True(layer.Topmost);
+                Assert.Equal(222d, layer.Left);
+                Assert.Equal(333d, layer.Top);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowHtmlBinderCommandSelectsSceneBeforeRunningBinderCommand()
     {
         Exception? failure = null;

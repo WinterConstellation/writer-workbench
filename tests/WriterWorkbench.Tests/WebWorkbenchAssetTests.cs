@@ -300,6 +300,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("findHtmlShortcutCommand", script);
         Assert.Contains("formatBrowserShortcutGesture", script);
         Assert.Contains("scope === \"workbench\" || scope === \"global\"", script);
+        Assert.Contains("remoteRenderSignature", script);
+        Assert.Contains("state.remoteRenderSignature === signature", script);
     }
 
     [Fact]
