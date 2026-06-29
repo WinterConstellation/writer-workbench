@@ -24,6 +24,9 @@ public sealed record CodexCliRunResult(
 public sealed class CodexCliBridge
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
+    private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase
+        : StringComparer.Ordinal;
     private readonly string _executableNameOrPath;
 
     public CodexCliBridge(string executableNameOrPath = "codex")
@@ -37,22 +40,18 @@ public sealed class CodexCliBridge
     {
         if (Path.IsPathRooted(_executableNameOrPath))
         {
-            return File.Exists(_executableNameOrPath) ? _executableNameOrPath : null;
+            return File.Exists(_executableNameOrPath) && IsAllowedExecutableCandidate(_executableNameOrPath)
+                ? _executableNameOrPath
+                : null;
         }
 
-        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-        var extensions = (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT")
-            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var candidateNames = Path.HasExtension(_executableNameOrPath)
-            ? new[] { _executableNameOrPath }
-            : extensions.Select(extension => _executableNameOrPath + extension).Prepend(_executableNameOrPath);
-
-        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        var candidateNames = CreateCandidateNames(_executableNameOrPath);
+        foreach (var directory in CreateSearchDirectories())
         {
             foreach (var candidateName in candidateNames)
             {
                 var candidate = Path.Combine(directory, candidateName);
-                if (File.Exists(candidate))
+                if (File.Exists(candidate) && IsAllowedExecutableCandidate(candidate))
                 {
                     return candidate;
                 }
@@ -60,6 +59,83 @@ public sealed class CodexCliBridge
         }
 
         return null;
+    }
+
+    private static IReadOnlyList<string> CreateCandidateNames(string executableNameOrPath)
+    {
+        if (Path.HasExtension(executableNameOrPath))
+        {
+            return [executableNameOrPath];
+        }
+
+        if (!OperatingSystem.IsWindows())
+        {
+            return [executableNameOrPath];
+        }
+
+        var names = new List<string>
+        {
+            executableNameOrPath + ".cmd",
+            executableNameOrPath + ".exe",
+            executableNameOrPath + ".bat"
+        };
+
+        var pathExtensions = (Environment.GetEnvironmentVariable("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(extension => extension.StartsWith('.') ? extension : "." + extension);
+        foreach (var extension in pathExtensions)
+        {
+            names.Add(executableNameOrPath + extension);
+        }
+
+        names.Add(executableNameOrPath);
+        return names
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> CreateSearchDirectories()
+    {
+        var directories = new List<string>();
+        if (OperatingSystem.IsWindows())
+        {
+            AddDirectory(directories, Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "npm"));
+        }
+
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var directory in path.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            AddDirectory(directories, directory);
+        }
+
+        return directories;
+    }
+
+    private static void AddDirectory(List<string> directories, string directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory) ||
+            directories.Contains(directory, PathComparer) ||
+            !Directory.Exists(directory))
+        {
+            return;
+        }
+
+        directories.Add(directory);
+    }
+
+    private static bool IsAllowedExecutableCandidate(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return true;
+        }
+
+        var normalized = path.Replace('/', '\\');
+        return !normalized.Contains(
+            "\\Program Files\\WindowsApps\\OpenAI.Codex_",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     public static ProcessStartInfo CreateStartInfo(
@@ -84,8 +160,8 @@ public sealed class CodexCliBridge
         startInfo.ArgumentList.Add("exec");
         startInfo.ArgumentList.Add("--sandbox");
         startInfo.ArgumentList.Add("read-only");
-        startInfo.ArgumentList.Add("--ask-for-approval");
-        startInfo.ArgumentList.Add("never");
+        startInfo.ArgumentList.Add("--cd");
+        startInfo.ArgumentList.Add(startInfo.WorkingDirectory);
         startInfo.ArgumentList.Add("--skip-git-repo-check");
         startInfo.ArgumentList.Add("--ephemeral");
         startInfo.ArgumentList.Add("-");
@@ -113,7 +189,15 @@ public sealed class CodexCliBridge
                 DateTimeOffset.Now);
         }
 
-        var executablePath = ResolveExecutablePath() ?? _executableNameOrPath;
+        var executablePath = ResolveExecutablePath();
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return CreateStartFailure(
+                startedAt,
+                _executableNameOrPath,
+                "Codex CLI executable was not found. Install @openai/codex or add codex.cmd to PATH.");
+        }
+
         var startInfo = CreateStartInfo(executablePath, request.WorkingDirectory);
         using var process = new Process { StartInfo = startInfo };
 

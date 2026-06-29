@@ -4220,6 +4220,49 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST bugfix update: Codex CLI executable resolution
+
+Feature(s) implemented:
+- Fixed Codex CLI launch failure where the app tried to start plain `codex` from the project folder and received "file not found".
+- Installed the official npm CLI package `@openai/codex@0.142.4`, which provides `C:\Users\Masters\AppData\Roaming\npm\codex.cmd`.
+- Updated `CodexCliBridge` to prefer Windows `.cmd` shims over extensionless files.
+- Added the npm global directory to the Codex executable search path so the WPF app can find `codex.cmd` even if its process PATH is stale.
+- Rejected packaged `C:\Program Files\WindowsApps\OpenAI.Codex_...\codex.exe` resources because direct execution returns `Access is denied` on this machine.
+- Updated Codex exec arguments for the current CLI: removed stale `--ask-for-approval never`, and now passes `--cd <project>` with `--sandbox read-only`, `--skip-git-repo-check`, and `--ephemeral`.
+
+Files changed:
+- `src/WriterWorkbench/Core/Codex/CodexCliBridge.cs`
+- `tests/WriterWorkbench.Tests/CodexCliBridgeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added resolver coverage for preferring `.cmd` command shims.
+- Added resolver coverage for rejecting packaged WindowsApps Codex resources.
+- Updated start-info coverage for current `codex exec` flags.
+
+Commands run:
+- `npm.cmd view @openai/codex version dist.bin --json` -> confirmed `0.142.4`.
+- `npm.cmd install -g @openai/codex` -> installed.
+- `codex.cmd --version` -> `codex-cli 0.142.4`.
+- `"Reply with exactly OK." | codex.cmd exec --sandbox read-only --cd "C:\WriterWorkbench\Projects\Sample.writerproj" --skip-git-repo-check --ephemeral -` -> returned `OK`.
+- `.NET ProcessStartInfo` launch check for `codex.cmd --version` -> started, exit 0.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "CodexCliBridgeTests|WebWorkbenchCodexPayloadTests"` -> 5 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 266 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+
+Large manuscript regression check:
+- Manuscript editor, metrics, save, autosave, export, and large-body input paths were not changed.
+- Change is limited to Codex CLI process discovery and launch arguments.
+
+Remaining problems:
+- Codex CLI writes plugin/skill warning lines to stderr on this machine; the command still returned exit 0 and produced the requested output.
+- The feature remains read-only and non-interactive by design.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+- Environment change: global npm package `@openai/codex@0.142.4` installed.
+
 ## 2026-06-30 KST bugfix update: Fullscreen shortcut through WebView focus
 
 Feature(s) implemented:
