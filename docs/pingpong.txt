@@ -4272,6 +4272,49 @@ Separate data artifact:
 - New report artifact: `docs/reports/implementation-gap-audit-2026-06-30.md`.
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST maintenance update: Folder sprawl audit and cleanup guardrails
+
+Feature(s) implemented:
+- Audited Writer Workbench folder sprawl across the workspace, `dist`, and `%TEMP%`.
+- Confirmed the main source project is not duplicated ten times; most sprawl is obsolete publish artifacts and test scratch folders.
+- Added `tools/clean-writer-workbench-artifacts.ps1` with dry-run default and explicit `-Delete` cleanup mode.
+- The cleanup script refuses to touch paths outside workspace `dist` and `%TEMP%`, and keeps the current executable artifact at `dist/WriterWorkbench-html-workbench`.
+- Updated `LargeDocumentIntegrationTests` to delete its own large temp project after the test.
+- Added SQLite pool clear/retry cleanup so large-document test cleanup does not fail on transient `project.sqlite` file locks.
+
+Files changed:
+- `tests/WriterWorkbench.Tests/LargeDocumentIntegrationTests.cs`
+- `tools/clean-writer-workbench-artifacts.ps1`
+- `docs/reports/folder-sprawl-audit-2026-06-30.md`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Updated `LargeDocumentIntegrationTests` cleanup behavior.
+
+Commands run:
+- Folder size audit over `dist` and `%TEMP%\WriterWorkbench*`.
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tools\clean-writer-workbench-artifacts.ps1` -> dry-run passed; no deletion performed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter LargeDocumentIntegrationTests` -> initially failed on SQLite file lock during cleanup, then passed after retry logic.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Re-ran `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter LargeDocumentIntegrationTests` -> passed.
+- Re-ran cleanup dry-run -> passed; existing old cleanup candidates are still present because `-Delete` was not run.
+- Public repo sync: copied 4 changed files.
+- Public repo sync: `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo sync: `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter LargeDocumentIntegrationTests` -> passed after a parallel build/test copy warning; sequential rerun passed without warning.
+- Public repo sync: cleanup dry-run -> passed; `%TEMP%` cleanup candidates still present because `-Delete` was not run.
+
+Large manuscript regression check:
+- Large document save/load/search behavior remains covered by `LargeDocumentIntegrationTests`.
+- The change only affects test cleanup after assertions.
+
+Remaining problems:
+- Existing cleanup candidates still exist because deletion was not run automatically.
+- Many smaller tests still create temp scratch roots; the new script can clean them, but a broader test-helper cleanup refactor is still pending.
+- Publish path policy is now fixed to `dist/WriterWorkbench-html-workbench`; old feature-named publish folders should not be created again.
+
+Separate data artifact:
+- New report artifact: `docs/reports/folder-sprawl-audit-2026-06-30.md`.
+
 ## 2026-06-30 KST bugfix update: Remote control flicker reduction
 
 Feature(s) implemented:
