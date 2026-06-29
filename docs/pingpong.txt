@@ -4220,6 +4220,40 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST recovery audit: broken midwork found and protected
+
+Recovery target:
+- Found the broken midwork item recorded in the previous history: commit `afc9f79` damaged the text rewrite path, and repair commit `ae1b5f8` restored UTF-8 text plus the full-manuscript editor invariant.
+- Current local source/test/doc content matches the public repo state after `67df616` for recovery-critical files.
+- No rewrite from zero is required for this item.
+
+Recovery decision:
+- The recovered invariant is that the manuscript editor contains the full scene text, including large scenes.
+- The old split/remainder editor path must stay removed.
+- UTF-8 Korean source text must not be broad-rewritten through PowerShell text recoding.
+
+Files changed:
+- `docs/reports/midwork-recovery-audit-2026-06-30.md`
+- `docs/pingpong.txt`
+
+Commands run:
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 256 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "DocumentEditorTextServiceTests|WebWorkbenchDoesNotSplitManuscriptIntoRemainderPanel|EncodingDamageGuardTests"` -> 8 passed.
+- Recovery-critical file hash check against public repo -> matched.
+
+Large manuscript regression check:
+- No source code path was changed in this recovery audit.
+- Existing large-document/full-editor guard tests passed.
+
+Remaining problems:
+- Local workspace Git metadata is still older than the public repo history, so local `git status` alone is not a reliable implementation-loss signal.
+- Use the public repo plus file/hash comparison as the recovery baseline unless the local repository metadata is intentionally rebuilt later.
+
+Separate data artifact:
+- Added recovery report at `docs/reports/midwork-recovery-audit-2026-06-30.md`.
+
 ## 2026-06-29 KST design note: Codex CLI bridge reconsideration
 
 Decision:
