@@ -296,6 +296,10 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("trash.restore", script);
         Assert.Contains("shortcut.update", script);
         Assert.Contains("captureShortcutGesture", script);
+        Assert.Contains("handleWorkbenchShortcut", script);
+        Assert.Contains("findHtmlShortcutCommand", script);
+        Assert.Contains("formatBrowserShortcutGesture", script);
+        Assert.Contains("scope === \"workbench\" || scope === \"global\"", script);
     }
 
     [Fact]

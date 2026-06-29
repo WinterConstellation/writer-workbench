@@ -1876,6 +1876,43 @@ function captureShortcutGesture(event) {
   event.preventDefault();
 }
 
+function handleWorkbenchShortcut(event) {
+  if (event.target.closest(".shortcut-editor")) return;
+
+  const gesture = formatBrowserShortcutGesture(event);
+  if (!gesture) return;
+
+  const commandId = findHtmlShortcutCommand(gesture);
+  if (!commandId) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  sendCommand(commandId);
+}
+
+function findHtmlShortcutCommand(gesture) {
+  const normalizedGesture = gesture.toLowerCase();
+  const match = state.shortcutBindings.find((shortcut) => {
+    const scope = String(shortcut.scope || "").toLowerCase();
+    return (scope === "workbench" || scope === "global") &&
+      String(shortcut.gesture || "").toLowerCase() === normalizedGesture;
+  });
+
+  return match?.commandId || "";
+}
+
+function formatBrowserShortcutGesture(event) {
+  const key = normalizeShortcutKey(event.key);
+  if (!key) return "";
+
+  const parts = [];
+  if (event.ctrlKey) parts.push("Ctrl");
+  if (event.altKey) parts.push("Alt");
+  if (event.shiftKey) parts.push("Shift");
+  parts.push(key);
+  return parts.join("+");
+}
+
 function normalizeShortcutKey(key) {
   if (!key) return "";
   if (key.length === 1) return key.toUpperCase();
@@ -2221,6 +2258,7 @@ $("binder-status-filter")?.addEventListener("change", (event) => {
   const binder = readPayloadValue(state.payload, "binder", "Binder", []);
   renderBinder(binder);
 });
+document.addEventListener("keydown", handleWorkbenchShortcut);
 document.addEventListener("keydown", captureShortcutGesture);
 document.addEventListener("keydown", handleStoryZoomKey);
 $("relationship-map-canvas").addEventListener("wheel", handleStoryMapWheel, { passive: false });

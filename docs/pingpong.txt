@@ -4629,3 +4629,37 @@ Remaining problems:
 
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
+## 2026-06-29 KST bugfix update: HTML workbench fullscreen shortcut
+
+Feature(s) implemented:
+- Fixed `F11`/workbench shortcut handling while focus is inside the HTML workbench.
+- Added a browser-side shortcut router that reads `ShortcutBindings` from the payload and sends matching Workbench/Global commands back to WPF.
+- `F11` now routes to `view.fullscreen.toggle` from the manuscript editor surface instead of being swallowed by WebView focus.
+- Shortcut editor inputs still keep their own capture behavior, so assigning `F11` in the shortcut settings screen does not immediately toggle fullscreen.
+
+Files changed:
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added asset-test anchors for `handleWorkbenchShortcut`, `findHtmlShortcutCommand`, and `formatBrowserShortcutGesture`.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "FullyQualifiedName~WebWorkbenchAssetTests|FullyQualifiedName~AppCommandCatalogTests"` -> 15 passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 256 passed.
+- `Copy-Item src\WriterWorkbench\WebWorkbench\app.js -> dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed because the app process was running and was not force-closed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Manuscript body parsing, save, autosave, and metric calculation paths were not changed.
+- Shortcut handling flushes pending editor update only when a matching command is actually triggered.
+
+Remaining problems:
+- Existing running app instance may need a normal user restart to load the updated HTML asset; it was not force-closed.
+
+Separate data artifact:
+- HTML asset refreshed in `dist\WriterWorkbench-html-workbench\WebWorkbench\app.js`; executable DLL was not republished because the app was running.
