@@ -4220,6 +4220,44 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST bugfix update: Fullscreen shortcut through WebView focus
+
+Feature(s) implemented:
+- Fixed the fullscreen shortcut path when focus is inside the HTML/WebView manuscript editor.
+- Added WPF `PreviewKeyDown` handling so `F11` reaches `view.fullscreen.toggle` before WebView swallows the key.
+- Disabled WebView2 browser accelerator keys for the main and detached HTML workbench hosts.
+- Added an HTML capture-phase `keydown` listener plus a hard `F11 -> view.fullscreen.toggle` fallback before payload shortcut bindings arrive.
+
+Files changed:
+- `src/WriterWorkbench/MainWindow.xaml`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/WorkbenchDetachedWindow.xaml.cs`
+- `src/WriterWorkbench/WebWorkbench/app.js`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/WebWorkbenchAssetTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added guards for WPF `PreviewKeyDown`, WebView2 accelerator disablement, HTML capture-phase shortcut handling, and the F11 fallback.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "MainWindowFullscreenShortcutIsCapturedBeforeWebViewBrowserAccelerators|WebWorkbenchScriptWiresRemoteDragTabsAndEditorUpdate"` -> 2 passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 264 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+
+Large manuscript regression check:
+- Manuscript parsing, save, autosave, metrics, and large-body input logic were not changed.
+- Change is limited to shortcut routing and WebView host accelerator behavior.
+
+Remaining problems:
+- Manual confirmation is still needed in the running desktop app because this fix targets the actual WebView focus path.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-30 KST bugfix update: Focus idle warning and manuscript memo remote docking
 
 Feature(s) implemented:

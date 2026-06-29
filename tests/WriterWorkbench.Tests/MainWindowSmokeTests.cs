@@ -173,6 +173,28 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public async Task MainWindowFullscreenShortcutIsCapturedBeforeWebViewBrowserAccelerators()
+    {
+        var appDirectory = Path.GetDirectoryName(typeof(MainWindow).Assembly.Location)!;
+        var sourceRoot = Path.GetFullPath(Path.Combine(appDirectory, "..", "..", "..", "..", ".."));
+        var xaml = await File.ReadAllTextAsync(
+            Path.Combine(sourceRoot, "src", "WriterWorkbench", "MainWindow.xaml"),
+            CancellationToken.None);
+        var mainWindowCode = await File.ReadAllTextAsync(
+            Path.Combine(sourceRoot, "src", "WriterWorkbench", "MainWindow.xaml.cs"),
+            CancellationToken.None);
+        var detachedWindowCode = await File.ReadAllTextAsync(
+            Path.Combine(sourceRoot, "src", "WriterWorkbench", "WorkbenchDetachedWindow.xaml.cs"),
+            CancellationToken.None);
+
+        Assert.Contains("PreviewKeyDown=\"Window_PreviewKeyDown\"", xaml);
+        Assert.Contains("TryHandleWindowKeyDownAsync(e, previewOnlyFullscreen: true)", mainWindowCode);
+        Assert.Contains("AppCommandIds.ViewFullscreenToggle", mainWindowCode);
+        Assert.Contains("HtmlWorkbenchBrowser.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false", mainWindowCode);
+        Assert.Contains("DetachedHtmlWorkbenchBrowser.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false", detachedWindowCode);
+    }
+
+    [Fact]
     public void MainWindowBinderHasRightClickSceneActionMenu()
     {
         Exception? failure = null;

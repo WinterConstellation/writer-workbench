@@ -308,6 +308,8 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("handleWorkbenchShortcut", script);
         Assert.Contains("findHtmlShortcutCommand", script);
         Assert.Contains("formatBrowserShortcutGesture", script);
+        Assert.Contains("gesture.toLowerCase() === \"f11\"", script);
+        Assert.Contains("document.addEventListener(\"keydown\", handleWorkbenchShortcut, true)", script);
         Assert.Contains("scope === \"workbench\" || scope === \"global\"", script);
         Assert.Contains("remoteRenderSignature", script);
         Assert.Contains("manuscriptRemoteRenderSignature", script);

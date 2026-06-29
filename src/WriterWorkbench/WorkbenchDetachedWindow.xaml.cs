@@ -196,6 +196,7 @@ public partial class WorkbenchDetachedWindow : Window
         }
 
         await DetachedHtmlWorkbenchBrowser.EnsureCoreWebView2Async();
+        DetachedHtmlWorkbenchBrowser.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         DetachedHtmlWorkbenchBrowser.CoreWebView2.WebMessageReceived += async (_, e) =>
         {
             if (_htmlMessageHandler is not null)

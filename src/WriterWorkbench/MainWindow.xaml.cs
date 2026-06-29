@@ -2733,6 +2733,7 @@ public partial class MainWindow : Window
         }
 
         await HtmlWorkbenchBrowser.EnsureCoreWebView2Async();
+        HtmlWorkbenchBrowser.CoreWebView2.Settings.AreBrowserAcceleratorKeysEnabled = false;
         HtmlWorkbenchBrowser.CoreWebView2.WebMessageReceived += HtmlWorkbenchBrowser_WebMessageReceived;
         HtmlWorkbenchBrowser.NavigationCompleted += async (_, _) => await PushHtmlWorkbenchStateAsync();
         HtmlWorkbenchBrowser.Source = WebWorkbenchAssetVersion.CreateIndexUri(indexPath);
@@ -5246,7 +5247,23 @@ public partial class MainWindow : Window
         StatusText.Text = "집중모드 작동 중 - Ctrl+S 저장 가능. 조기 해제에는 20자 확인이 필요합니다.";
     }
 
+    private async void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (await TryHandleWindowKeyDownAsync(e, previewOnlyFullscreen: true))
+        {
+            e.Handled = true;
+        }
+    }
+
     private async void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (await TryHandleWindowKeyDownAsync(e, previewOnlyFullscreen: false))
+        {
+            e.Handled = true;
+        }
+    }
+
+    private async Task<bool> TryHandleWindowKeyDownAsync(System.Windows.Input.KeyEventArgs e, bool previewOnlyFullscreen)
     {
         if (_focusMode && e.Key != Key.Escape)
         {
@@ -5259,16 +5276,23 @@ public partial class MainWindow : Window
 
         if (commandId is not null)
         {
+            if (previewOnlyFullscreen &&
+                !string.Equals(commandId, AppCommandIds.ViewFullscreenToggle, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
             await ExecuteCommandAsync(commandId);
-            e.Handled = true;
-            return;
+            return true;
         }
 
-        if (_focusMode && e.Key == Key.Escape)
+        if (!previewOnlyFullscreen && _focusMode && e.Key == Key.Escape)
         {
             TryExitFocus();
-            e.Handled = true;
+            return true;
         }
+
+        return false;
     }
 
     private CommandScope GetActiveCommandScope()

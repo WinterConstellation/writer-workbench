@@ -1895,6 +1895,10 @@ function handleWorkbenchShortcut(event) {
 }
 
 function findHtmlShortcutCommand(gesture) {
+  if (gesture.toLowerCase() === "f11") {
+    return "view.fullscreen.toggle";
+  }
+
   const normalizedGesture = gesture.toLowerCase();
   const match = state.shortcutBindings.find((shortcut) => {
     const scope = String(shortcut.scope || "").toLowerCase();
@@ -2340,7 +2344,7 @@ $("binder-status-filter")?.addEventListener("change", (event) => {
   const binder = readPayloadValue(state.payload, "binder", "Binder", []);
   renderBinder(binder);
 });
-document.addEventListener("keydown", handleWorkbenchShortcut);
+document.addEventListener("keydown", handleWorkbenchShortcut, true);
 document.addEventListener("keydown", captureShortcutGesture);
 document.addEventListener("keydown", handleStoryZoomKey);
 $("relationship-map-canvas").addEventListener("wheel", handleStoryMapWheel, { passive: false });

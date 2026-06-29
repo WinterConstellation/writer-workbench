@@ -12,6 +12,7 @@
         MinHeight="640"
         FontFamily="Malgun Gothic"
         Background="White"
+        PreviewKeyDown="Window_PreviewKeyDown"
         KeyDown="Window_KeyDown">
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Save" Executed="SaveCommand_Executed"/>
