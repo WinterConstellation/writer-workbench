@@ -4220,6 +4220,44 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST maintenance update: Removed unused duplicate artifacts
+
+Feature(s) implemented:
+- Deleted obsolete publish artifact folders under `dist`.
+- Deleted Writer Workbench test scratch folders under `%TEMP%`.
+- Kept the canonical local workspace at `C:\Users\Masters\Documents\글`.
+- Kept the current executable artifact at `dist\WriterWorkbench-html-workbench`.
+- Kept the public repo mirror at `%TEMP%\writer-workbench-public-20260626035210`.
+
+Deleted folders:
+- `dist\WriterWorkbench`
+- `dist\WriterWorkbench-html-workbench-next`
+- `dist\WriterWorkbench-menu-remote`
+- `dist\WriterWorkbench-relationship-map`
+- `dist\WriterWorkbench-win-x64`
+- `dist\WriterWorkbench-win-x64-p0input`
+- `%TEMP%\WriterWorkbenchLargeTests`
+- `%TEMP%\WriterWorkbenchPresetTests`
+- `%TEMP%\WriterWorkbenchSessionTests`
+- `%TEMP%\WriterWorkbenchShortcutTests`
+- `%TEMP%\WriterWorkbenchTests`
+
+Commands run:
+- `powershell -NoProfile -ExecutionPolicy Bypass -File tools\clean-writer-workbench-artifacts.ps1 -Delete` -> deleted the listed candidates.
+- Verification: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\clean-writer-workbench-artifacts.ps1` -> `No cleanup candidates found.`
+- Verification: `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe` still exists.
+
+Large manuscript regression check:
+- No manuscript code was changed.
+- Only obsolete local artifacts and temp test scratch folders were removed.
+
+Remaining problems:
+- Future tests can still create new temp scratch folders; the cleanup script remains the standard cleanup path.
+- Public mirror remains under `%TEMP%` by design for now; it is not treated as a duplicate artifact.
+
+Separate data artifact:
+- No new data artifact.
+
 ## 2026-06-30 KST bugfix update: Dock remote control under manuscript first
 
 Feature(s) implemented:
