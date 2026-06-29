@@ -4220,6 +4220,58 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST audit and bugfix update: Remote state persistence plus implementation gap baseline
+
+Feature(s) implemented:
+- Added `RemoteControlSessionState` to the app session model.
+- The native topmost remote now persists visibility, docked/detached state, left/top coordinates, width/height, and icon-only/icon+title display mode.
+- Legacy session files without remote-control state now load with safe defaults.
+- Remote display-mode changes now raise an event so `MainWindow` can remember the change.
+- `ShowRemoteControlLayer(recenter: false)` no longer overwrites a saved detached remote position just because the remote was hidden before being shown.
+- Added an explicit implementation gap audit at `docs/reports/implementation-gap-audit-2026-06-30.md`.
+
+Files changed:
+- `src/WriterWorkbench/Core/Application/AppSessionState.cs`
+- `src/WriterWorkbench/Core/Application/AppSessionStateService.cs`
+- `src/WriterWorkbench/MainWindow.xaml.cs`
+- `src/WriterWorkbench/RemoteControlLayerWindow.xaml.cs`
+- `tests/WriterWorkbench.Tests/AppSessionStateServiceTests.cs`
+- `tests/WriterWorkbench.Tests/MainWindowSmokeTests.cs`
+- `tests/WriterWorkbench.Tests/RemoteControlLayerWindowTests.cs`
+- `docs/reports/implementation-gap-audit-2026-06-30.md`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Added app-session tests for legacy remote defaults, remote placement/display-mode roundtrip, and remote state normalization.
+- Added native remote display-mode change event test.
+- Added `MainWindowAppliesPersistedRemoteControlLayerState` smoke test.
+
+Commands run:
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "AppSessionStateServiceTests|RemoteControlLayerWindowTests|MainWindowSmokeTests"` -> 65 passed after fixing the caught regressions.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 262 passed.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+- `node --check dist\WriterWorkbench-html-workbench\WebWorkbench\app.js` -> passed.
+- Public repo sync: copied 9 changed files.
+- Public repo sync: `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- Public repo sync: `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- Public repo sync: `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 262 passed.
+
+Large manuscript regression check:
+- Manuscript body parsing, editor input, save, autosave, and metric calculation paths were not changed in this pass.
+- Large manuscript correctness remains P0 unresolved because the user still reports hidden text and unstable character counts.
+
+Remaining problems:
+- More than one area is still partial. The audit now tracks this explicitly instead of treating static anchors as completion.
+- P0 next target is manuscript body visibility and character-count correctness.
+- Binder workflow needs a real right-click/multi-delete/drag-reorder/trash-restore pass.
+- Relationship map and settings/reference surfaces are still MVP-level.
+
+Separate data artifact:
+- New report artifact: `docs/reports/implementation-gap-audit-2026-06-30.md`.
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-30 KST bugfix update: Remote control flicker reduction
 
 Feature(s) implemented:

@@ -6,7 +6,8 @@ public sealed record AppSessionState(
     string Surface,
     int? PresetSlot,
     string GraphicPresetId = "default",
-    int FocusDurationMinutes = 40)
+    int FocusDurationMinutes = 40,
+    RemoteControlSessionState? RemoteControl = null)
 {
     public const string EditorSurface = "editor";
     public const string PreviewSurface = "preview";
@@ -23,5 +24,27 @@ public sealed record AppSessionState(
         HtmlWorkbenchSurface,
         null,
         DefaultGraphicPresetId,
-        DefaultFocusDurationMinutes);
+        DefaultFocusDurationMinutes,
+        RemoteControlSessionState.Default);
+}
+
+public sealed record RemoteControlSessionState(
+    bool IsVisible = true,
+    bool IsDockedToMemoRail = true,
+    string DisplayMode = RemoteControlSessionState.IconAndTitleDisplayMode,
+    double? Left = null,
+    double? Top = null,
+    double Width = RemoteControlSessionState.DefaultWidth,
+    double Height = RemoteControlSessionState.DefaultHeight)
+{
+    public const string IconAndTitleDisplayMode = "iconAndTitle";
+    public const string IconOnlyDisplayMode = "iconOnly";
+    public const double DefaultWidth = 260;
+    public const double DefaultHeight = 450;
+    public const double MinWidth = 54;
+    public const double MinHeight = 92;
+    public const double MaxWidth = 900;
+    public const double MaxHeight = 1200;
+
+    public static RemoteControlSessionState Default { get; } = new();
 }

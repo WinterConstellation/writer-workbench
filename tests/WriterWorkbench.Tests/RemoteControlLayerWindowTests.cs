@@ -128,6 +128,44 @@ public sealed class RemoteControlLayerWindowTests
     }
 
     [Fact]
+    public void LayerRaisesDisplayModeChangedOnlyWhenModeChanges()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var registry = AppCommandCatalog.CreateDefaultRegistry();
+                var layer = new RemoteControlLayerWindow();
+                var changeCount = 0;
+                layer.DisplayModeChanged += (_, _) => changeCount++;
+                layer.Render(CreateProfile(), registry);
+
+                layer.SetDisplayMode(RemoteControlDisplayMode.IconAndTitle);
+                layer.SetDisplayMode(RemoteControlDisplayMode.IconOnly);
+                layer.SetDisplayMode(RemoteControlDisplayMode.IconOnly);
+                layer.SetDisplayMode(RemoteControlDisplayMode.IconAndTitle);
+
+                Assert.Equal(2, changeCount);
+                layer.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void LayerSkipsRerenderWhenRemotePlacementsAreUnchanged()
     {
         Exception? failure = null;

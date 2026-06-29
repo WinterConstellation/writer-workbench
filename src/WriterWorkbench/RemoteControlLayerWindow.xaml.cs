@@ -24,6 +24,7 @@ public partial class RemoteControlLayerWindow : Window
 
     public event EventHandler<string>? CommandRequested;
     public event EventHandler? ManualMoveCompleted;
+    public event EventHandler? DisplayModeChanged;
 
     public RemoteControlDisplayMode DisplayMode { get; private set; } = RemoteControlDisplayMode.IconAndTitle;
 
@@ -84,6 +85,7 @@ public partial class RemoteControlLayerWindow : Window
 
     public void SetDisplayMode(RemoteControlDisplayMode mode)
     {
+        var changed = DisplayMode != mode;
         DisplayMode = mode;
         RemoteLayerDisplayModeButton.Content = mode == RemoteControlDisplayMode.IconAndTitle
             ? "아이콘만"
@@ -92,6 +94,11 @@ public partial class RemoteControlLayerWindow : Window
         foreach (var button in RemoteLayerButtonPanel.Children.OfType<System.Windows.Controls.Button>())
         {
             ApplyDisplayMode(button);
+        }
+
+        if (changed)
+        {
+            DisplayModeChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

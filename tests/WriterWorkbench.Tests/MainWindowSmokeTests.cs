@@ -425,6 +425,66 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowAppliesPersistedRemoteControlLayerState()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow();
+                var sessionField = typeof(MainWindow).GetField(
+                    "_sessionState",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.NotNull(sessionField);
+                Assert.NotNull(layerField);
+                sessionField!.SetValue(
+                    window,
+                    AppSessionState.Empty with
+                    {
+                        RemoteControl = new RemoteControlSessionState(
+                            true,
+                            false,
+                            RemoteControlSessionState.IconOnlyDisplayMode,
+                            -360,
+                            140,
+                            300,
+                            480)
+                    });
+
+                InvokePrivate(window, "ApplyRemoteControlSessionState");
+                InvokePrivate(window, "ShowRemoteControlLayer", false);
+
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.Equal(-360, layer.Left);
+                Assert.Equal(140, layer.Top);
+                Assert.Equal(300, layer.Width);
+                Assert.Equal(480, layer.Height);
+                Assert.Equal(RemoteControlDisplayMode.IconOnly, layer.DisplayMode);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowKeepsDockedRemoteControlLayerOnMemoRailWhenOwnerMoves()
     {
         Exception? failure = null;

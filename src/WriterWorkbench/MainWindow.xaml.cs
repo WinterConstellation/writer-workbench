@@ -112,6 +112,7 @@ public partial class MainWindow : Window
     private Rect _previousFullscreenBounds = Rect.Empty;
     private RemoteControlLayerWindow? _remoteControlLayer;
     private bool _remoteControlLayerDockedToMemoRail = true;
+    private bool _applyingRemoteControlSessionState;
     private bool _fullscreenMode;
     private bool _htmlWorkbenchInitialized;
     private string? _draggedRelationshipMapEntityId;
@@ -239,7 +240,11 @@ public partial class MainWindow : Window
             _widgetRegistry = await _widgetRegistryStore.LoadOrCreateAsync(_activeCustomizationProfile.Placements, CancellationToken.None);
             RenderMainCommandGrid(_activeCustomizationProfile);
             RenderRemoteControlLayer(_activeCustomizationProfile);
-            ShowRemoteControlLayer(recenter: true);
+            ApplyRemoteControlSessionState();
+            if (GetRemoteControlSessionState().IsVisible)
+            {
+                ShowRemoteControlLayer(recenter: false);
+            }
             var startupPreset = _workspacePresets.GetStartupPreset();
             var lastPreset = _sessionState.PresetSlot is int slot
                 ? _workspacePresets.Get(slot)
@@ -388,8 +393,11 @@ public partial class MainWindow : Window
         _remoteControlLayer = new RemoteControlLayerWindow();
         _remoteControlLayer.CommandRequested += RemoteControlLayer_CommandRequested;
         _remoteControlLayer.ManualMoveCompleted += RemoteControlLayer_ManualMoveCompleted;
+        _remoteControlLayer.DisplayModeChanged += RemoteControlLayer_DisplayModeChanged;
+        _remoteControlLayer.SizeChanged += RemoteControlLayer_SizeChanged;
         _remoteControlLayer.Closed += (_, _) =>
         {
+            RememberRemoteControlSessionState(isVisible: false);
             _remoteControlLayerDockedToMemoRail = true;
             _remoteControlLayer = null;
         };
@@ -403,7 +411,9 @@ public partial class MainWindow : Window
 
     private Task ShowRemoteControlLayerAsync()
     {
-        ShowRemoteControlLayer(recenter: true);
+        ShowRemoteControlLayer(recenter: false);
+        RememberRemoteControlSessionState(isVisible: true);
+        _ = PersistSessionStateAsync();
         StatusText.Text = "리모콘 레이어 표시됨";
         return Task.CompletedTask;
     }
@@ -413,11 +423,15 @@ public partial class MainWindow : Window
         if (_remoteControlLayer is { IsVisible: true } layer)
         {
             layer.Hide();
+            RememberRemoteControlSessionState(isVisible: false);
+            _ = PersistSessionStateAsync();
             StatusText.Text = "리모콘 꺼짐";
             return Task.CompletedTask;
         }
 
-        ShowRemoteControlLayer(recenter: true);
+        ShowRemoteControlLayer(recenter: false);
+        RememberRemoteControlSessionState(isVisible: true);
+        _ = PersistSessionStateAsync();
         StatusText.Text = "리모콘 켜짐";
         return Task.CompletedTask;
     }
@@ -431,6 +445,11 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (!wasVisible)
+        {
+            ApplyRemoteControlSessionState();
+        }
+
         if (!layer.Topmost)
         {
             layer.Topmost = true;
@@ -441,8 +460,12 @@ public partial class MainWindow : Window
             _remoteControlLayerDockedToMemoRail = true;
         }
 
-        var needsInitialPosition = !wasVisible || double.IsNaN(layer.Left) || double.IsNaN(layer.Top);
-        if (recenter || needsInitialPosition)
+        var needsInitialPosition = double.IsNaN(layer.Left) || double.IsNaN(layer.Top);
+        if (_remoteControlLayerDockedToMemoRail && (recenter || needsInitialPosition))
+        {
+            PositionRemoteControlLayer(layer);
+        }
+        else if (!_remoteControlLayerDockedToMemoRail && needsInitialPosition)
         {
             PositionRemoteControlLayer(layer);
         }
@@ -512,12 +535,162 @@ public partial class MainWindow : Window
         {
             _remoteControlLayerDockedToMemoRail = true;
             PositionRemoteControlLayer(layer);
+            RememberRemoteControlSessionState(isVisible: layer.IsVisible);
+            _ = PersistSessionStateAsync();
             StatusText.Text = "리모콘 메모 라인에 고정됨";
             return;
         }
 
         _remoteControlLayerDockedToMemoRail = false;
+        RememberRemoteControlSessionState(isVisible: layer.IsVisible);
+        _ = PersistSessionStateAsync();
         StatusText.Text = "리모콘 분리됨";
+    }
+
+    private void RemoteControlLayer_DisplayModeChanged(object? sender, EventArgs e)
+    {
+        if (_applyingRemoteControlSessionState)
+        {
+            return;
+        }
+
+        RememberRemoteControlSessionState();
+        _ = PersistSessionStateAsync();
+    }
+
+    private void RemoteControlLayer_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_applyingRemoteControlSessionState)
+        {
+            return;
+        }
+
+        RememberRemoteControlSessionState();
+    }
+
+    private RemoteControlSessionState GetRemoteControlSessionState()
+    {
+        return _sessionState.RemoteControl ?? RemoteControlSessionState.Default;
+    }
+
+    private void ApplyRemoteControlSessionState()
+    {
+        var layer = EnsureRemoteControlLayer();
+        var state = GetRemoteControlSessionState();
+        _applyingRemoteControlSessionState = true;
+        try
+        {
+            _remoteControlLayerDockedToMemoRail = state.IsDockedToMemoRail;
+            layer.Width = NormalizeRemoteControlLength(
+                state.Width,
+                RemoteControlSessionState.MinWidth,
+                RemoteControlSessionState.MaxWidth,
+                RemoteControlSessionState.DefaultWidth);
+            layer.Height = NormalizeRemoteControlLength(
+                state.Height,
+                RemoteControlSessionState.MinHeight,
+                RemoteControlSessionState.MaxHeight,
+                RemoteControlSessionState.DefaultHeight);
+            layer.SetDisplayMode(ParseRemoteControlDisplayMode(state.DisplayMode));
+
+            if (!state.IsDockedToMemoRail && state.Left is double left && state.Top is double top)
+            {
+                layer.Left = left;
+                layer.Top = top;
+            }
+            else if (state.IsDockedToMemoRail && layer.IsVisible)
+            {
+                PositionRemoteControlLayer(layer);
+            }
+        }
+        finally
+        {
+            _applyingRemoteControlSessionState = false;
+        }
+    }
+
+    private void RememberRemoteControlSessionState(bool? isVisible = null)
+    {
+        _sessionState = _sessionState with
+        {
+            RemoteControl = CaptureRemoteControlSessionState(isVisible)
+        };
+    }
+
+    private RemoteControlSessionState CaptureRemoteControlSessionState(bool? isVisible = null)
+    {
+        var current = GetRemoteControlSessionState();
+        var layer = _remoteControlLayer;
+        var displayMode = layer is null
+            ? current.DisplayMode
+            : ToRemoteControlDisplayModeId(layer.DisplayMode);
+        var width = layer is null
+            ? current.Width
+            : CaptureRemoteControlLength(layer.Width, layer.ActualWidth, current.Width);
+        var height = layer is null
+            ? current.Height
+            : CaptureRemoteControlLength(layer.Height, layer.ActualHeight, current.Height);
+        var visible = isVisible ?? (layer?.IsVisible ?? current.IsVisible);
+        var docked = _remoteControlLayerDockedToMemoRail;
+        double? left = null;
+        double? top = null;
+
+        if (!docked)
+        {
+            left = layer is null ? current.Left : CaptureRemoteControlCoordinate(layer.Left) ?? current.Left;
+            top = layer is null ? current.Top : CaptureRemoteControlCoordinate(layer.Top) ?? current.Top;
+        }
+
+        return new RemoteControlSessionState(
+            visible,
+            docked,
+            displayMode,
+            left,
+            top,
+            width,
+            height);
+    }
+
+    private static RemoteControlDisplayMode ParseRemoteControlDisplayMode(string? displayMode)
+    {
+        return string.Equals(
+            displayMode,
+            RemoteControlSessionState.IconOnlyDisplayMode,
+            StringComparison.OrdinalIgnoreCase)
+            ? RemoteControlDisplayMode.IconOnly
+            : RemoteControlDisplayMode.IconAndTitle;
+    }
+
+    private static string ToRemoteControlDisplayModeId(RemoteControlDisplayMode displayMode)
+    {
+        return displayMode == RemoteControlDisplayMode.IconOnly
+            ? RemoteControlSessionState.IconOnlyDisplayMode
+            : RemoteControlSessionState.IconAndTitleDisplayMode;
+    }
+
+    private static double CaptureRemoteControlLength(double configured, double actual, double fallback)
+    {
+        if (double.IsFinite(configured) && configured > 0)
+        {
+            return configured;
+        }
+
+        return double.IsFinite(actual) && actual > 0 ? actual : fallback;
+    }
+
+    private static double NormalizeRemoteControlLength(double value, double minimum, double maximum, double fallback)
+    {
+        if (!double.IsFinite(value) || value <= 0)
+        {
+            return fallback;
+        }
+
+        return Math.Clamp(value, minimum, maximum);
+    }
+
+    private static double? CaptureRemoteControlCoordinate(double value)
+    {
+        return double.IsFinite(value) ? value : null;
     }
 
     private bool IsRemoteControlLayerNearMemoRail(RemoteControlLayerWindow layer)
@@ -5142,7 +5315,8 @@ public partial class MainWindow : Window
             surface,
             _lastAppliedPresetSlot ?? _sessionState.PresetSlot,
             _graphicPreset.Id,
-            _focusDurationMinutes);
+            _focusDurationMinutes,
+            CaptureRemoteControlSessionState());
     }
 
     private async Task PersistSessionStateAsync()
@@ -5156,7 +5330,8 @@ public partial class MainWindow : Window
                 persistedSurface,
                 _lastAppliedPresetSlot ?? _sessionState.PresetSlot,
                 _graphicPreset.Id,
-                _focusDurationMinutes);
+                _focusDurationMinutes,
+                CaptureRemoteControlSessionState());
             await _sessionStateService.SaveAsync(stateToSave, CancellationToken.None);
             _projectAppSettings = _projectAppSettings with
             {

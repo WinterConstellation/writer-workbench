@@ -28,8 +28,8 @@ public sealed class AppSessionStateService(string filePath)
         try
         {
             await using var stream = File.OpenRead(filePath);
-            return await JsonSerializer.DeserializeAsync<AppSessionState>(stream, JsonOptions, token)
-                   ?? AppSessionState.Empty;
+            var state = await JsonSerializer.DeserializeAsync<AppSessionState>(stream, JsonOptions, token);
+            return state is null ? AppSessionState.Empty : Normalize(state);
         }
         catch (JsonException)
         {
@@ -65,7 +65,54 @@ public sealed class AppSessionStateService(string filePath)
             Surface = surface,
             PresetSlot = presetSlot,
             GraphicPresetId = graphicPreset.Id,
-            FocusDurationMinutes = focusDurationMinutes
+            FocusDurationMinutes = focusDurationMinutes,
+            RemoteControl = NormalizeRemoteControl(state.RemoteControl)
         };
+    }
+
+    private static RemoteControlSessionState NormalizeRemoteControl(RemoteControlSessionState? state)
+    {
+        var current = state ?? RemoteControlSessionState.Default;
+        var displayMode = string.Equals(
+            current.DisplayMode,
+            RemoteControlSessionState.IconOnlyDisplayMode,
+            StringComparison.OrdinalIgnoreCase)
+            ? RemoteControlSessionState.IconOnlyDisplayMode
+            : RemoteControlSessionState.IconAndTitleDisplayMode;
+        var isDocked = current.IsDockedToMemoRail;
+        return current with
+        {
+            IsDockedToMemoRail = isDocked,
+            DisplayMode = displayMode,
+            Left = isDocked ? null : NormalizeCoordinate(current.Left),
+            Top = isDocked ? null : NormalizeCoordinate(current.Top),
+            Width = NormalizeSize(
+                current.Width,
+                RemoteControlSessionState.MinWidth,
+                RemoteControlSessionState.MaxWidth,
+                RemoteControlSessionState.DefaultWidth),
+            Height = NormalizeSize(
+                current.Height,
+                RemoteControlSessionState.MinHeight,
+                RemoteControlSessionState.MaxHeight,
+                RemoteControlSessionState.DefaultHeight)
+        };
+    }
+
+    private static double? NormalizeCoordinate(double? value)
+    {
+        return value is double coordinate && double.IsFinite(coordinate)
+            ? coordinate
+            : null;
+    }
+
+    private static double NormalizeSize(double value, double minimum, double maximum, double fallback)
+    {
+        if (!double.IsFinite(value) || value <= 0)
+        {
+            return fallback;
+        }
+
+        return Math.Clamp(value, minimum, maximum);
     }
 }
