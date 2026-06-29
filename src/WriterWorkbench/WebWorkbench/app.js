@@ -249,7 +249,7 @@ function renderBinder(items) {
         <span class="scene-title-wrap">
           <label class="scene-analysis-select">
             <input type="checkbox" data-word-analysis-select>
-            <span>분석</span>
+            <span>선택</span>
           </label>
           <span class="scene-title"></span>
         </span>
@@ -281,7 +281,9 @@ function renderBinder(items) {
         return;
       }
 
-      selectBinderDocument(id);
+      if (event.detail <= 1) {
+        toggleBinderDocumentSelection(id);
+      }
     });
     row.addEventListener("dblclick", () => selectBinderDocument(id));
     row.addEventListener("dragstart", handleBinderDragStart);
@@ -507,6 +509,40 @@ function createBinderActionButton(commandId, documentId, label) {
   return button;
 }
 
+function getBinderCommandDocumentIds(commandId, fallbackDocumentId = "") {
+  const selectedIds = Array.from(state.wordAnalysisSelectedIds)
+    .filter((id) => state.binderItems.some((item) => readPayloadValue(item, "id", "Id", "") === id));
+  if (commandId === "document.deleteScene" && selectedIds.length > 0) {
+    return selectedIds;
+  }
+
+  return fallbackDocumentId ? [fallbackDocumentId] : [];
+}
+
+function toggleBinderDocumentSelection(documentId) {
+  if (!documentId) return;
+
+  if (state.wordAnalysisSelectedIds.has(documentId)) {
+    state.wordAnalysisSelectedIds.delete(documentId);
+  } else {
+    state.wordAnalysisSelectedIds.add(documentId);
+  }
+
+  const checkbox = document.querySelector(`.scene-item[data-document-id="${cssEscape(documentId)}"] [data-word-analysis-select]`);
+  if (checkbox) {
+    checkbox.checked = state.wordAnalysisSelectedIds.has(documentId);
+  }
+  renderWordAnalysisSelectionCount();
+}
+
+function cssEscape(value) {
+  if (window.CSS && typeof window.CSS.escape === "function") {
+    return window.CSS.escape(value);
+  }
+
+  return String(value).replace(/["\\]/g, "\\$&");
+}
+
 function selectBinderDocument(documentId) {
   if (!documentId) return;
 
@@ -519,11 +555,28 @@ function selectBinderDocument(documentId) {
 function sendBinderCommand(commandId, documentId = state.selectedDocumentId) {
   if (!commandId) return;
 
+  const documentIds = getBinderCommandDocumentIds(commandId, documentId || state.selectedDocumentId || "");
+  if (commandId === "document.deleteScene") {
+    if (documentIds.length === 0) {
+      $("status-text").textContent = "삭제할 원고를 선택하세요.";
+      return;
+    }
+
+    const label = documentIds.length > 1
+      ? `선택한 원고 ${formatNumber(documentIds.length)}개를 삭제 대기로 보낼까요?`
+      : "이 원고를 삭제 대기로 보낼까요?";
+    if (!window.confirm(label)) {
+      $("status-text").textContent = "삭제 취소";
+      return;
+    }
+  }
+
   hideBinderContextMenu();
   flushActiveSceneUpdate();
   postWebMessage({
     type: "document.command",
-    documentId: documentId || state.selectedDocumentId || "",
+    documentId: documentIds[0] || documentId || state.selectedDocumentId || "",
+    documentIds,
     commandId,
   });
 }

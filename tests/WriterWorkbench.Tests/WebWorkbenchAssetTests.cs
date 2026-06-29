@@ -203,6 +203,11 @@ public sealed class WebWorkbenchAssetTests
         Assert.Contains("renderWordAnalysis", script);
         Assert.Contains("handleWordAnalysisSelection", script);
         Assert.Contains("data-word-analysis-select", script);
+        Assert.Contains("toggleBinderDocumentSelection", script);
+        Assert.Contains("getBinderCommandDocumentIds", script);
+        Assert.Contains("event.detail <= 1", script);
+        Assert.Contains("documentIds", script);
+        Assert.Contains("window.confirm(label)", script);
         Assert.Contains("dataset.binderDocument", script);
         Assert.Contains("row.draggable = true", script);
         Assert.Contains("handleBinderDragStart", script);

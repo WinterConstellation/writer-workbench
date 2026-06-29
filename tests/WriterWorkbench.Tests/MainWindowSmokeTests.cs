@@ -343,8 +343,54 @@ public sealed class MainWindowSmokeTests
                 InvokePrivate(window, "ShowRemoteControlLayer", true);
 
                 var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
-                Assert.Equal(1030d, layer.Left);
-                Assert.Equal(176d, layer.Top);
+                Assert.Equal(738d, layer.Left);
+                Assert.Equal(206d, layer.Top);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowKeepsDockedRemoteControlLayerOnMemoRailWhenOwnerMoves()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow
+                {
+                    Left = 120,
+                    Top = 80,
+                    Width = 900
+                };
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                InvokePrivate(window, "ShowRemoteControlLayer", true);
+                window.Left = 220;
+                window.Top = 110;
+                window.Width = 1000;
+                InvokePrivate(window, "RepositionDockedRemoteControlLayer");
+
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                Assert.Equal(938d, layer.Left);
+                Assert.Equal(236d, layer.Top);
                 layer.Close();
                 window.Close();
             }
@@ -868,7 +914,7 @@ public sealed class MainWindowSmokeTests
                 typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .SetValue(window, "scene-0001");
 
-                InvokePrivateAsync(window, "ApplyHtmlBinderCommandAsync", second.Id, AppCommandIds.DocumentMoveSceneUp);
+                InvokePrivateAsync(window, "ApplyHtmlBinderCommandAsync", second.Id, AppCommandIds.DocumentMoveSceneUp, Array.Empty<string>());
 
                 var reordered = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
                 var selectedItem = Assert.IsAssignableFrom<object>(Assert.IsType<ListBox>(window.FindName("BinderList")).SelectedItem);
@@ -926,6 +972,57 @@ public sealed class MainWindowSmokeTests
                 Assert.Equal(second.Id, GetPrivateField<string>(window, "_activeDocumentId"));
                 Assert.Equal(second.Id, selectedId);
                 Assert.Contains("바인더 순서 저장됨", GetStatusText(window));
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
+    public void MainWindowHtmlBinderBatchDeleteMovesSelectedScenesToTrash()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                var window = new MainWindow();
+                var root = Path.Combine(Path.GetTempPath(), "WriterWorkbenchTests", Guid.NewGuid().ToString("N"));
+                InvokePrivate(window, "ConfigureProject", root);
+                var store = GetPrivateField<ProjectStore>(window, "_store");
+
+                var first = WaitForTaskOnDispatcher(store.CreateDocumentAsync("First", CancellationToken.None));
+                var second = WaitForTaskOnDispatcher(store.CreateDocumentAsync("Second", CancellationToken.None));
+                var third = WaitForTaskOnDispatcher(store.CreateDocumentAsync("Third", CancellationToken.None));
+                var manifest = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                InvokePrivateAsync(window, "RefreshBinderAsync", manifest);
+                typeof(MainWindow).GetField("_activeDocumentId", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(window, second.Id);
+
+                InvokePrivateAsync(window, "ApplyHtmlBinderBatchDeleteAsync", (object)new[] { first.Id, third.Id }, false);
+
+                var reloaded = WaitForTaskOnDispatcher(store.LoadManifestAsync(CancellationToken.None));
+                var trash = WaitForTaskOnDispatcher(store.ListTrashedDocumentsAsync(CancellationToken.None));
+                var selectedItem = Assert.IsAssignableFrom<object>(Assert.IsType<ListBox>(window.FindName("BinderList")).SelectedItem);
+                var selectedId = Assert.IsType<string>(selectedItem.GetType().GetProperty("Id")!.GetValue(selectedItem));
+
+                Assert.Equal([second.Id], reloaded.Documents.Select(document => document.Id));
+                Assert.Equal([first.Id, third.Id], trash.Select(item => item.Id).OrderBy(id => id));
+                Assert.Equal(second.Id, selectedId);
+                Assert.Contains("일괄 삭제됨 2개", GetStatusText(window));
                 window.Close();
             }
             catch (Exception ex)

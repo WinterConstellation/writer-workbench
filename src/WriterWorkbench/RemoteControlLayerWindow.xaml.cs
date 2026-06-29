@@ -23,6 +23,7 @@ public partial class RemoteControlLayerWindow : Window
     }
 
     public event EventHandler<string>? CommandRequested;
+    public event EventHandler? ManualMoveCompleted;
 
     public RemoteControlDisplayMode DisplayMode { get; private set; } = RemoteControlDisplayMode.IconAndTitle;
 
@@ -112,6 +113,7 @@ public partial class RemoteControlLayerWindow : Window
         try
         {
             DragMove();
+            ManualMoveCompleted?.Invoke(this, EventArgs.Empty);
         }
         catch (InvalidOperationException)
         {

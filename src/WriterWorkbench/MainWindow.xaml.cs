@@ -89,6 +89,7 @@ public partial class MainWindow : Window
     private WindowState _previousWindowState;
     private ResizeMode _previousResizeMode;
     private RemoteControlLayerWindow? _remoteControlLayer;
+    private bool _remoteControlLayerDockedToMemoRail = true;
     private bool _htmlWorkbenchInitialized;
     private string? _draggedRelationshipMapEntityId;
     private System.Windows.Point _relationshipMapDragOffset;
@@ -131,6 +132,8 @@ public partial class MainWindow : Window
         Loaded += async (_, _) => await InitializeProjectAsync();
         Closing += async (_, _) => await PersistSessionStateAsync();
         Closing += (_, _) => _remoteControlLayer?.Close();
+        LocationChanged += (_, _) => RepositionDockedRemoteControlLayer();
+        SizeChanged += (_, _) => RepositionDockedRemoteControlLayer();
 
         _autosaveTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _autosaveTimer.Tick += async (_, _) =>
@@ -361,7 +364,12 @@ public partial class MainWindow : Window
 
         _remoteControlLayer = new RemoteControlLayerWindow();
         _remoteControlLayer.CommandRequested += RemoteControlLayer_CommandRequested;
-        _remoteControlLayer.Closed += (_, _) => _remoteControlLayer = null;
+        _remoteControlLayer.ManualMoveCompleted += RemoteControlLayer_ManualMoveCompleted;
+        _remoteControlLayer.Closed += (_, _) =>
+        {
+            _remoteControlLayerDockedToMemoRail = true;
+            _remoteControlLayer = null;
+        };
         return _remoteControlLayer;
     }
 
@@ -386,7 +394,7 @@ public partial class MainWindow : Window
             return Task.CompletedTask;
         }
 
-        ShowRemoteControlLayer(recenter: _remoteControlLayer is null);
+        ShowRemoteControlLayer(recenter: true);
         StatusText.Text = "리모콘 켜짐";
         return Task.CompletedTask;
     }
@@ -396,7 +404,12 @@ public partial class MainWindow : Window
         var layer = EnsureRemoteControlLayer();
         var wasVisible = layer.IsVisible;
         layer.Topmost = true;
-        if (recenter || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
+        if (recenter)
+        {
+            _remoteControlLayerDockedToMemoRail = true;
+        }
+
+        if (_remoteControlLayerDockedToMemoRail || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
         {
             PositionRemoteControlLayer(layer);
         }
@@ -427,11 +440,56 @@ public partial class MainWindow : Window
 
     private void PositionRemoteControlLayer(RemoteControlLayerWindow layer)
     {
+        var dockPoint = GetRemoteControlMemoDockPoint(layer);
+        layer.Left = dockPoint.X;
+        layer.Top = dockPoint.Y;
+    }
+
+    private System.Windows.Point GetRemoteControlMemoDockPoint(RemoteControlLayerWindow layer)
+    {
         var hostLeft = double.IsNaN(Left) ? 80 : Left;
         var hostTop = double.IsNaN(Top) ? 80 : Top;
         var hostWidth = ActualWidth > 0 ? ActualWidth : Width;
-        layer.Left = hostLeft + hostWidth + 10;
-        layer.Top = hostTop + 96;
+        var layerWidth = layer.ActualWidth > 0 ? layer.ActualWidth : layer.Width;
+        var memoRailInset = 22d;
+        var memoPanelTop = 126d;
+        return new System.Windows.Point(
+            hostLeft + Math.Max(0, hostWidth - layerWidth - memoRailInset),
+            hostTop + memoPanelTop);
+    }
+
+    private void RepositionDockedRemoteControlLayer()
+    {
+        if (_remoteControlLayerDockedToMemoRail && _remoteControlLayer is { IsVisible: true } layer)
+        {
+            PositionRemoteControlLayer(layer);
+        }
+    }
+
+    private void RemoteControlLayer_ManualMoveCompleted(object? sender, EventArgs e)
+    {
+        if (_remoteControlLayer is not { } layer)
+        {
+            return;
+        }
+
+        if (IsRemoteControlLayerNearMemoRail(layer))
+        {
+            _remoteControlLayerDockedToMemoRail = true;
+            PositionRemoteControlLayer(layer);
+            StatusText.Text = "리모콘 메모 라인에 고정됨";
+            return;
+        }
+
+        _remoteControlLayerDockedToMemoRail = false;
+        StatusText.Text = "리모콘 분리됨";
+    }
+
+    private bool IsRemoteControlLayerNearMemoRail(RemoteControlLayerWindow layer)
+    {
+        var dockPoint = GetRemoteControlMemoDockPoint(layer);
+        return Math.Abs(layer.Left - dockPoint.X) <= 48 &&
+               Math.Abs(layer.Top - dockPoint.Y) <= 80;
     }
 
     private void SelectBinderItem(string documentId)
@@ -1781,6 +1839,63 @@ public partial class MainWindow : Window
         return true;
     }
 
+    private async Task<bool> OfferOptionalBatchSnapshotAsync(IReadOnlyList<ProjectDocumentInfo> scenes)
+    {
+        var paths = ProjectPaths.ForRoot(_projectRoot);
+        var existingScenes = scenes
+            .Where(scene => File.Exists(paths.DocumentJsonPath(scene.Id)))
+            .ToList();
+        if (existingScenes.Count == 0)
+        {
+            return true;
+        }
+
+        var preview = string.Join(
+            "\n",
+            existingScenes
+                .Take(6)
+                .Select(scene => $"{scene.Id} - {scene.Title}"));
+        var extra = existingScenes.Count > 6
+            ? $"\n... 외 {existingScenes.Count - 6:N0}개"
+            : "";
+        var result = System.Windows.MessageBox.Show(
+            this,
+            $"선택 장면 삭제 전에 스냅샷을 만들까요?\n\n{preview}{extra}\n\n예: 먼저 스냅샷 생성\n아니요: 그대로 진행\n취소: 작업 중단",
+            "작업 전 스냅샷",
+            MessageBoxButton.YesNoCancel,
+            MessageBoxImage.Question);
+        if (result == MessageBoxResult.Cancel)
+        {
+            return false;
+        }
+
+        if (result == MessageBoxResult.Yes)
+        {
+            try
+            {
+                foreach (var scene in existingScenes)
+                {
+                    await _snapshotService.CreateSnapshotAsync(scene.Id, "일괄 삭제 전 자동", CancellationToken.None);
+                }
+
+                if (!string.IsNullOrWhiteSpace(_activeDocumentId) &&
+                    existingScenes.Any(scene => string.Equals(scene.Id, _activeDocumentId, StringComparison.OrdinalIgnoreCase)))
+                {
+                    await RefreshSnapshotsAsync(_activeDocumentId);
+                }
+
+                StatusText.Text = $"작업 전 스냅샷 생성됨 {existingScenes.Count:N0}개";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+            {
+                StatusText.Text = $"작업 전 스냅샷 실패 - {ex.Message}";
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private SceneSnapshotInfo? GetSelectedSnapshot()
     {
         return SnapshotList.SelectedItem is SnapshotListItem item
@@ -2472,7 +2587,7 @@ public partial class MainWindow : Window
                 var commandId = root.TryGetProperty("commandId", out var commandIdElement)
                     ? commandIdElement.GetString() ?? ""
                     : "";
-                await ApplyHtmlBinderCommandAsync(documentId, commandId);
+                await ApplyHtmlBinderCommandAsync(documentId, commandId, ReadJsonStringArray(root, "documentIds"));
                 return;
             }
 
@@ -2712,12 +2827,27 @@ public partial class MainWindow : Window
         StatusText.Text = $"HTML 편집 반영됨 {document.Id}";
     }
 
-    private async Task ApplyHtmlBinderCommandAsync(string documentId, string commandId)
+    private async Task ApplyHtmlBinderCommandAsync(
+        string documentId,
+        string commandId,
+        IReadOnlyList<string>? documentIds = null)
     {
         commandId = AppCommandIds.NormalizeLegacyId(commandId);
         if (string.IsNullOrWhiteSpace(commandId))
         {
             StatusText.Text = "바인더 명령 실패 - 명령이 없습니다.";
+            return;
+        }
+
+        if (string.Equals(commandId, AppCommandIds.DocumentDeleteScene, StringComparison.OrdinalIgnoreCase))
+        {
+            var rawDeleteTargets = documentIds is { Count: > 0 } ? documentIds : new[] { documentId };
+            var deleteTargets = rawDeleteTargets
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            await ApplyHtmlBinderBatchDeleteAsync(deleteTargets);
             return;
         }
 
@@ -2732,6 +2862,90 @@ public partial class MainWindow : Window
         }
 
         await ExecuteCommandAsync(commandId);
+    }
+
+    private async Task ApplyHtmlBinderBatchDeleteAsync(IReadOnlyList<string> documentIds, bool offerSnapshot = true)
+    {
+        if (documentIds.Count == 0)
+        {
+            StatusText.Text = "삭제할 장면이 없습니다.";
+            return;
+        }
+
+        try
+        {
+            var manifestBeforeDelete = await _store.LoadManifestAsync(CancellationToken.None);
+            var idSet = documentIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var deleteTargets = manifestBeforeDelete.Documents
+                .Select((document, index) => new { Scene = document, Index = index })
+                .Where(item => idSet.Contains(item.Scene.Id))
+                .ToList();
+            if (deleteTargets.Count == 0)
+            {
+                StatusText.Text = "삭제할 장면이 없습니다.";
+                return;
+            }
+
+            if (deleteTargets.Count >= manifestBeforeDelete.Documents.Count)
+            {
+                StatusText.Text = "삭제 실패 - 프로젝트에는 최소 1개 장면이 필요합니다.";
+                return;
+            }
+
+            var deletingActiveDocument = deleteTargets.Any(target =>
+                string.Equals(target.Scene.Id, _activeDocumentId, StringComparison.OrdinalIgnoreCase));
+            if (_dirty && deletingActiveDocument)
+            {
+                await SaveDocumentAsync("삭제 전 저장", offerLargeOverwriteSnapshot: false);
+                if (_dirty)
+                {
+                    StatusText.Text = "삭제 중단 - 저장되지 않은 변경이 남아 있습니다.";
+                    return;
+                }
+            }
+
+            if (offerSnapshot &&
+                !await OfferOptionalBatchSnapshotAsync(deleteTargets.Select(target => target.Scene).ToList()))
+            {
+                StatusText.Text = $"삭제 취소 - {deleteTargets.Count:N0}개";
+                return;
+            }
+
+            ProjectManifest manifest = manifestBeforeDelete;
+            foreach (var target in deleteTargets)
+            {
+                manifest = await _store.DeleteDocumentAsync(target.Scene.Id, CancellationToken.None);
+            }
+
+            await RefreshBinderAsync(manifest);
+            if (deletingActiveDocument)
+            {
+                var nextIndex = Math.Min(deleteTargets.Min(target => target.Index), manifest.Documents.Count - 1);
+                await SelectDocumentAsync(manifest.Documents[nextIndex].Id);
+            }
+            else if (!string.IsNullOrWhiteSpace(_activeDocumentId) &&
+                     manifest.Documents.Any(document => string.Equals(document.Id, _activeDocumentId, StringComparison.OrdinalIgnoreCase)))
+            {
+                SelectBinderItem(_activeDocumentId);
+            }
+
+            StatusText.Text = deleteTargets.Count == 1
+                ? $"삭제됨 {deleteTargets[0].Scene.Id} - {deleteTargets[0].Scene.Title}"
+                : $"일괄 삭제됨 {deleteTargets.Count:N0}개";
+            await PushHtmlWorkbenchStateAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            StatusText.Text = ex.Message;
+        }
+        catch (KeyNotFoundException ex)
+        {
+            StatusText.Text = $"삭제 실패 - {ex.Message}";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or JsonException)
+        {
+            StatusText.Text = $"삭제 실패 - {ex.Message}";
+        }
     }
 
     private async Task ApplyHtmlBinderReorderAsync(IReadOnlyList<string> documentIds)
