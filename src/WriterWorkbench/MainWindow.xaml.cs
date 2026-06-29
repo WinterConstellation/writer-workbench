@@ -414,7 +414,8 @@ public partial class MainWindow : Window
             _remoteControlLayerDockedToMemoRail = true;
         }
 
-        if (_remoteControlLayerDockedToMemoRail || double.IsNaN(layer.Left) || double.IsNaN(layer.Top))
+        var needsInitialPosition = !wasVisible || double.IsNaN(layer.Left) || double.IsNaN(layer.Top);
+        if (recenter || needsInitialPosition)
         {
             PositionRemoteControlLayer(layer);
         }

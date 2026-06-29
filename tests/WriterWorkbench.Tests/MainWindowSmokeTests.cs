@@ -815,6 +815,52 @@ public sealed class MainWindowSmokeTests
     }
 
     [Fact]
+    public void MainWindowDoesNotRepositionVisibleRemoteControlLayerDuringHtmlRefresh()
+    {
+        Exception? failure = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                var window = new MainWindow
+                {
+                    Left = 120,
+                    Top = 80,
+                    Width = 900
+                };
+                var layerField = typeof(MainWindow).GetField(
+                    "_remoteControlLayer",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                InvokePrivate(window, "ShowRemoteControlLayer", true);
+                var layer = Assert.IsType<RemoteControlLayerWindow>(layerField!.GetValue(window));
+                layer.Left = 111d;
+                layer.Top = 222d;
+
+                InvokePrivate(window, "ShowRemoteControlLayer", false);
+
+                Assert.Equal(111d, layer.Left);
+                Assert.Equal(222d, layer.Top);
+                layer.Close();
+                window.Close();
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+        });
+
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (failure is not null)
+        {
+            throw failure;
+        }
+    }
+
+    [Fact]
     public void MainWindowHtmlWorkbenchKeepsNativeRemoteControlLayerAvailable()
     {
         Exception? failure = null;
