@@ -4220,6 +4220,41 @@ Remaining problems:
 Separate data artifact:
 - Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
 
+## 2026-06-30 KST bugfix update: Codex CLI UTF-8 stdin
+
+Bug fixed:
+- Fixed Codex CLI runs from the HTML workbench failing with `Failed to read prompt from stdin: input is not valid UTF-8`.
+- Root cause: the bridge set UTF-8 for stdout/stderr, but not for stdin, so Korean prompts could be written using the Windows default encoding.
+- Updated stdin to use UTF-8 without BOM so Codex receives raw valid UTF-8 prompt bytes.
+
+Files changed:
+- `src/WriterWorkbench/Core/Codex/CodexCliBridge.cs`
+- `tests/WriterWorkbench.Tests/CodexCliBridgeTests.cs`
+- `docs/pingpong.txt`
+
+Tests added/updated:
+- Start-info test now asserts stdin is UTF-8 and has no BOM.
+- Added a process-boundary test with a fake `codex.cmd` that captures raw stdin bytes and verifies a Korean prompt is written as UTF-8 no-BOM.
+
+Commands run:
+- `dotnet build WriterWorkbench.sln --no-restore` -> passed, 0 warnings, 0 errors.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore --filter "CodexCliBridgeTests|WebWorkbenchCodexPayloadTests"` -> 6 passed.
+- `node --check src\WriterWorkbench\WebWorkbench\app.js` -> passed.
+- `dotnet test tests\WriterWorkbench.Tests\WriterWorkbench.Tests.csproj --no-restore` -> 267 passed.
+- `codex.cmd exec` with Korean UTF-8 no-BOM redirected stdin in `C:\WriterWorkbench\Projects\Sample.writerproj` -> returned `OK`.
+- `dotnet publish src\WriterWorkbench\WriterWorkbench.csproj -c Release -o dist\WriterWorkbench-html-workbench --no-restore` -> passed.
+
+Large manuscript regression check:
+- Manuscript body, metrics, autosave, export, and editor input paths were not changed.
+- Change is limited to Codex CLI stdin encoding and tests.
+
+Remaining problems:
+- Codex CLI still writes plugin/skill warning lines to stderr on this machine; the run succeeds and returns output.
+- The Codex panel remains a read-only/non-interactive CLI bridge by design.
+
+Separate data artifact:
+- Local executable artifact refreshed at `dist\WriterWorkbench-html-workbench\WriterWorkbench.exe`.
+
 ## 2026-06-30 KST bugfix update: Codex CLI executable resolution
 
 Feature(s) implemented:

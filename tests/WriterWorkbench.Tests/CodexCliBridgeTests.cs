@@ -1,4 +1,5 @@
 using WriterWorkbench.Core.Codex;
+using System.Text;
 
 namespace WriterWorkbench.Tests;
 
@@ -14,6 +15,11 @@ public sealed class CodexCliBridgeTests
         Assert.True(startInfo.RedirectStandardInput);
         Assert.True(startInfo.RedirectStandardOutput);
         Assert.True(startInfo.RedirectStandardError);
+        var standardInputEncoding = Assert.IsType<UTF8Encoding>(startInfo.StandardInputEncoding);
+        Assert.Equal("utf-8", standardInputEncoding.WebName);
+        Assert.Empty(standardInputEncoding.GetPreamble());
+        Assert.Equal(Encoding.UTF8, startInfo.StandardOutputEncoding);
+        Assert.Equal(Encoding.UTF8, startInfo.StandardErrorEncoding);
         Assert.Contains("exec", startInfo.ArgumentList);
         Assert.Contains("--sandbox", startInfo.ArgumentList);
         Assert.Contains("read-only", startInfo.ArgumentList);
@@ -37,6 +43,51 @@ public sealed class CodexCliBridgeTests
         Assert.False(result.Started);
         Assert.False(result.Success);
         Assert.Contains("empty", result.StandardError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task RunAsyncWritesPromptToStandardInputAsUtf8()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var oldPath = Environment.GetEnvironmentVariable("PATH");
+        Directory.CreateDirectory(tempRoot);
+        File.WriteAllText(
+            Path.Combine(tempRoot, "fakecodexutf8.cmd"),
+            "@powershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0capture-stdin.ps1\"\r\n",
+            Encoding.ASCII);
+        File.WriteAllText(
+            Path.Combine(tempRoot, "capture-stdin.ps1"),
+            """
+            $stream = [Console]::OpenStandardInput()
+            $memory = [System.IO.MemoryStream]::new()
+            $stream.CopyTo($memory)
+            [Console]::Write([System.BitConverter]::ToString($memory.ToArray()))
+            """,
+            Encoding.UTF8);
+
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", string.Join(
+                Path.PathSeparator,
+                [tempRoot, oldPath ?? string.Empty]));
+            var prompt = "한글 입력 테스트";
+            var bridge = new CodexCliBridge("fakecodexutf8");
+
+            var result = await bridge.RunAsync(
+                new CodexCliRunRequest(prompt, tempRoot, TimeSpan.FromSeconds(15)),
+                CancellationToken.None);
+
+            Assert.True(result.Started);
+            Assert.True(result.Success, result.StandardError);
+            Assert.Equal(
+                BitConverter.ToString(Encoding.UTF8.GetBytes(prompt)),
+                result.StandardOutput);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PATH", oldPath);
+            Directory.Delete(tempRoot, recursive: true);
+        }
     }
 
     [Fact]

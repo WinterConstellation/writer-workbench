@@ -24,6 +24,7 @@ public sealed record CodexCliRunResult(
 public sealed class CodexCliBridge
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private static readonly StringComparer PathComparer = OperatingSystem.IsWindows()
         ? StringComparer.OrdinalIgnoreCase
         : StringComparer.Ordinal;
@@ -153,6 +154,7 @@ public sealed class CodexCliBridge
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true,
+            StandardInputEncoding = Utf8NoBom,
             StandardOutputEncoding = Encoding.UTF8,
             StandardErrorEncoding = Encoding.UTF8
         };
