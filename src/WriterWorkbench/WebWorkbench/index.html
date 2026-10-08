@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>원고 작업대</title>
+  <script>
+    function createWorkbenchAssetUrl(path) {
+      const version = new URLSearchParams(window.location.search).get("wwv") || Date.now().toString();
+      return `${path}?wwv=${encodeURIComponent(version)}`;
+    }
+
+    const workbenchStyle = document.createElement("link");
+    workbenchStyle.rel = "stylesheet";
+    workbenchStyle.href = createWorkbenchAssetUrl("styles.css");
+    document.head.appendChild(workbenchStyle);
+  </script>
+</head>
+<body>
+  <main class="workbench-shell">
+    <header class="top-command-zone">
+      <section class="project-strip">
+        <div class="project-identity">
+          <span class="app-mark">W</span>
+          <div class="project-copy">
+            <h1 id="project-title">원고 작업대</h1>
+            <p id="project-path"></p>
+          </div>
+        </div>
+        <div class="project-state">
+          <span id="autosave-pill" class="state-pill">자동저장</span>
+          <span id="theme-pill" class="state-pill">기본</span>
+          <span id="scene-count-pill" class="state-pill">0 장면</span>
+        </div>
+      </section>
+      <nav id="top-menu" class="top-menu" aria-label="작업대 메뉴"></nav>
+    </header>
+
+    <section class="workbench-grid">
+      <aside id="left-rail" class="left-rail">
+        <div class="rail-tabs">
+          <button class="rail-tab active" type="button" data-rail-mode="binder">바인더</button>
+          <button class="rail-tab" type="button" data-rail-mode="settings">설정집</button>
+          <button class="rail-tab" type="button" data-rail-mode="reference">자료</button>
+        </div>
+        <div id="rail-panel-binder" class="rail-panel active">
+          <div class="rail-header">
+            <strong>장면</strong>
+            <span id="binder-count">0</span>
+          </div>
+          <div id="binder-action-bar" class="binder-action-bar">
+            <button type="button" data-binder-command="document.createScene">새 장면</button>
+            <button type="button" data-binder-command="document.renameScene">이름</button>
+            <button type="button" data-binder-command="document.duplicateScene">복제</button>
+            <button type="button" data-binder-command="document.deleteScene">삭제</button>
+            <button type="button" data-binder-command="document.moveSceneUp">위</button>
+            <button type="button" data-binder-command="document.moveSceneDown">아래</button>
+          </div>
+          <div class="binder-filter-bar">
+            <select id="binder-category-filter" aria-label="파일 분류 필터">
+              <option value="전체">전체</option>
+            </select>
+            <select id="binder-status-filter" aria-label="파일 상태 필터">
+              <option value="전체">전체</option>
+            </select>
+            <span id="binder-filter-summary">전체 보기</span>
+          </div>
+          <div id="scene-list" class="scene-list"></div>
+        </div>
+        <div id="rail-panel-settings" class="rail-panel">
+          <div class="rail-header">
+            <strong>설정집</strong>
+            <span id="settings-count">0</span>
+          </div>
+          <div id="settings-book-form" class="settings-book-form compact-form">
+            <select id="settings-book-category" aria-label="설정집 분류">
+              <option value="Character">인물</option>
+              <option value="World">세계관</option>
+              <option value="Place">장소</option>
+              <option value="Plot">플롯</option>
+              <option value="Synopsis">시놉시스</option>
+              <option value="Reference">자료</option>
+              <option value="Other">기타</option>
+            </select>
+            <input id="settings-book-title" type="text" placeholder="제목">
+            <textarea id="settings-book-body" rows="4" placeholder="내용"></textarea>
+            <input id="settings-book-tags" type="text" placeholder="태그, 쉼표로 구분">
+            <div class="settings-book-form-actions">
+              <button id="settings-book-save" type="button">추가</button>
+              <button id="settings-book-cancel" type="button" hidden>취소</button>
+            </div>
+          </div>
+          <div id="settings-list" class="side-action-list"></div>
+          <section class="text-replacement-panel">
+            <div class="settings-subtitle">
+              <strong>대치어</strong>
+              <span id="text-replacement-count">0</span>
+            </div>
+            <div class="text-replacement-form">
+              <input id="text-replacement-source" type="text" placeholder="바꿀 말">
+              <input id="text-replacement-target" type="text" placeholder="대치어">
+              <button id="text-replacement-add" type="button">추가</button>
+              <button id="text-replacement-apply" type="button">현재 장면 적용</button>
+            </div>
+            <div id="text-replacement-list" class="text-replacement-list"></div>
+          </section>
+        </div>
+        <div id="rail-panel-reference" class="rail-panel">
+          <div class="rail-header">
+            <strong>자료</strong>
+            <span id="reference-count">0</span>
+          </div>
+          <div id="reference-form" class="reference-form">
+            <input id="reference-title" type="text" placeholder="자료 제목">
+            <textarea id="reference-body" rows="4" placeholder="자료 내용"></textarea>
+            <input id="reference-tags" type="text" placeholder="태그, 쉼표로 구분">
+            <div class="reference-form-actions">
+              <button id="reference-save" type="button">추가</button>
+              <button id="reference-cancel" type="button" hidden>취소</button>
+            </div>
+          </div>
+          <div id="reference-list" class="reference-list"></div>
+          <div id="reference-summary-list" class="reference-list reference-summary-list"></div>
+          <div id="trash-list" class="reference-list trash-list"></div>
+        </div>
+      </aside>
+
+      <section id="center-surface" class="center-surface">
+        <div class="surface-toolbar">
+          <div>
+            <span class="surface-kicker">현재 작업</span>
+            <h2 id="active-title">장면 없음</h2>
+          </div>
+          <span id="active-status" class="status-badge">초고</span>
+        </div>
+
+        <section id="html-view-editor" class="view-panel active" data-view-panel="editor">
+          <div class="editor-workbench">
+            <div class="writing-sheet">
+              <input id="active-title-editor" class="title-editor" type="text" aria-label="장면 제목">
+              <textarea id="active-body-editor" class="body-editor" aria-label="장면 본문" spellcheck="false"></textarea>
+              <div id="active-editor-metrics" class="editor-metrics-status"></div>
+              <section id="manuscript-remote-dock" class="manuscript-remote-dock" aria-label="리모컨">
+                <div class="manuscript-remote-header">
+                  <strong>리모컨</strong>
+                  <div class="manuscript-remote-actions">
+                    <button id="manuscript-remote-density-toggle" type="button">아이콘</button>
+                    <button id="manuscript-remote-float" type="button" data-command="remote.show">분리</button>
+                  </div>
+                </div>
+                <div id="manuscript-remote-command-list" class="remote-command-list manuscript-remote-command-list"></div>
+              </section>
+              <div class="scene-metadata-editor">
+                <select id="active-status-editor" aria-label="장면 상태">
+                  <option value="초고">초고</option>
+                  <option value="퇴고중">퇴고중</option>
+                  <option value="퇴고완료">퇴고완료</option>
+                  <option value="업로드대기">업로드대기</option>
+                  <option value="업로드완료">업로드완료</option>
+                  <option value="제외">제외</option>
+                </select>
+                <input id="active-file-category-editor" type="text" aria-label="파일 분류" placeholder="파일 분류">
+                <button id="active-metadata-save" type="button">정보 저장</button>
+              </div>
+              <p id="active-summary" class="scene-summary"></p>
+              <div id="active-tags" class="tag-row"></div>
+              <div class="scene-stat-grid">
+                <div>
+                  <span>공백 제외</span>
+                  <strong id="active-length">0</strong>
+                </div>
+                <div>
+                  <span>공백 포함</span>
+                  <strong id="active-length-spaces">0</strong>
+                </div>
+                <div>
+                  <span>파일 분류</span>
+                  <strong id="active-file-category">원고</strong>
+                </div>
+                <div>
+                  <span>장면 유형</span>
+                  <strong id="active-type">Scene</strong>
+                </div>
+              </div>
+            </div>
+            <aside class="scene-memo-panel">
+              <div class="memo-panel-header">
+                <strong>원고 메모</strong>
+                <button id="active-memo-save" type="button">메모 저장</button>
+              </div>
+              <textarea id="active-memo-editor" class="memo-editor" rows="9" placeholder="이 장면의 별도 메모"></textarea>
+              <div class="memo-panel-header memo-overview-header">
+                <strong>메모 모아보기</strong>
+                <span id="scene-memo-count">0</span>
+              </div>
+              <div id="scene-memo-overview" class="scene-memo-overview"></div>
+            </aside>
+          </div>
+        </section>
+        <section id="html-view-preview" class="view-panel" data-view-panel="preview">
+          <article class="mode-sheet">
+            <h3>미리보기</h3>
+            <div id="preview-reader" class="preview-reader"></div>
+          </article>
+        </section>
+        <section id="html-view-relationship" class="view-panel" data-view-panel="relationship-map">
+          <article class="mode-sheet relationship-mode-sheet">
+            <div class="settings-heading">
+              <h3>관계도</h3>
+              <span id="relationship-counts" class="state-pill">노드 0개 / 관계 0개</span>
+            </div>
+            <div id="relationship-workbench" class="relationship-workbench">
+              <section class="relationship-panel">
+                <div class="settings-subtitle">
+                  <strong>화이트보드 노드</strong>
+                  <span>인물·세계관·사건</span>
+                </div>
+                <div class="compact-form">
+                  <select id="story-entity-type" aria-label="노드 유형">
+                    <option value="Character">인물</option>
+                    <option value="Concept">세계관</option>
+                    <option value="Place">장소</option>
+                    <option value="Event">사건</option>
+                    <option value="Faction">세력</option>
+                    <option value="Item">물건</option>
+                  </select>
+                  <input id="story-entity-name" type="text" placeholder="이름">
+                  <input id="story-entity-role" type="text" placeholder="역할">
+                  <button id="story-add-entity" type="button">추가</button>
+                  <button id="story-cancel-entity-edit" type="button" hidden>취소</button>
+                </div>
+                <div id="story-entity-list" class="story-list"></div>
+              </section>
+              <section class="relationship-map-wrap">
+                <div id="relationship-map-canvas" class="relationship-map-canvas" aria-label="관계도 캔버스"></div>
+              </section>
+              <section class="relationship-panel">
+                <div class="settings-subtitle">
+                  <strong>관계</strong>
+                  <span>선택 연결</span>
+                </div>
+                <div class="compact-form">
+                  <select id="story-relationship-source" aria-label="시작 노드"></select>
+                  <select id="story-relationship-target" aria-label="도착 노드"></select>
+                  <input id="story-relationship-label" type="text" placeholder="관계명">
+                  <input id="story-relationship-notes" type="text" placeholder="메모">
+                  <button id="story-add-relationship" type="button">연결</button>
+                  <button id="story-cancel-relationship-edit" type="button" hidden>취소</button>
+                </div>
+                <div id="story-relationship-list" class="story-list"></div>
+              </section>
+            </div>
+          </article>
+        </section>
+        <section id="html-view-shortcuts" class="view-panel" data-view-panel="shortcuts">
+          <article class="mode-sheet">
+            <h3>단축키</h3>
+            <div class="settings-toolbar">
+              <input id="shortcut-search" class="settings-search" type="search" placeholder="명령, 범위, 단축키 검색">
+            </div>
+            <div id="shortcut-shell-list" class="shortcut-list"></div>
+          </article>
+        </section>
+        <section id="html-view-remote-settings" class="view-panel" data-view-panel="remote-settings">
+          <article class="mode-sheet">
+            <div class="settings-heading">
+              <h3>리모컨 편집</h3>
+              <button id="remote-settings-save" type="button">저장</button>
+            </div>
+            <div class="remote-settings-layout">
+              <section>
+                <div class="settings-subtitle">
+                  <strong>현재 리모컨</strong>
+                  <span id="remote-settings-current-count">0</span>
+                </div>
+                <div id="remote-settings-current-list" class="remote-settings-list"></div>
+              </section>
+              <section>
+                <div class="settings-subtitle">
+                  <strong>추가 가능</strong>
+                  <span id="remote-settings-available-count">0</span>
+                </div>
+                <div id="remote-settings-available-list" class="remote-settings-list"></div>
+              </section>
+            </div>
+          </article>
+        </section>
+        <section id="html-view-codex" class="view-panel" data-view-panel="codex">
+          <article class="mode-sheet codex-cli-sheet">
+            <div class="settings-heading">
+              <h3>Codex CLI</h3>
+              <span id="codex-cli-status" class="state-pill">대기</span>
+            </div>
+            <div class="codex-cli-grid">
+              <section class="codex-cli-card">
+                <label for="codex-cli-prompt">지시문</label>
+                <textarea id="codex-cli-prompt" rows="10" placeholder="Codex CLI에 보낼 작업 지시를 입력하세요."></textarea>
+                <div class="codex-cli-actions">
+                  <button id="codex-cli-run" type="button">실행</button>
+                  <span id="codex-cli-executable">codex</span>
+                </div>
+              </section>
+              <section class="codex-cli-card">
+                <strong>출력</strong>
+                <pre id="codex-cli-output" class="codex-cli-output"></pre>
+                <strong>오류</strong>
+                <pre id="codex-cli-error" class="codex-cli-output error"></pre>
+              </section>
+            </div>
+          </article>
+        </section>
+        <section id="html-view-help" class="view-panel" data-view-panel="help">
+          <article class="mode-sheet">
+            <h3>도움말</h3>
+            <p>화면은 HTML이 담당하고, 저장과 Windows 기능은 로컬 엔진이 담당합니다.</p>
+            <div class="mode-grid">
+              <div><strong>메인</strong><span>원고 편집과 프로젝트 탐색</span></div>
+              <div><strong>브릿지</strong><span>파일, DB, 창 제어, 단축키</span></div>
+              <div><strong>규칙</strong><span>새 UI는 HTML에만 추가</span></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <aside id="right-inspector" class="right-inspector">
+        <section class="inspector-section">
+          <div class="section-title">
+            <strong>인스펙터</strong>
+            <span id="active-updated">-</span>
+          </div>
+          <dl class="meta-list">
+            <div>
+              <dt>상태</dt>
+              <dd id="inspector-status">초고</dd>
+            </div>
+            <div>
+              <dt>파일 분류</dt>
+              <dd id="inspector-file-category">원고</dd>
+            </div>
+            <div>
+              <dt>유형</dt>
+              <dd id="inspector-type">Scene</dd>
+            </div>
+            <div>
+              <dt>태그</dt>
+              <dd id="inspector-tags">-</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="inspector-section">
+          <div class="section-title">
+            <strong>파이프라인</strong>
+            <span>로컬</span>
+          </div>
+          <div class="pipeline-list">
+            <div><span>초고</span><strong id="pipeline-draft">0</strong></div>
+            <div><span>퇴고중</span><strong id="pipeline-revising">0</strong></div>
+            <div><span>퇴고완료</span><strong id="pipeline-revision-complete">0</strong></div>
+            <div><span>업로드대기</span><strong id="pipeline-upload-pending">0</strong></div>
+            <div><span>업로드완료</span><strong id="pipeline-uploaded">0</strong></div>
+            <div><span>제외</span><strong id="pipeline-excluded">0</strong></div>
+          </div>
+        </section>
+
+        <section class="inspector-section word-analysis-section">
+          <div class="section-title">
+            <strong>반복어 분석</strong>
+            <span id="word-analysis-selected-count">선택 0개</span>
+          </div>
+          <div class="word-analysis-actions">
+            <button id="word-analysis-current" type="button">현재 장면</button>
+            <button id="word-analysis-selected" type="button">선택 합산</button>
+          </div>
+          <p id="word-analysis-summary" class="word-analysis-summary">바인더에서 원고를 체크하거나 현재 장면을 분석하세요.</p>
+          <div id="word-analysis-list" class="word-analysis-list"></div>
+        </section>
+      </aside>
+    </section>
+
+    <aside id="floating-remote" class="floating-remote" aria-label="리모컨">
+      <div class="remote-header">
+        <strong>리모컨</strong>
+        <button id="remote-drag-handle" class="remote-drag-handle" type="button" aria-label="리모컨 이동">
+          <svg id="remote-drag-icon" class="remote-drag-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+            <path class="remote-drag-arrow-line" d="M12 3v18M3 12h18"></path>
+            <path class="remote-drag-arrow-head" d="M12 0l-3.5 4h7L12 0zM12 24l-3.5-4h7L12 24zM0 12l4-3.5v7L0 12zM24 12l-4-3.5v7L24 12z"></path>
+          </svg>
+        </button>
+        <button id="remote-density-toggle" type="button">아이콘</button>
+      </div>
+      <div id="remote-command-list" class="remote-command-list"></div>
+    </aside>
+
+    <div id="binder-context-menu" class="binder-context-menu" role="menu" hidden>
+      <button type="button" data-binder-context-command="document.renameScene">이름 변경</button>
+      <button type="button" data-binder-context-command="document.duplicateScene">복제</button>
+      <button type="button" data-binder-context-command="document.deleteScene">삭제</button>
+      <button type="button" data-binder-context-command="document.moveSceneUp">위로</button>
+      <button type="button" data-binder-context-command="document.moveSceneDown">아래로</button>
+      <button type="button" data-binder-context-command="snapshot.createCurrent">스냅샷</button>
+      <button type="button" data-binder-context-command="export.currentScene">TXT</button>
+      <button type="button" data-binder-context-command="document.detachCurrent">분리</button>
+    </div>
+
+    <footer id="bottom-status" class="bottom-status">
+      <span id="status-text">초기화 중...</span>
+      <span id="status-active-scene">-</span>
+    </footer>
+  </main>
+
+  <script>
+    const workbenchScript = document.createElement("script");
+    workbenchScript.src = createWorkbenchAssetUrl("app.js");
+    document.body.appendChild(workbenchScript);
+  </script>
+</body>
+</html>
